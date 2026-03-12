@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:alpaca.markets)",
+      "Bash(python3 -m venv .venv && source .venv/bin/activate && pip install pyyaml python-dotenv pytest pytest-cov alpaca-py pandas 2>&1 | tail -5)",
+      "Bash(source .venv/bin/activate && python -m pytest tests/ -v 2>&1)",
+      "Bash(source .venv/bin/activate && python --version)",
+      "Bash(source .venv/bin/activate && pip install pandas-ta httpx 2>&1 | tail -3)",
+      "Bash(source .venv/bin/activate && pip install ta httpx 2>&1 | tail -3)"
+    ]
+  }
+}

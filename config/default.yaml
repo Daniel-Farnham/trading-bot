@@ -1,0 +1,67 @@
+# Trading Bot Configuration
+
+alpaca:
+  # Paper trading base URL (switch to live URL when ready)
+  base_url: "https://paper-api.alpaca.markets"
+  data_url: "https://data.alpaca.markets"
+
+watchlist:
+  # Default stocks to monitor — top S&P 500 by market cap
+  symbols:
+    - AAPL
+    - MSFT
+    - AMZN
+    - NVDA
+    - GOOGL
+    - META
+    - TSLA
+    - BRK.B
+    - UNH
+    - JNJ
+    - V
+    - JPM
+    - XOM
+    - PG
+    - MA
+    - HD
+    - COST
+    - ABBV
+    - CRM
+    - AMD
+
+trading:
+  # Risk management
+  max_position_pct: 0.10        # Max 10% of portfolio per position
+  max_open_positions: 10
+  max_daily_loss_pct: 0.03      # Stop trading after 3% daily loss
+  max_drawdown_pct: 0.15        # Pause bot after 15% drawdown
+  min_cash_reserve_pct: 0.20    # Always keep 20% cash
+
+  # Signal thresholds
+  sentiment_buy_threshold: 0.6   # Min positive sentiment to buy
+  sentiment_sell_threshold: -0.4  # Sentiment below this triggers sell
+  rsi_overbought: 70
+  rsi_oversold: 30
+
+  # Position management
+  atr_stop_loss_multiplier: 2.0   # Stop-loss at 2x ATR
+  atr_take_profit_multiplier: 3.0 # Take-profit at 3x ATR
+  max_hold_days: 10               # Max days to hold a position
+
+scheduler:
+  # Trading loop interval in minutes
+  loop_interval_minutes: 30
+  # Market hours (ET)
+  market_open: "09:30"
+  market_close: "16:00"
+  # Daily review time (ET)
+  daily_review_time: "16:30"
+
+database:
+  path: "data/trading.db"
+
+adaptation:
+  # Max parameter change per day (safety bound)
+  max_param_change_pct: 0.20
+  # Claude Code CLI budget cap per review
+  claude_max_budget_usd: 0.50
