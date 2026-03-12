@@ -9,7 +9,8 @@
       "Bash(source .venv/bin/activate && python --version)",
       "Bash(source .venv/bin/activate && pip install pandas-ta httpx 2>&1 | tail -3)",
       "Bash(source .venv/bin/activate && pip install ta httpx 2>&1 | tail -3)",
-      "Bash(source .venv/bin/activate && pip install apscheduler pytz 2>&1 | tail -3)"
+      "Bash(source .venv/bin/activate && pip install apscheduler pytz 2>&1 | tail -3)",
+      "Bash(source .venv/bin/activate && python -m pytest tests/ --tb=short -q 2>&1)"
     ]
   }
 }
