@@ -18,7 +18,12 @@
       "Bash(find /Users/daniel/.claude -maxdepth 1 -type f -name \"*.json\" | xargs ls -lh)",
       "Bash(grep -r \"alpaca\" /Users/daniel/.claude --include=\"*.json\" --include=\"*.md\" 2>/dev/null | head -20)",
       "Bash(cat /Users/daniel/.cache/uv/archive-v0/Pmaoy_VjuK3AbjwY5DsFP/lib/python3.10/site-packages/alpaca_mcp_server*/mcp.json 2>/dev/null || find /Users/daniel/.cache/uv -path \"*alpaca*\" -name \"*.json\" 2>/dev/null | head -5)",
-      "Bash(find /Users/daniel -path \"*Claude*\" -o -path \"*claude-desktop*\" -name \"*.json\" 2>/dev/null | grep -i config | head -10)"
+      "Bash(find /Users/daniel -path \"*Claude*\" -o -path \"*claude-desktop*\" -name \"*.json\" 2>/dev/null | grep -i config | head -10)",
+      "Bash(python -m pytest tests/test_thesis_manager.py tests/test_tiingo.py tests/test_world_state.py -v 2>&1)",
+      "Bash(python3 -m pytest tests/test_thesis_manager.py tests/test_tiingo.py tests/test_world_state.py -v 2>&1)",
+      "Bash(which pytest:*)",
+      "Bash(.venv/bin/python -m pytest tests/test_thesis_manager.py tests/test_tiingo.py tests/test_world_state.py -v 2>&1)",
+      "Bash(.venv/bin/python -m pytest tests/ -q 2>&1)"
     ]
   }
 }

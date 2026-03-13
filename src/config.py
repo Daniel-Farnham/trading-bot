@@ -28,4 +28,11 @@ def get_alpaca_keys() -> tuple[str, str]:
     return api_key, secret_key
 
 
+def get_tiingo_key() -> str:
+    key = os.environ.get("TIINGO_API_KEY", "")
+    if not key:
+        raise EnvironmentError("TIINGO_API_KEY must be set in .env")
+    return key
+
+
 CONFIG = load_config()

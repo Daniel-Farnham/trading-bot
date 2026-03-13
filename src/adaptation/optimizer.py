@@ -209,7 +209,18 @@ If no changes needed, return {{"analysis": "...", "changes": []}}"""
             data = json.loads(text)
             analysis = data.get("analysis", "")
             if analysis:
-                logger.info("Claude analysis: %s", analysis)
+                # Wrap long analysis for readability
+                logger.info("  Analysis:")
+                words = analysis.split()
+                line = "    "
+                for word in words:
+                    if len(line) + len(word) + 1 > 100:
+                        logger.info(line)
+                        line = "    " + word
+                    else:
+                        line += " " + word if line.strip() else "    " + word
+                if line.strip():
+                    logger.info(line)
 
             return data
 
@@ -249,10 +260,10 @@ If no changes needed, return {{"analysis": "...", "changes": []}}"""
                 change_pct = abs(new_value - old_value) / abs(old_value)
                 if change_pct > self._max_change_pct:
                     direction = 1 if new_value > old_value else -1
-                    new_value = old_value + (old_value * self._max_change_pct * direction)
+                    new_value = old_value + (abs(old_value) * self._max_change_pct * direction)
                     logger.info(
-                        "Capped %s change to %.1f%% (requested %.1f%%)",
-                        param, self._max_change_pct * 100, change_pct * 100,
+                        "  Capped %s: %.1f%% requested, limited to %.1f%%",
+                        param, change_pct * 100, self._max_change_pct * 100,
                     )
 
             self._db.set_param(param, round(new_value, 4), updated_by="claude_review")
@@ -262,9 +273,6 @@ If no changes needed, return {{"analysis": "...", "changes": []}}"""
                 "new_value": round(new_value, 4),
                 "reason": reason,
             })
-            logger.info(
-                "Parameter updated: %s %.4f -> %.4f (%s)",
-                param, old_value, new_value, reason,
-            )
+            logger.info("  %s: %.4f → %.4f", param, old_value, new_value)
 
         return applied

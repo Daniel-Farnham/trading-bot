@@ -44,16 +44,18 @@ class SimBroker:
         position_value = 0.0
         for p in self.positions.values():
             if p.is_short:
-                # Short liability: we owe shares at current (entry) price
-                # Actual value change tracked via P&L on close
-                position_value += 0  # Short positions don't add to portfolio value directly
+                # Short liability: we received cash when opening, but owe shares back.
+                # At entry price, the liability exactly offsets the cash received (net zero).
+                # P&L is realized on close when buy-back price differs from entry.
+                position_value -= p.quantity * p.entry_price
             else:
                 position_value += p.quantity * p.entry_price
         return self.cash + position_value
 
-    def place_bracket_order(self, plan: PositionPlan, is_short: bool = False) -> OrderResult:
+    def place_bracket_order(self, plan: PositionPlan, is_short: bool = False, opened_at: str | None = None) -> OrderResult:
         """Simulates order fill at the plan's entry price."""
         cost = plan.quantity * plan.entry_price
+        timestamp = opened_at or datetime.utcnow().isoformat()
 
         if is_short:
             # Short: we receive cash from selling shares we don't own
@@ -64,7 +66,7 @@ class SimBroker:
                 entry_price=plan.entry_price,
                 stop_loss=plan.stop_loss,
                 take_profit=plan.take_profit,
-                opened_at=datetime.utcnow().isoformat(),
+                opened_at=timestamp,
                 is_short=True,
             )
             logger.debug(
@@ -82,7 +84,7 @@ class SimBroker:
                 entry_price=plan.entry_price,
                 stop_loss=plan.stop_loss,
                 take_profit=plan.take_profit,
-                opened_at=datetime.utcnow().isoformat(),
+                opened_at=timestamp,
                 is_short=False,
             )
             logger.debug(

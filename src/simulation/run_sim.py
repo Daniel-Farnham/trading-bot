@@ -36,15 +36,18 @@ def main():
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
+    log_format = "%(message)s" if not args.verbose else "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     logging.basicConfig(
         level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format=log_format,
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    # Suppress noisy HTTP library loggers even in verbose mode
+    # Suppress noisy loggers
     for noisy in ("httpcore", "httpx", "urllib3", "alpaca", "websockets"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    # Keep adaptation analysis but suppress debug chatter
+    logging.getLogger("src.simulation.sim_broker").setLevel(logging.WARNING)
 
     engine = SimulationEngine(
         start_date=args.start,

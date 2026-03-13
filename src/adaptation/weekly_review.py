@@ -164,13 +164,21 @@ OUR MACRO THEMES:
 INVESTMENT GOAL: 20%+ annual returns, high risk tolerance, swing trading.
 We can go long AND short.
 
+AVAILABLE TOOLS:
+You have access to Alpaca MCP tools. USE THEM to research stocks before making decisions:
+- Look up current market data, stock prices, and fundamentals
+- Research potential new watchlist additions — check their recent performance and news
+- Verify that any stocks you suggest are real, US-listed, and actively trading
+- Check our current positions and market conditions
+
 YOUR TASKS:
-1. Analyze how the portfolio is performing against our 20% annual target
-2. Evaluate which stocks are working and which aren't
-3. Suggest up to {self._max_adds} new stocks to ADD to the watchlist (must be real US-listed tickers that align with our themes)
-4. Suggest up to {self._max_removes} underperforming stocks to REMOVE from the watchlist
-5. Suggest any parameter changes
-6. Set strategic direction for the coming week
+1. Use Alpaca tools to research current market conditions
+2. Analyze how the portfolio is performing against our 20% annual target
+3. Evaluate which stocks are working and which aren't
+4. Research and suggest up to {self._max_adds} new stocks to ADD to the watchlist (use Alpaca to verify they exist and check their fundamentals)
+5. Suggest up to {self._max_removes} underperforming stocks to REMOVE from the watchlist
+6. Suggest any parameter changes
+7. Set strategic direction for the coming week
 
 Respond with ONLY valid JSON:
 {{
@@ -201,7 +209,7 @@ If no changes needed, return empty arrays for each field."""
                 ],
                 capture_output=True,
                 text=True,
-                timeout=300,  # Weekly reviews can take longer
+                timeout=600,  # Weekly reviews use MCP tools, need more time
             )
 
             if result.returncode != 0:
@@ -297,7 +305,7 @@ If no changes needed, return empty arrays for each field."""
                 change_pct = abs(new_value - old_value) / abs(old_value)
                 if change_pct > max_change_pct:
                     direction = 1 if new_value > old_value else -1
-                    new_value = old_value + (old_value * max_change_pct * direction)
+                    new_value = old_value + (abs(old_value) * max_change_pct * direction)
 
             self._db.set_param(param, round(new_value, 4), updated_by="weekly_review")
             applied.append({

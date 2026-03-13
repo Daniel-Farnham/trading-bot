@@ -178,11 +178,9 @@ class SimulationEngine:
             # Progress logging every 20 days
             if (i + 1) % 20 == 0:
                 pv = self.broker.portfolio_value
-                logger.info(
-                    "Day %d/%d (%s) — Portfolio: $%.2f (%.1f%%)",
-                    i + 1, len(trading_days), day.strftime("%Y-%m-%d"),
-                    pv, ((pv / self.initial_cash) - 1) * 100,
-                )
+                logger.info("")
+                ret = ((pv / self.initial_cash) - 1) * 100
+                logger.info(f">>> Progress: Day {i+1}/{len(trading_days)} ({day.strftime('%Y-%m-%d')}) | ${pv:,.0f} ({ret:+.1f}%)")
 
         report = self._build_report(trading_days)
         self.db.close()
@@ -233,17 +231,7 @@ class SimulationEngine:
         daily_bar_data = {}
         day_actions: list[str] = []  # Track actions for daily summary
 
-        # Check circuit breakers
-        pv = self.broker.portfolio_value
-        if pv > self._peak_value:
-            self._peak_value = pv
-
-        if not self.risk.check_drawdown(pv, self._peak_value):
-            logger.warning("Day %s: Max drawdown hit. Skipping.", day)
-            self._record_snapshot(day, skipped="drawdown")
-            return
-
-        # Check stops and targets against today's price action
+        # Collect today's bar data (needed for stops, targets, and signals)
         for ticker in self.watchlist:
             bars = all_bars.get(ticker)
             if bars is None:
@@ -252,6 +240,7 @@ class SimulationEngine:
             if day_bar is not None:
                 daily_bar_data[ticker] = day_bar
 
+        # Always check stops and targets, even during drawdown
         triggered = self.broker.check_stops_and_targets(daily_bar_data)
         for t in triggered:
             self._log_closed_trade(t, day_dt)
@@ -261,6 +250,21 @@ class SimulationEngine:
             day_actions.append(
                 f"CLOSED {t['ticker']} ({reason}) @ ${t.get('exit_price', 0):.2f} → P&L: {sign}${pnl:.2f}"
             )
+
+        # Check circuit breakers — skip new entries but still process exits above
+        pv = self.broker.portfolio_value
+        if pv > self._peak_value:
+            self._peak_value = pv
+
+        drawdown_active = not self.risk.check_drawdown(pv, self._peak_value)
+        if drawdown_active:
+            dd_pct = ((self._peak_value - pv) / self._peak_value) * 100 if self._peak_value > 0 else 0
+            logger.warning(
+                "Day %s: Drawdown %.1f%% (peak $%,.0f → $%,.0f). No new positions.",
+                day, dd_pct, self._peak_value, pv,
+            )
+            self._record_snapshot(day)
+            return
 
         # Evaluate each ticker for new signals
         account = self.broker.get_account_snapshot()
@@ -326,7 +330,7 @@ class SimulationEngine:
                 continue
 
             # Execute
-            result = self.broker.place_bracket_order(plan, is_short=is_short)
+            result = self.broker.place_bracket_order(plan, is_short=is_short, opened_at=day_dt.isoformat())
             if result.success:
                 action = "SHORTED" if is_short else "BOUGHT"
                 day_actions.append(
@@ -354,8 +358,21 @@ class SimulationEngine:
                 positions = self.broker.get_positions_list()
                 position_tickers = [p["ticker"] for p in positions]
 
-        # Check exits on negative sentiment for existing positions
+        # Check exits on negative sentiment for existing LONG positions
+        # (skip positions opened this same day to avoid immediately closing new entries)
+        # Short positions are managed by stop-loss/take-profit, not sentiment exits
+        sell_threshold = self.db.get_param("sentiment_sell_threshold") or -0.4
         for ticker in list(position_tickers):
+            pos = self.broker.positions.get(ticker)
+            if pos is None:
+                continue
+            # Skip shorts — they exit via stops/targets, not sentiment
+            if pos.is_short:
+                continue
+            # Skip positions opened today (prevents same-day open+close)
+            if pos.opened_at == day_dt.isoformat():
+                continue
+
             bars = all_bars.get(ticker)
             if bars is None:
                 continue
@@ -368,7 +385,6 @@ class SimulationEngine:
                 continue
 
             avg_sent = sum(r.score for r in sentiment_records) / len(sentiment_records)
-            sell_threshold = CONFIG.get("trading", {}).get("sentiment_sell_threshold", -0.4)
 
             if avg_sent < sell_threshold:
                 bar = daily_bar_data.get(ticker)
@@ -391,16 +407,12 @@ class SimulationEngine:
         ret_pct = ((pv / self.initial_cash) - 1) * 100
         pos_count = len(self.broker.positions)
         if day_actions:
-            actions_str = " | ".join(day_actions)
-            logger.info(
-                "Day %d (%s): %s — Portfolio: $%.2f (%.1f%%) — Positions: %d",
-                day_index + 1, day, actions_str, pv, ret_pct, pos_count,
-            )
+            logger.info("")
+            logger.info(f"--- Day {day_index+1} | {day} | ${pv:,.0f} ({ret_pct:+.1f}%) | {pos_count} position(s) ---")
+            for action in day_actions:
+                logger.info("    %s", action)
         else:
-            logger.debug(
-                "Day %d (%s): No actions — Portfolio: $%.2f (%.1f%%) — Positions: %d",
-                day_index + 1, day, pv, ret_pct, pos_count,
-            )
+            logger.debug(f"    Day {day_index+1} | {day} | ${pv:,.0f} ({ret_pct:+.1f}%) | idle")
 
         self._record_snapshot(day)
 
@@ -410,11 +422,13 @@ class SimulationEngine:
         if stats["total"] < 3 and review_type == "daily":
             return
 
-        label = "WEEKLY strategic" if review_type == "weekly" else "daily tactical"
-        logger.info(
-            "Day %s: Running %s review (trades: %d, win rate: %.0f%%) — calling Claude...",
-            day, label, stats.get("total", 0), stats.get("win_rate", 0) * 100,
-        )
+        label = "WEEKLY STRATEGIC" if review_type == "weekly" else "DAILY TACTICAL"
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info("  %s REVIEW | %s", label, day)
+        logger.info("  Trades: %d | Win rate: %.0f%%", stats.get("total", 0), stats.get("win_rate", 0) * 100)
+        logger.info("=" * 60)
+        logger.info("  Calling Claude...")
 
         if review_type == "weekly":
             result = self.weekly_reviewer.run(
@@ -447,7 +461,7 @@ class SimulationEngine:
                 date_str=str(day),
             )
 
-        logger.info("%s review complete: %d change(s)", label.capitalize(), len(result.get("changes", [])))
+        logger.info("  Review complete: %d change(s)", len(result.get("changes", [])))
         self.adaptation_results.append({
             "date": str(day),
             "review_type": review_type,
@@ -462,10 +476,7 @@ class SimulationEngine:
                 theme_manager=self.themes,
                 params={**CONFIG.get("trading", {}), **{k: v for k, v in updated_params.items()}},
             )
-            logger.info(
-                "Strategy adapted: %d parameter(s) changed",
-                len(result["changes"]),
-            )
+            logger.info("  Strategy adapted: %d parameter(s) changed", len(result["changes"]))
 
     def _get_sentiment_for_day(
         self, ticker: str, day, history: pd.DataFrame

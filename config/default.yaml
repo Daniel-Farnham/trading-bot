@@ -80,3 +80,17 @@ adaptation:
   weekly_max_budget_usd: 1.00
   weekly_max_watchlist_adds: 5
   weekly_max_watchlist_removes: 3
+
+tiingo:
+  base_url: "https://api.tiingo.com/tiingo"
+  max_articles: 50
+  macro_tags: ["economy", "fed", "inflation", "tariffs", "unemployment", "geopolitics"]
+
+memory:
+  theses_path: "data/active_theses.md"
+  ledger_path: "data/portfolio_ledger.md"
+  summaries_path: "data/quarterly_summaries.md"
+  lessons_path: "data/lessons_learned.md"
+  sim_log_path: "data/simulation_log.md"
+  max_active_theses: 15
+  max_quarterly_summaries: 8
