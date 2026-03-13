@@ -19,7 +19,7 @@ class TestLoadConfig:
         symbols = config["watchlist"]["symbols"]
         assert isinstance(symbols, list)
         assert len(symbols) > 0
-        assert "AAPL" in symbols
+        assert "NVDA" in symbols
 
     def test_trading_params_exist(self):
         config = load_config()

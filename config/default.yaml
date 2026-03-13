@@ -6,28 +6,13 @@ alpaca:
   data_url: "https://data.alpaca.markets"
 
 watchlist:
-  # Default stocks to monitor — top S&P 500 by market cap
+  # V3: Diverse 5-stock universe across themes
   symbols:
-    - AAPL
-    - MSFT
-    - AMZN
-    - NVDA
-    - GOOGL
-    - META
-    - TSLA
-    - BRK.B
-    - UNH
-    - JNJ
-    - V
-    - JPM
-    - XOM
-    - PG
-    - MA
-    - HD
-    - COST
-    - ABBV
-    - CRM
-    - AMD
+    - NVDA    # AI/Tech — semiconductor leader
+    - LLY     # Healthcare — GLP-1/pharma
+    - JPM     # Finance — largest US bank
+    - XOM     # Energy — oil major
+    - COST    # Consumer — defensive retail
 
 trading:
   # Risk management

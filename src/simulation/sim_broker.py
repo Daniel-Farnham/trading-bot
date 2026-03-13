@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.execution.broker import OrderResult
-from src.strategy.risk import PositionPlan
+from src.strategy.risk_v3 import PositionPlan
 
 logger = logging.getLogger(__name__)
 

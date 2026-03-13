@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.simulation.sim_broker import SimBroker, SimPosition
-from src.strategy.risk import PositionPlan
+from src.strategy.risk_v3 import PositionPlan
 
 
 def _make_plan(**overrides) -> PositionPlan:

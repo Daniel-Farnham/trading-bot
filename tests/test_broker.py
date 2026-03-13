@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from src.execution.broker import Broker, OrderResult
-from src.strategy.risk import PositionPlan
+from src.strategy.risk_v3 import PositionPlan
 
 
 def _make_plan(**overrides) -> PositionPlan:

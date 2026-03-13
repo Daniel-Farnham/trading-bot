@@ -40,7 +40,6 @@ class TiingoClient:
         self._max_articles = _tiingo_cfg("max_articles", 50)
         self._session = requests.Session()
         self._session.headers.update({
-            "Authorization": f"Token {self._api_key}",
             "Content-Type": "application/json",
         })
 
@@ -57,7 +56,7 @@ class TiingoClient:
         Returns list of dicts with: title, description, publishedDate,
         source, tickers, tags.
         """
-        params: dict = {"limit": limit or self._max_articles}
+        params: dict = {"token": self._api_key, "limit": limit or self._max_articles}
 
         if tickers:
             params["tickers"] = ",".join(t.lower() for t in tickers)

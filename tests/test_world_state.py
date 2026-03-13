@@ -39,7 +39,7 @@ SECTOR_ARTICLES = [
         "title": "Solar installations hit record high",
         "description": "Renewable energy solar capacity grew 40% in 2023.",
         "publishedDate": "2024-01-04T12:00:00+00:00",
-        "source": "EnergyWire",
+        "source": "reuters.com",
         "tickers": [],
         "tags": ["energy"],
     },

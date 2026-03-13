@@ -13,7 +13,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass
 
 from src.config import get_alpaca_keys
 from src.storage.models import TradeSide
-from src.strategy.risk import PositionPlan
+from src.strategy.risk_v3 import PositionPlan
 
 logger = logging.getLogger(__name__)
 

@@ -23,7 +23,9 @@
       "Bash(python3 -m pytest tests/test_thesis_manager.py tests/test_tiingo.py tests/test_world_state.py -v 2>&1)",
       "Bash(which pytest:*)",
       "Bash(.venv/bin/python -m pytest tests/test_thesis_manager.py tests/test_tiingo.py tests/test_world_state.py -v 2>&1)",
-      "Bash(.venv/bin/python -m pytest tests/ -q 2>&1)"
+      "Bash(.venv/bin/python -m pytest tests/ -q 2>&1)",
+      "Bash(ls -1 /Users/daniel/Desktop/Development/trading-bot/tests/test_*.py | xargs basename -a)",
+      "Bash(.venv/bin/python -m pytest tests/test_broker.py tests/test_sim_broker.py tests/test_thesis_sim.py tests/test_risk_v3.py -q --tb=short 2>&1)"
     ]
   }
 }

@@ -655,12 +655,31 @@ Sim Week 26 (Jun 24-30):
 
 ### Removed / Deprecated
 
-| File | Why |
-|------|-----|
-| `src/analysis/sentiment.py` | Claude reads news directly — no need for FinBERT scoring |
-| `src/strategy/signals.py` | Replaced by Claude's thesis-driven decisions |
-| `src/adaptation/optimizer.py` | No more daily parameter tuning |
-| `src/strategy/themes.py` | Themes are now part of Claude's reasoning, not a separate scoring system |
+**Status: KEPT FOR NOW** — these V2 files are still in the repo so we can run V2 baseline
+comparisons (`python -m src.simulation.run_sim`). Remove after V3 vs V2 benchmarking is complete.
+
+| File | Why deprecated | Blocked by |
+|------|---------------|------------|
+| `src/analysis/sentiment.py` | Claude reads news directly — no need for FinBERT scoring | V2 engine, bot.py |
+| `src/strategy/signals.py` | Replaced by Claude's thesis-driven decisions | V2 engine, bot.py |
+| `src/adaptation/optimizer.py` | No more daily parameter tuning | V2 engine |
+| `src/adaptation/weekly_review.py` | Replaced by DecisionEngine weekly reviews | V2 engine |
+| `src/adaptation/journal.py` | Replaced by ThesisManager memory system | V2 engine, optimizer |
+| `src/strategy/themes.py` | Themes are now part of Claude's reasoning, not a separate scoring system | V2 engine, bot.py |
+| `src/data/news.py` | Replaced by Tiingo client | V2 engine |
+| `src/simulation/engine.py` | Replaced by thesis_sim.py | run_sim.py |
+| `src/simulation/run_sim.py` | Replaced by run_thesis_sim.py | — |
+| `src/bot.py` | V2 live trading loop — needs V3 equivalent | — |
+| `tests/test_signals.py` | Tests V2 signal generator | — |
+| `tests/test_themes.py` | Tests V2 theme scoring | — |
+| `tests/test_sentiment.py` | Tests V2 FinBERT sentiment | — |
+| `tests/test_optimizer.py` | Tests V2 parameter optimizer | — |
+| `tests/test_journal.py` | Tests V2 journal (useful pattern reference) | — |
+| `tests/test_news.py` | Tests V2 news feed | — |
+| `tests/test_bot.py` | Tests V2 bot loop | — |
+
+**To clean up:** Once V3 benchmarking is done, delete all files above plus their test files.
+`src/strategy/risk.py` stays — its `PositionPlan` dataclass is used by `SimBroker` and `broker.py`.
 
 ---
 
