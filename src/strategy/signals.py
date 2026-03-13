@@ -36,6 +36,12 @@ class SignalGenerator:
         if buy_signal:
             return buy_signal
 
+        # Check short before sell — short is a new position, sell exits existing
+        if self._params.get("enable_short_selling", False):
+            short_signal = self._check_short(ctx)
+            if short_signal:
+                return short_signal
+
         sell_signal = self._check_sell(ctx)
         if sell_signal:
             return sell_signal
@@ -89,6 +95,52 @@ class SignalGenerator:
             take_profit=round(take_profit, 2),
         )
 
+    def _check_short(self, ctx: SignalContext) -> Signal | None:
+        """Check for short selling opportunity."""
+        short_threshold = self._params.get("short_sentiment_threshold", -0.6)
+        atr_sl_mult = self._params.get("atr_stop_loss_multiplier", 2.0)
+        atr_tp_mult = self._params.get("atr_take_profit_multiplier", 3.0)
+
+        # Core condition: strong negative sentiment
+        if ctx.avg_sentiment > short_threshold:
+            return None
+
+        # Prefer shorting overbought stocks in downtrends
+        confidence = self._calc_short_confidence(ctx)
+
+        # Apply theme nudge (inverted — misaligned themes boost short confidence)
+        theme_score = self._themes.get_composite_score(ctx.ticker)
+        nudge_strength = self._params.get("theme_nudge_strength", 0.20)
+        # Negative theme score = stock misaligned with good themes = good short
+        confidence += (-theme_score) * nudge_strength
+        confidence = max(0.0, min(1.0, confidence))
+
+        if confidence < 0.3:
+            return None
+
+        price = ctx.technicals.current_price
+        atr = ctx.technicals.atr_14
+
+        if atr is None or atr == 0 or price == 0:
+            return None
+
+        # Short: stop-loss ABOVE entry, take-profit BELOW entry
+        stop_loss = price + (atr * atr_sl_mult)
+        take_profit = price - (atr * atr_tp_mult)
+
+        reasoning = self._build_short_reasoning(ctx, confidence)
+
+        return Signal(
+            ticker=ctx.ticker,
+            side=TradeSide.SELL,
+            confidence=round(confidence, 3),
+            sentiment_score=round(ctx.avg_sentiment, 3),
+            reasoning=reasoning,
+            current_price=price,
+            stop_loss=round(stop_loss, 2),
+            take_profit=round(take_profit, 2),
+        )
+
     def _check_sell(self, ctx: SignalContext) -> Signal | None:
         sell_threshold = self._params.get("sentiment_sell_threshold", -0.4)
 
@@ -120,31 +172,65 @@ class SignalGenerator:
     def _calc_buy_confidence(self, ctx: SignalContext) -> float:
         """Calculate confidence from 0-1 based on how many factors align."""
         score = 0.0
-        factors = 0
 
-        # Sentiment strength (0 to 0.4)
+        # Sentiment strength (0 to 0.3)
         buy_threshold = self._params.get("sentiment_buy_threshold", 0.6)
         sentiment_excess = ctx.avg_sentiment - buy_threshold
-        score += min(0.4, sentiment_excess * 2)
-        factors += 1
+        score += min(0.3, sentiment_excess * 2)
 
-        # Trend alignment (0 or 0.2)
+        # Trend alignment (0 or 0.15)
         if ctx.technicals.is_uptrend:
-            score += 0.2
-        factors += 1
+            score += 0.15
 
-        # RSI in healthy range (0 or 0.2)
+        # RSI in healthy range (0 or 0.15)
         if ctx.technicals.rsi_14 is not None:
             if 30 < ctx.technicals.rsi_14 < 60:
-                score += 0.2  # Ideal buying zone
+                score += 0.15  # Ideal buying zone
             elif ctx.technicals.rsi_14 <= 30:
-                score += 0.15  # Oversold — could bounce
-        factors += 1
+                score += 0.1  # Oversold — could bounce
 
-        # Volume confirmation (0 or 0.2)
+        # Volume confirmation (0 or 0.15)
         if ctx.technicals.has_volume_spike:
-            score += 0.2
-        factors += 1
+            score += 0.15
+
+        # MACD bullish (0 or 0.15)
+        if ctx.technicals.is_macd_bullish:
+            score += 0.15
+
+        # Near lower Bollinger Band — oversold opportunity (0 or 0.1)
+        if ctx.technicals.is_near_lower_band:
+            score += 0.1
+
+        return min(1.0, score)
+
+    def _calc_short_confidence(self, ctx: SignalContext) -> float:
+        """Calculate confidence for a short signal."""
+        score = 0.0
+
+        # Negative sentiment strength (0 to 0.3)
+        short_threshold = self._params.get("short_sentiment_threshold", -0.6)
+        sentiment_excess = abs(ctx.avg_sentiment) - abs(short_threshold)
+        score += min(0.3, sentiment_excess * 2)
+
+        # Overbought RSI — good for shorts (0 or 0.15)
+        if ctx.technicals.is_overbought:
+            score += 0.15
+
+        # Downtrend confirmed (0 or 0.15)
+        if ctx.technicals.is_downtrend:
+            score += 0.15
+
+        # MACD bearish (0 or 0.15)
+        if ctx.technicals.is_macd_bearish:
+            score += 0.15
+
+        # Near upper Bollinger Band — overextended (0 or 0.1)
+        if ctx.technicals.is_near_upper_band:
+            score += 0.1
+
+        # Volume spike confirms selling pressure (0 or 0.15)
+        if ctx.technicals.has_volume_spike:
+            score += 0.15
 
         return min(1.0, score)
 
@@ -157,11 +243,32 @@ class SignalGenerator:
             parts.append("volume spike detected")
         if ctx.technicals.rsi_14 is not None:
             parts.append(f"RSI: {ctx.technicals.rsi_14:.1f}")
+        if ctx.technicals.is_macd_bullish:
+            parts.append("MACD bullish")
+        if ctx.technicals.is_near_lower_band:
+            parts.append("near lower Bollinger Band")
 
         theme_score = self._themes.get_composite_score(ctx.ticker)
         if abs(theme_score) > 0.1:
             direction = "aligned" if theme_score > 0 else "misaligned"
             parts.append(f"theme {direction} ({theme_score:+.2f})")
+
+        parts.append(f"confidence: {confidence:.2f}")
+        return ". ".join(parts)
+
+    def _build_short_reasoning(self, ctx: SignalContext, confidence: float) -> str:
+        parts = [f"SHORT signal. Sentiment: {ctx.avg_sentiment:.2f}"]
+
+        if ctx.technicals.is_overbought:
+            parts.append("RSI overbought")
+        if ctx.technicals.is_downtrend:
+            parts.append("downtrend confirmed")
+        if ctx.technicals.is_macd_bearish:
+            parts.append("MACD bearish")
+        if ctx.technicals.is_near_upper_band:
+            parts.append("near upper Bollinger Band")
+        if ctx.technicals.has_volume_spike:
+            parts.append("volume spike (selling pressure)")
 
         parts.append(f"confidence: {confidence:.2f}")
         return ". ".join(parts)

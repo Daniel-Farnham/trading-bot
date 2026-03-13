@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 
 from src.config import CONFIG
-from src.storage.models import Signal
+from src.storage.models import Signal, TradeSide
 
 
 @dataclass
@@ -18,6 +18,7 @@ class PositionPlan:
     risk_amount: float  # Dollar amount at risk
     position_value: float  # Total position value
     risk_pct: float  # Percentage of portfolio at risk
+    is_short: bool = False
 
 
 @dataclass
@@ -37,8 +38,13 @@ class RiskManager:
         cash: float,
         open_position_count: int,
         existing_ticker_positions: list[str],
+        short_exposure: float = 0.0,
     ) -> PositionPlan | RiskVeto:
         """Validate a signal against risk rules and return a position plan or veto."""
+        is_short = (
+            signal.side == TradeSide.SELL
+            and signal.stop_loss > signal.current_price  # Short: stop above entry
+        )
 
         # Rule 1: Max open positions
         max_positions = self._params.get("max_open_positions", 10)
@@ -53,20 +59,44 @@ class RiskManager:
                 reason=f"Already holding position in {signal.ticker}"
             )
 
-        # Rule 3: Min cash reserve
-        min_cash_pct = self._params.get("min_cash_reserve_pct", 0.20)
-        min_cash = portfolio_value * min_cash_pct
-        available_cash = cash - min_cash
-        if available_cash <= 0:
-            return RiskVeto(reason="Cash reserve would be breached")
+        # Rule 3: Min cash reserve (for longs only — shorts add cash)
+        if not is_short:
+            min_cash_pct = self._params.get("min_cash_reserve_pct", 0.20)
+            min_cash = portfolio_value * min_cash_pct
+            available_cash = cash - min_cash
+            if available_cash <= 0:
+                return RiskVeto(reason="Cash reserve would be breached")
+        else:
+            available_cash = cash  # Shorts don't consume cash upfront
 
-        # Rule 4: Max position size
-        max_position_pct = self._params.get("max_position_pct", 0.10)
+        # Rule 4: Max short exposure
+        if is_short:
+            max_short_pct = self._params.get("max_short_exposure_pct", 0.30)
+            max_short_value = portfolio_value * max_short_pct
+            if short_exposure >= max_short_value:
+                return RiskVeto(
+                    reason=f"Max short exposure reached ({max_short_pct:.0%})"
+                )
+            available_short = max_short_value - short_exposure
+        else:
+            available_short = float("inf")
+
+        # Rule 5: Max position size
+        if is_short:
+            max_position_pct = self._params.get("max_short_position_pct",
+                                                  self._params.get("max_position_pct", 0.10))
+        else:
+            max_position_pct = self._params.get("max_position_pct", 0.10)
+
         max_position_value = portfolio_value * max_position_pct
 
-        # Scale position by confidence: higher confidence = larger position
+        # Scale position by confidence
         scaled_position_value = max_position_value * signal.confidence
-        position_value = min(scaled_position_value, available_cash)
+
+        if is_short:
+            position_value = min(scaled_position_value, available_short)
+        else:
+            position_value = min(scaled_position_value, available_cash)
 
         if position_value <= 0 or signal.current_price <= 0:
             return RiskVeto(reason="Insufficient funds for minimum position")
@@ -78,7 +108,12 @@ class RiskManager:
 
         # Actual position value and risk
         actual_value = quantity * signal.current_price
-        risk_per_share = signal.current_price - signal.stop_loss
+
+        if is_short:
+            risk_per_share = signal.stop_loss - signal.current_price  # Stop is above entry
+        else:
+            risk_per_share = signal.current_price - signal.stop_loss
+
         risk_amount = quantity * risk_per_share
         risk_pct = risk_amount / portfolio_value if portfolio_value > 0 else 0
 
@@ -91,6 +126,7 @@ class RiskManager:
             risk_amount=round(risk_amount, 2),
             position_value=round(actual_value, 2),
             risk_pct=round(risk_pct, 4),
+            is_short=is_short,
         )
 
     def check_daily_loss(

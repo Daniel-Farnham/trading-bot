@@ -5,6 +5,7 @@ import logging
 import subprocess
 from datetime import datetime, timedelta
 
+from src.adaptation.journal import StrategyJournal
 from src.config import CONFIG
 from src.storage.database import Database
 
@@ -14,11 +15,21 @@ logger = logging.getLogger(__name__)
 class StrategyOptimizer:
     """Uses Claude Code CLI to review trading performance and adjust strategy."""
 
-    def __init__(self, db: Database, max_change_pct: float | None = None):
+    def __init__(
+        self,
+        db: Database,
+        journal: StrategyJournal | None = None,
+        max_change_pct: float | None = None,
+    ):
         self._db = db
+        self._journal = journal or StrategyJournal()
         self._max_change_pct = max_change_pct or CONFIG.get(
             "adaptation", {}
         ).get("max_param_change_pct", 0.20)
+
+    @property
+    def journal(self) -> StrategyJournal:
+        return self._journal
 
     def run_daily_review(self) -> dict:
         """Run end-of-day review. Returns parameter adjustments applied."""
@@ -32,31 +43,68 @@ class StrategyOptimizer:
             return {"skipped": True, "reason": "insufficient_trades"}
 
         prompt = self._build_review_prompt(stats, recent_trades, current_params)
-        suggestions = self._call_claude(prompt)
+        response = self._call_claude(prompt)
 
-        if not suggestions:
+        if not response:
             logger.info("No parameter changes suggested.")
-            return {"changes": []}
+            return {"changes": [], "analysis": ""}
 
+        analysis = response.get("analysis", "")
+        suggestions = response.get("changes", [])
         changes = self._apply_changes(suggestions, current_params)
-        return {"changes": changes}
+        return {"changes": changes, "analysis": analysis}
 
-    def run_simulation_review(self, stats: dict, recent_trades: list[dict], current_params: dict) -> dict:
+    def run_simulation_review(
+        self,
+        stats: dict,
+        recent_trades: list[dict],
+        current_params: dict,
+        review_type: str = "daily",
+        portfolio_value: float = 0.0,
+        cash: float = 0.0,
+        positions_count: int = 0,
+        initial_cash: float = 100000.0,
+        date_str: str = "",
+    ) -> dict:
         """Review for simulation mode — accepts data directly instead of querying DB."""
         if stats["total"] < 3:
             return {"skipped": True, "reason": "insufficient_trades"}
 
-        prompt = self._build_review_prompt(stats, recent_trades, current_params)
-        suggestions = self._call_claude(prompt)
+        prompt = self._build_review_prompt(
+            stats, recent_trades, current_params, review_type=review_type
+        )
+        response = self._call_claude(prompt)
 
-        if not suggestions:
-            return {"changes": []}
+        if not response:
+            return {"changes": [], "analysis": ""}
 
+        analysis = response.get("analysis", "")
+        suggestions = response.get("changes", [])
         changes = self._apply_changes(suggestions, current_params)
-        return {"changes": changes}
+
+        # Write journal entry
+        total_return_pct = ((portfolio_value / initial_cash) - 1) * 100 if initial_cash > 0 else 0
+        self._journal.append_entry(
+            date=date_str or datetime.utcnow().strftime("%Y-%m-%d"),
+            review_type=review_type,
+            portfolio_value=portfolio_value,
+            total_return_pct=total_return_pct,
+            cash=cash,
+            positions_count=positions_count,
+            trades_total=stats["total"],
+            win_rate=stats["win_rate"] * 100,
+            changes=changes,
+            analysis=analysis,
+        )
+
+        return {"changes": changes, "analysis": analysis}
 
     def _build_review_prompt(
-        self, stats: dict, recent_trades: list[dict], current_params: dict
+        self,
+        stats: dict,
+        recent_trades: list[dict],
+        current_params: dict,
+        review_type: str = "daily",
     ) -> str:
         trade_summary = []
         for t in recent_trades[:30]:
@@ -72,9 +120,19 @@ class StrategyOptimizer:
                 "reasoning": t.get("reasoning", "")[:100],
             })
 
-        return f"""You are a quantitative trading strategy advisor. Review this trading bot's recent performance and suggest parameter adjustments.
+        # Get journal context
+        journal_context = self._journal.get_recent_context(max_entries=10)
 
-PERFORMANCE STATS:
+        label = "WEEKLY STRATEGIC" if review_type == "weekly" else "DAILY TACTICAL"
+
+        return f"""You are a quantitative trading strategy advisor performing a {label} review.
+
+STRATEGY JOURNAL (your previous decisions and their outcomes):
+{journal_context}
+
+---
+
+CURRENT PERFORMANCE STATS:
 - Total closed trades: {stats['total']}
 - Wins: {stats['wins']}, Losses: {stats['losses']}
 - Win rate: {stats['win_rate']:.1%}
@@ -95,15 +153,15 @@ ADJUSTABLE PARAMETERS:
 - atr_take_profit_multiplier (currently {current_params.get('atr_take_profit_multiplier', 3.0)}): ATR multiplier for take-profit distance
 - max_position_pct (currently {current_params.get('max_position_pct', 0.10)}): Max portfolio % per position
 
-Analyze the trades and suggest parameter changes. Consider:
-1. If win rate is low, should we raise the sentiment threshold to be more selective?
-2. If stopped out often, should we widen stop-losses?
-3. If winners are small, should we adjust take-profit targets?
-4. Are there patterns in losing trades we should filter out?
+IMPORTANT: Review your previous decisions in the strategy journal above.
+- Are your past changes working? If a previous change made things worse, reverse it.
+- Look for patterns: which tickers consistently lose? Which parameter changes helped?
+- Our investment goal is 20%+ annual returns with high risk tolerance.
+- Think about whether the current strategy is too aggressive, too conservative, or mis-calibrated.
 
 Respond with ONLY valid JSON:
 {{
-  "analysis": "Brief explanation of what you see",
+  "analysis": "Brief explanation of what you see and how your previous decisions are tracking",
   "changes": [
     {{
       "param": "parameter_name",
@@ -116,7 +174,7 @@ Respond with ONLY valid JSON:
 
 If no changes needed, return {{"analysis": "...", "changes": []}}"""
 
-    def _call_claude(self, prompt: str) -> list[dict]:
+    def _call_claude(self, prompt: str) -> dict | None:
         max_budget = CONFIG.get("adaptation", {}).get("claude_max_budget_usd", 0.50)
 
         try:
@@ -133,24 +191,37 @@ If no changes needed, return {{"analysis": "...", "changes": []}}"""
 
             if result.returncode != 0:
                 logger.error("Claude review failed (exit %d): %s", result.returncode, result.stderr)
-                return []
+                return None
 
-            data = json.loads(result.stdout.strip())
+            raw = result.stdout.strip()
+            logger.debug("Claude raw response: %s", raw[:500])
+
+            # Strip markdown code fences if present
+            text = raw
+            if "```json" in text:
+                text = text.split("```json", 1)[1]
+                text = text.split("```", 1)[0]
+            elif "```" in text:
+                text = text.split("```", 1)[1]
+                text = text.split("```", 1)[0]
+            text = text.strip()
+
+            data = json.loads(text)
             analysis = data.get("analysis", "")
             if analysis:
                 logger.info("Claude analysis: %s", analysis)
 
-            return data.get("changes", [])
+            return data
 
         except subprocess.TimeoutExpired:
             logger.error("Claude review timed out")
-            return []
+            return None
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse Claude response: %s", e)
-            return []
+            logger.error("Failed to parse Claude response: %s — raw: %s", e, raw[:300])
+            return None
         except FileNotFoundError:
             logger.error("Claude CLI not found. Is Claude Code installed?")
-            return []
+            return None
 
     def _apply_changes(self, suggestions: list[dict], current_params: dict) -> list[dict]:
         applied = []

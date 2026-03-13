@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from src.simulation.engine import SimulationEngine
+from src.simulation.report import generate_report, save_equity_curve
 
 
 def main():
@@ -27,7 +28,8 @@ def main():
     )
     parser.add_argument("--no-news", action="store_true", help="Skip real news, use price-derived sentiment only")
     parser.add_argument("--adapt", action="store_true", help="Enable Claude-powered adaptation layer (calls claude -p every review-interval days)")
-    parser.add_argument("--review-interval", type=int, default=5, help="Days between adaptation reviews (only used with --adapt)")
+    parser.add_argument("--review-interval", type=int, default=7, help="Days between daily tactical reviews (only used with --adapt)")
+    parser.add_argument("--weekly-interval", type=int, default=30, help="Days between weekly strategic reviews (only used with --adapt)")
     parser.add_argument("--output", default=None, help="Save report to JSON file")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
@@ -52,16 +54,34 @@ def main():
         use_real_news=not args.no_news,
         enable_adaptation=args.adapt,
         review_interval_days=args.review_interval,
+        weekly_interval_days=args.weekly_interval,
     )
 
     report = engine.run()
 
+    # Generate human-readable report
+    text_report = generate_report(report, engine.daily_snapshots, adapt=args.adapt)
+    print(text_report)
+
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save JSON report
         with open(output_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
-        print(f"\nReport saved to {output_path}")
+        print(f"JSON report saved to {output_path}")
+
+        # Save text report
+        txt_path = output_path.with_suffix(".txt")
+        with open(txt_path, "w") as f:
+            f.write(text_report)
+        print(f"Text report saved to {txt_path}")
+
+        # Save equity curve CSV
+        csv_path = output_path.with_name(output_path.stem + "_equity_curve.csv")
+        save_equity_curve(engine.daily_snapshots, csv_path)
+        print(f"Equity curve saved to {csv_path}")
 
     return report
 

@@ -10,7 +10,15 @@
       "Bash(source .venv/bin/activate && pip install pandas-ta httpx 2>&1 | tail -3)",
       "Bash(source .venv/bin/activate && pip install ta httpx 2>&1 | tail -3)",
       "Bash(source .venv/bin/activate && pip install apscheduler pytz 2>&1 | tail -3)",
-      "Bash(source .venv/bin/activate && python -m pytest tests/ --tb=short -q 2>&1)"
+      "Bash(source .venv/bin/activate && python -m pytest tests/ --tb=short -q 2>&1)",
+      "Bash(./.venv/bin/python -m pytest tests/ -q 2>&1 | tail -5)",
+      "Bash(./.venv/bin/python -m pytest tests/test_journal.py tests/test_optimizer.py -v 2>&1 | tail -30)",
+      "Bash(./.venv/bin/python -m pytest tests/ -q 2>&1 | tail -20)",
+      "Bash(./.venv/bin/python -m pytest tests/ -q 2>&1)",
+      "Bash(find /Users/daniel/.claude -maxdepth 1 -type f -name \"*.json\" | xargs ls -lh)",
+      "Bash(grep -r \"alpaca\" /Users/daniel/.claude --include=\"*.json\" --include=\"*.md\" 2>/dev/null | head -20)",
+      "Bash(cat /Users/daniel/.cache/uv/archive-v0/Pmaoy_VjuK3AbjwY5DsFP/lib/python3.10/site-packages/alpaca_mcp_server*/mcp.json 2>/dev/null || find /Users/daniel/.cache/uv -path \"*alpaca*\" -name \"*.json\" 2>/dev/null | head -5)",
+      "Bash(find /Users/daniel -path \"*Claude*\" -o -path \"*claude-desktop*\" -name \"*.json\" 2>/dev/null | grep -i config | head -10)"
     ]
   }
 }

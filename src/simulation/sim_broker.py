@@ -18,6 +18,7 @@ class SimPosition:
     stop_loss: float
     take_profit: float
     opened_at: str
+    is_short: bool = False
 
 
 @dataclass
@@ -26,6 +27,7 @@ class SimBroker:
 
     Fills limit orders immediately at the requested price.
     Checks stop-loss and take-profit against daily high/low bars.
+    Supports both long and short positions.
     """
     initial_cash: float = 100000.0
     cash: float = 0.0
@@ -39,34 +41,54 @@ class SimBroker:
 
     @property
     def portfolio_value(self) -> float:
-        # Approximate: cash + sum of position values at entry
-        # In practice, update_prices gives us real values
-        position_value = sum(
-            p.quantity * p.entry_price for p in self.positions.values()
-        )
+        position_value = 0.0
+        for p in self.positions.values():
+            if p.is_short:
+                # Short liability: we owe shares at current (entry) price
+                # Actual value change tracked via P&L on close
+                position_value += 0  # Short positions don't add to portfolio value directly
+            else:
+                position_value += p.quantity * p.entry_price
         return self.cash + position_value
 
-    def place_bracket_order(self, plan: PositionPlan) -> OrderResult:
+    def place_bracket_order(self, plan: PositionPlan, is_short: bool = False) -> OrderResult:
         """Simulates order fill at the plan's entry price."""
         cost = plan.quantity * plan.entry_price
 
-        if cost > self.cash:
-            return OrderResult(success=False, error="Insufficient cash")
+        if is_short:
+            # Short: we receive cash from selling shares we don't own
+            self.cash += cost
+            self.positions[plan.ticker] = SimPosition(
+                ticker=plan.ticker,
+                quantity=plan.quantity,
+                entry_price=plan.entry_price,
+                stop_loss=plan.stop_loss,
+                take_profit=plan.take_profit,
+                opened_at=datetime.utcnow().isoformat(),
+                is_short=True,
+            )
+            logger.debug(
+                "SIM: Shorted %d %s @ $%.2f (cash: $%.2f)",
+                plan.quantity, plan.ticker, plan.entry_price, self.cash,
+            )
+        else:
+            if cost > self.cash:
+                return OrderResult(success=False, error="Insufficient cash")
 
-        self.cash -= cost
-        self.positions[plan.ticker] = SimPosition(
-            ticker=plan.ticker,
-            quantity=plan.quantity,
-            entry_price=plan.entry_price,
-            stop_loss=plan.stop_loss,
-            take_profit=plan.take_profit,
-            opened_at=datetime.utcnow().isoformat(),
-        )
-
-        logger.debug(
-            "SIM: Bought %d %s @ $%.2f (cash remaining: $%.2f)",
-            plan.quantity, plan.ticker, plan.entry_price, self.cash,
-        )
+            self.cash -= cost
+            self.positions[plan.ticker] = SimPosition(
+                ticker=plan.ticker,
+                quantity=plan.quantity,
+                entry_price=plan.entry_price,
+                stop_loss=plan.stop_loss,
+                take_profit=plan.take_profit,
+                opened_at=datetime.utcnow().isoformat(),
+                is_short=False,
+            )
+            logger.debug(
+                "SIM: Bought %d %s @ $%.2f (cash remaining: $%.2f)",
+                plan.quantity, plan.ticker, plan.entry_price, self.cash,
+            )
 
         return OrderResult(
             success=True,
@@ -81,8 +103,16 @@ class SimBroker:
 
         pos = self.positions.pop(ticker)
         exit_price = price or pos.entry_price
-        pnl = (exit_price - pos.entry_price) * pos.quantity
-        self.cash += pos.quantity * exit_price
+
+        if pos.is_short:
+            # Short P&L: profit when price drops
+            pnl = (pos.entry_price - exit_price) * pos.quantity
+            # Buy back shares to close — costs us money
+            self.cash -= pos.quantity * exit_price
+        else:
+            pnl = (exit_price - pos.entry_price) * pos.quantity
+            self.cash += pos.quantity * exit_price
+
         self.total_pnl += pnl
 
         self.closed_trades.append({
@@ -93,11 +123,13 @@ class SimBroker:
             "pnl": round(pnl, 2),
             "stop_loss": pos.stop_loss,
             "take_profit": pos.take_profit,
+            "is_short": pos.is_short,
         })
 
+        side = "SHORT" if pos.is_short else "LONG"
         logger.debug(
-            "SIM: Closed %s @ $%.2f (P&L: $%.2f)",
-            ticker, exit_price, pnl,
+            "SIM: Closed %s %s @ $%.2f (P&L: $%.2f)",
+            side, ticker, exit_price, pnl,
         )
 
         return OrderResult(success=True, filled_price=exit_price)
@@ -119,10 +151,19 @@ class SimBroker:
             low = bar["low"]
             high = bar["high"]
 
-            if low <= pos.stop_loss:
-                tickers_to_close.append((ticker, pos.stop_loss, "stopped_out"))
-            elif high >= pos.take_profit:
-                tickers_to_close.append((ticker, pos.take_profit, "take_profit"))
+            if pos.is_short:
+                # Short: stop-loss is ABOVE entry (triggered when price goes UP)
+                # Take-profit is BELOW entry (triggered when price goes DOWN)
+                if high >= pos.stop_loss:
+                    tickers_to_close.append((ticker, pos.stop_loss, "stopped_out"))
+                elif low <= pos.take_profit:
+                    tickers_to_close.append((ticker, pos.take_profit, "take_profit"))
+            else:
+                # Long: normal stop/target check
+                if low <= pos.stop_loss:
+                    tickers_to_close.append((ticker, pos.stop_loss, "stopped_out"))
+                elif high >= pos.take_profit:
+                    tickers_to_close.append((ticker, pos.take_profit, "take_profit"))
 
         for ticker, price, reason in tickers_to_close:
             result = self.close_position(ticker, price)
@@ -144,13 +185,21 @@ class SimBroker:
                 "market_value": p.quantity * p.entry_price,
                 "unrealized_pnl": 0.0,
                 "unrealized_pnl_pct": 0.0,
+                "is_short": p.is_short,
             }
             for p in self.positions.values()
         ]
 
+    def get_short_exposure(self) -> float:
+        """Total value of short positions."""
+        return sum(
+            p.quantity * p.entry_price
+            for p in self.positions.values()
+            if p.is_short
+        )
+
     def update_position_prices(self, prices: dict[str, float]) -> None:
         """Update current prices for portfolio value calculation."""
-        # Positions are stored with entry price; this is just for reporting
         pass
 
     def get_account_snapshot(self) -> dict:
@@ -160,4 +209,5 @@ class SimBroker:
             "buying_power": self.cash,
             "portfolio_value": self.portfolio_value,
             "currency": "USD",
+            "short_exposure": self.get_short_exposure(),
         }

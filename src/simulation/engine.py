@@ -8,7 +8,9 @@ from typing import Callable
 import pandas as pd
 from alpaca.data.timeframe import TimeFrame
 
+from src.adaptation.journal import StrategyJournal
 from src.adaptation.optimizer import StrategyOptimizer
+from src.adaptation.weekly_review import WeeklyReview
 from src.analysis.sentiment import SentimentAnalyzer, SentimentResult
 from src.analysis.technical import TechnicalAnalyzer
 from src.config import CONFIG, get_alpaca_keys
@@ -71,7 +73,8 @@ class SimulationEngine:
         news_provider: NewsFeed | None = None,
         use_real_news: bool = True,
         enable_adaptation: bool = False,
-        review_interval_days: int = 5,
+        review_interval_days: int = 7,
+        weekly_interval_days: int = 30,
         db_path: str | None = None,
         on_day_complete: Callable | None = None,
     ):
@@ -80,6 +83,7 @@ class SimulationEngine:
         self.initial_cash = initial_cash
         self.enable_adaptation = enable_adaptation
         self.review_interval_days = review_interval_days
+        self.weekly_interval_days = weekly_interval_days
         self.use_real_news = use_real_news
         self.on_day_complete = on_day_complete
 
@@ -100,16 +104,24 @@ class SimulationEngine:
             self._db_path = Path(db_path)
         else:
             self._db_path = Path("data/simulation.db")
+        # Reset DB for clean simulation
+        if self._db_path.exists():
+            self._db_path.unlink()
         self.db = Database(self._db_path)
 
         # Adaptation layer
+        self._journal_path = Path("data/sim_strategy_journal.md")
+        self.journal = StrategyJournal(path=self._journal_path)
+        self.journal.clear()  # Fresh journal each simulation
         self.optimizer: StrategyOptimizer | None = None  # Initialized after db.connect()
+        self.weekly_reviewer: WeeklyReview | None = None
         self.adaptation_results: list[dict] = []
 
         # Track results
         self.daily_snapshots: list[dict] = []
         self._peak_value = initial_cash
         self._days_since_review = 0
+        self._days_since_weekly = 0
 
     def run(self) -> dict:
         """Run the full simulation. Returns performance report."""
@@ -122,7 +134,8 @@ class SimulationEngine:
         )
 
         self.db.connect()
-        self.optimizer = StrategyOptimizer(self.db)
+        self.optimizer = StrategyOptimizer(self.db, journal=self.journal)
+        self.weekly_reviewer = WeeklyReview(self.db, self.journal, self.watchlist)
 
         # Seed initial strategy params in DB from config
         trading_cfg = CONFIG.get("trading", {})
@@ -147,11 +160,17 @@ class SimulationEngine:
         for i, day in enumerate(trading_days):
             self._simulate_day(day, all_bars, i)
             self._days_since_review += 1
+            self._days_since_weekly += 1
 
-            # Run adaptation review every N days (only if enabled)
+            # Run daily tactical review every N days (only if enabled)
             if self.enable_adaptation and self._days_since_review >= self.review_interval_days:
-                self._run_adaptation_review(day)
+                self._run_adaptation_review(day, review_type="daily")
                 self._days_since_review = 0
+
+            # Run weekly strategic review every N days (only if enabled)
+            if self.enable_adaptation and self._days_since_weekly >= self.weekly_interval_days:
+                self._run_adaptation_review(day, review_type="weekly")
+                self._days_since_weekly = 0
 
             if self.on_day_complete:
                 self.on_day_complete(day, self.daily_snapshots[-1])
@@ -280,8 +299,18 @@ class SimulationEngine:
             )
 
             signal = self.signals.evaluate(ctx)
-            if signal is None or signal.side != TradeSide.BUY:
+            if signal is None:
                 continue
+
+            # Determine if this is a buy, short, or sell-exit signal
+            is_short = (
+                signal.side == TradeSide.SELL
+                and signal.stop_loss > signal.current_price
+            )
+            is_buy = signal.side == TradeSide.BUY
+
+            if not is_buy and not is_short:
+                continue  # Sell-exit signals handled separately below
 
             # Risk check
             plan = self.risk.evaluate(
@@ -290,22 +319,24 @@ class SimulationEngine:
                 cash=account["cash"],
                 open_position_count=len(positions),
                 existing_ticker_positions=position_tickers,
+                short_exposure=self.broker.get_short_exposure(),
             )
 
             if isinstance(plan, RiskVeto):
                 continue
 
             # Execute
-            result = self.broker.place_bracket_order(plan)
+            result = self.broker.place_bracket_order(plan, is_short=is_short)
             if result.success:
+                action = "SHORTED" if is_short else "BOUGHT"
                 day_actions.append(
-                    f"BOUGHT {plan.quantity} {ticker} @ ${plan.entry_price:.2f} "
+                    f"{action} {plan.quantity} {ticker} @ ${plan.entry_price:.2f} "
                     f"(SL: ${plan.stop_loss:.2f}, TP: ${plan.take_profit:.2f}, "
                     f"confidence: {signal.confidence:.0%})"
                 )
                 trade = Trade(
                     ticker=ticker,
-                    side=TradeSide.BUY,
+                    side=TradeSide.SELL if is_short else TradeSide.BUY,
                     quantity=plan.quantity,
                     entry_price=plan.entry_price,
                     stop_loss=plan.stop_loss,
@@ -373,25 +404,53 @@ class SimulationEngine:
 
         self._record_snapshot(day)
 
-    def _run_adaptation_review(self, day) -> None:
+    def _run_adaptation_review(self, day, review_type: str = "daily") -> None:
         """Run the Claude-powered adaptation review during simulation."""
         stats = self.db.get_trade_stats()
-        if stats["total"] < 3:
+        if stats["total"] < 3 and review_type == "daily":
             return
 
-        since = (datetime.combine(day, datetime.min.time()) - timedelta(days=7)).isoformat() \
-            if not isinstance(day, datetime) else (day - timedelta(days=7)).isoformat()
-        recent_trades = self.db.get_trades_since(since)
-        current_params = self.db.get_all_params()
-
+        label = "WEEKLY strategic" if review_type == "weekly" else "daily tactical"
         logger.info(
-            "Day %s: Running adaptation review (trades: %d, win rate: %.0f%%)",
-            day, stats["total"], stats["win_rate"] * 100,
+            "Day %s: Running %s review (trades: %d, win rate: %.0f%%) — calling Claude...",
+            day, label, stats.get("total", 0), stats.get("win_rate", 0) * 100,
         )
 
-        result = self.optimizer.run_simulation_review(stats, recent_trades, current_params)
+        if review_type == "weekly":
+            result = self.weekly_reviewer.run(
+                portfolio_value=self.broker.portfolio_value,
+                cash=self.broker.cash,
+                positions_count=len(self.broker.positions),
+                closed_trades=self.broker.closed_trades,
+                initial_cash=self.initial_cash,
+                date_str=str(day),
+            )
+            wl_changes = result.get("watchlist_changes", [])
+            if wl_changes:
+                logger.info(
+                    "Watchlist updated: %s",
+                    ", ".join(f"{c['action'].upper()} {c['ticker']}" for c in wl_changes),
+                )
+        else:
+            since = (datetime.combine(day, datetime.min.time()) - timedelta(days=7)).isoformat() \
+                if not isinstance(day, datetime) else (day - timedelta(days=7)).isoformat()
+            recent_trades = self.db.get_trades_since(since)
+            current_params = self.db.get_all_params()
+
+            result = self.optimizer.run_simulation_review(
+                stats, recent_trades, current_params,
+                review_type=review_type,
+                portfolio_value=self.broker.portfolio_value,
+                cash=self.broker.cash,
+                positions_count=len(self.broker.positions),
+                initial_cash=self.initial_cash,
+                date_str=str(day),
+            )
+
+        logger.info("%s review complete: %d change(s)", label.capitalize(), len(result.get("changes", [])))
         self.adaptation_results.append({
             "date": str(day),
+            "review_type": review_type,
             "stats": stats,
             "result": result,
         })

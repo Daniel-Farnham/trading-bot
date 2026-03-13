@@ -44,6 +44,12 @@ trading:
   rsi_overbought: 70
   rsi_oversold: 30
 
+  # Short selling
+  enable_short_selling: true
+  short_sentiment_threshold: -0.6  # Sentiment below this triggers short
+  max_short_exposure_pct: 0.30     # Max 30% of portfolio in shorts
+  max_short_position_pct: 0.10     # Max 10% per short position
+
   # Position management
   atr_stop_loss_multiplier: 2.0   # Stop-loss at 2x ATR
   atr_take_profit_multiplier: 3.0 # Take-profit at 3x ATR
@@ -66,3 +72,11 @@ adaptation:
   max_param_change_pct: 0.20
   # Claude Code CLI budget cap per review
   claude_max_budget_usd: 0.50
+  # Strategy journal
+  journal_path: "data/strategy_journal.md"
+  journal_max_entries: 20
+  # Weekly strategic review
+  weekly_review_enabled: true
+  weekly_max_budget_usd: 1.00
+  weekly_max_watchlist_adds: 5
+  weekly_max_watchlist_removes: 3
