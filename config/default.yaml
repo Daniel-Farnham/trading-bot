@@ -67,9 +67,31 @@ universe:
     - CMG     # Fast casual dining
     - HD      # Home improvement, housing cycle
 
+  discovery_pool:
+    - T       # AT&T — telecom
+    - VZ      # Verizon — telecom
+    - KSS     # Kohl's — department stores
+    - WBA     # Walgreens — pharmacy retail
+    - CAT     # Caterpillar — industrials
+    - BA      # Boeing — aerospace
+    - FCX     # Freeport-McMoRan — copper mining
+    - NUE     # Nucor — steel
+    - DIS     # Disney — media/entertainment
+    - NFLX    # Netflix — streaming
+    - PARA    # Paramount — legacy media
+    - CMCSA   # Comcast — cable/media
+    - AMT     # American Tower — cell tower REIT
+    - PLD     # Prologis — industrial REIT
+    - SO      # Southern Company — utility
+    - PG      # Procter & Gamble — consumer staples
+    - F       # Ford — auto
+    - CVS     # CVS Health — pharmacy/insurance
+    - MCD     # McDonald's — fast food
+    - DE      # Deere — agriculture/industrials
+
 trading:
   max_position_pct: 0.10
-  max_open_positions: 15
+  max_open_positions: 20
   max_daily_loss_pct: 0.03
   max_drawdown_pct: 0.25
   min_cash_reserve_pct: 0.20
@@ -93,6 +115,6 @@ memory:
   lessons_path: "data/lessons_learned.md"
   sim_log_path: "data/simulation_log.md"
   themes_path: "data/themes.md"
-  max_active_theses: 15
+  max_active_theses: 25
   max_quarterly_summaries: 8
   max_themes: 8

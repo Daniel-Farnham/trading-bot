@@ -399,6 +399,6 @@ class TestClearAll:
         assert manager.get_all_theses() == []
         assert manager.get_holdings() == []
         assert manager.get_all_lessons() == []
-        # sim_log and themes are preserved across runs
+        assert manager.get_all_themes() == []
+        # sim_log is preserved across runs
         assert manager.get_all_sim_runs() != []
-        assert manager.get_all_themes() != []

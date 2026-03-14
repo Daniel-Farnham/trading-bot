@@ -32,6 +32,9 @@ class DecisionEngine:
         technicals_summary: str = "",
         portfolio_value: float = 0.0,
         cash: float = 0.0,
+        bot_return_pct: float = 0.0,
+        spy_return_pct: float = 0.0,
+        review_number: int = 0,
     ) -> dict:
         """Run a weekly thesis-driven review via Claude.
 
@@ -42,7 +45,8 @@ class DecisionEngine:
         memory_context = self._tm.get_decision_context()
         prompt = self._build_prompt(
             sim_date, memory_context, world_state, technicals_summary,
-            portfolio_value, cash,
+            portfolio_value, cash, bot_return_pct, spy_return_pct,
+            review_number,
         )
 
         response = self._call_claude(prompt)
@@ -63,16 +67,10 @@ class DecisionEngine:
         technicals_summary: str,
         portfolio_value: float,
         cash: float,
+        bot_return_pct: float = 0.0,
+        spy_return_pct: float = 0.0,
+        review_number: int = 0,
     ) -> str:
-        themes = self._tm.get_all_themes()
-        if themes:
-            themes_text = "\n".join(
-                f"{i+1}. {t['name']} [{t['score']}/5] — {t['description']}"
-                for i, t in enumerate(themes)
-            )
-        else:
-            themes_text = "(No themes set — propose some based on your research)"
-
         holdings = self._tm.get_holdings()
         holdings_count = len(holdings)
         invested_value = sum(h["current_value"] for h in holdings)
@@ -85,6 +83,10 @@ class DecisionEngine:
             theme_label = theme.replace("_", " ").title()
             universe_lines.append(f"  {theme_label}: {', '.join(tickers)}")
         universe_text = "\n".join(universe_lines) if universe_lines else "(No universe configured)"
+
+        # Separate discovery pool label if present
+        universe_text = universe_text.replace("Discovery Pool:", "Broader Market:")
+
 
         return f"""CRITICAL: You are making decisions on {sim_date}.
 You DO NOT know what happens after this date.
@@ -99,6 +101,9 @@ PORTFOLIO STATE:
 - Cash: ${cash:,.2f} ({cash_pct:.1f}%)
 - Open Positions: {holdings_count}
 - Invested: ${invested_value:,.2f}
+- Our Return: {bot_return_pct:+.1f}%
+- S&P 500 Return: {spy_return_pct:+.1f}%
+- vs Benchmark: {bot_return_pct - spy_return_pct:+.1f}%
 
 MEMORY (your persistent context):
 {memory_context}
@@ -109,22 +114,22 @@ THIS WEEK'S RESEARCH:
 TECHNICAL TIMING DATA:
 {technicals_summary if technicals_summary else "(No technical data available)"}
 
-YOUR THEMES (scored 1-5, higher = stronger conviction):
-{themes_text}
-
+THEMES (see Memory section above — scored 1-5, higher = stronger conviction):
 Themes are informational — they guide your thinking but don't dictate allocations.
-You can propose new themes or adjust scores during monthly reviews.
-- New themes start at score 3
-- Score range: 2-5 (themes at score 1 are auto-removed)
-- Max {self._tm._max_themes} themes at a time
+You can propose new themes or adjust scores. New themes start at score 3.
+Score range: 2-5 (themes at score 1 are auto-removed). Max {self._tm._max_themes} themes.
 
 STOCK UNIVERSE (pre-screened candidates you can trade):
 {universe_text}
 You can also trade stocks outside this universe if you discover them through research.
 
-GOAL: Long-term capital growth. Hold for weeks to quarters.
-We are patient investors who buy quality companies aligned with macro themes.
-We use pullbacks as entry opportunities. We can go long AND short.
+GOALS:
+1. Target 20% annualized return minimum
+2. Beat the S&P 500 — if we're trailing the benchmark, we need to be more aggressive
+   with capital deployment. Sitting in cash during a bull market is underperformance.
+3. In bear markets, capital preservation matters — shorting and cash are valid strategies.
+Hold for weeks to quarters. We are patient investors who buy quality companies aligned
+with macro themes. We use pullbacks as entry opportunities. We can go long AND short.
 
 RULES:
 - Max 15 positions at any time
@@ -135,12 +140,16 @@ RULES:
 - Wide catastrophic stops (18%) are set automatically — you don't manage them
 - Use technicals only for timing hints (e.g. RSI < 40 = good entry)
 
+DEPLOYMENT PACING:
+{self._deployment_pacing_text(review_number, holdings_count)}
+
 SHORTING:
-You CAN short stocks. If a company faces structural headwinds (e.g. disrupted by AI,
-losing market share, secular decline), you can open a SHORT position with direction "SHORT".
+You SHOULD actively consider shorts — especially when we're trailing the S&P or in a
+declining market. Sitting long-only in a bear market is a mistake. Look at the Broader Market
+stocks for natural short candidates: legacy businesses being disrupted, overleveraged companies,
+or sectors in structural decline. Open a SHORT position with direction "SHORT".
 Shorts need the same discipline: explicit thesis, invalidation conditions, and allocation.
-Good short candidates: companies vulnerable to technological disruption, those with deteriorating
-fundamentals, or those in sectors facing structural decline.
+In a bear market, aim for at least 2-3 short positions to hedge long exposure.
 
 DISCOVERY:
 The research section may include "Emerging Opportunities" — tickers getting significant
@@ -175,6 +184,19 @@ Respond with ONLY valid JSON:
       "horizon": "3-6 months",
       "confidence": "high",
       "timing_note": "RSI at 32, good entry point"
+    }},
+    {{
+      "ticker": "T",
+      "action": "SHORT",
+      "allocation_pct": 5,
+      "direction": "SHORT",
+      "thesis": "Thesis for why this company is in structural decline",
+      "invalidation": "What would make us cover",
+      "target_price": 15.0,
+      "stop_price": 25.0,
+      "horizon": "3-6 months",
+      "confidence": "medium",
+      "timing_note": "Breaking below support"
     }}
   ],
   "close_positions": [
@@ -198,12 +220,41 @@ Theme update rules:
 
 If no changes needed, return empty arrays. Always include world_assessment and weekly_summary."""
 
+    @staticmethod
+    def _deployment_pacing_text(review_number: int, holdings_count: int) -> str:
+        """Generate deployment pacing guidance based on how many reviews have occurred."""
+        if review_number <= 1:
+            return (
+                "This is your FIRST review. You are still learning the market regime.\n"
+                "- Open a MAXIMUM of 3-4 positions this review\n"
+                "- Prioritise highest-conviction ideas only\n"
+                "- Keep at least 60% cash — you will have more reviews to deploy capital\n"
+                "- Focus on understanding the macro environment before committing heavily"
+            )
+        elif review_number == 2:
+            return (
+                "This is your SECOND review. You are still building conviction.\n"
+                "- Open a maximum of 3-4 NEW positions this review\n"
+                "- Keep at least 40% cash — continue scaling in gradually\n"
+                "- Validate that your initial positions are behaving as expected before adding more"
+            )
+        elif review_number == 3:
+            return (
+                "This is your THIRD review. You should now have a sense of the market regime.\n"
+                "- You can open up to 4-5 new positions if conviction is high\n"
+                "- Normal cash reserve rules (20%) now apply\n"
+                "- If early positions are stopped out, that's a signal — adjust your approach"
+            )
+        else:
+            return "Normal deployment rules apply. Deploy capital based on conviction and opportunity."
+
     def _call_claude(self, prompt: str) -> dict | None:
         try:
             result = subprocess.run(
                 [
                     "claude", "-p", prompt,
                     "--output-format", "text",
+                    "--model", "sonnet",
                 ],
                 capture_output=True,
                 text=True,

@@ -1,0 +1,61 @@
+============================================================
+  V3 THESIS SIMULATION REPORT
+============================================================
+
+  Period:              2022-01-01 to 2022-06-30
+  Trading Days:        123
+  Weekly Reviews:      24
+
+  PERFORMANCE
+  Initial Capital:     $100,000.00
+  Final Value:         $105,815.26
+  Total Return:        +5.82%
+  Annualized Return:   +12.28%
+  Max Drawdown:        -13.14%
+
+  TRADES
+  Total Trades:        21 (10W / 11L)
+  Win Rate:            47.6%
+  Total P&L:           $-319.25
+  Avg P&L/Trade:       $-15.20
+  Open Positions:      12
+
+  PER-TICKER PERFORMANCE
+    CVX       $ +2,254.20  (1 trades)
+    PLTR      $ +2,091.14  (3 trades)
+    SNOW      $ +2,020.45  (2 trades)
+    NFLX      $ +1,418.18  (4 trades)
+    XOM       $   +972.72  (1 trades)
+    TGT       $   +594.66  (1 trades)
+    JNJ       $   -358.68  (1 trades)
+    DG        $ -1,072.25  (1 trades)
+    SCHW      $ -1,073.15  (1 trades)
+    GS        $ -1,149.12  (1 trades)
+    CRWD      $ -1,174.14  (1 trades)
+    V         $ -1,185.81  (1 trades)
+    TSM       $ -1,244.88  (1 trades)
+    JPM       $ -2,412.57  (2 trades)
+
+  LESSONS LEARNED (24 total)
+    - When a week's portfolio-relevant news is sparse (fewer than 3 material headlines) and no macro catal...
+    - Lesson 16: A small sell-side firm (non-primary-dealer boutique) initiating coverage on an active sho...
+    - Lesson 17: When institutional whale alerts appear SIMULTANEOUSLY on 3+ existing long positions in th...
+    - Lesson 18: When a SHORT position has already exceeded (gone below) its original price target AND the...
+    - Lesson 19: When a SHORT position's price is within 10% of its original price target but Lesson 18's ...
+    - Lesson 20: When a core thesis holding reports earnings that BOTH beat the consensus estimate AND rai...
+    - Lesson 20 Addendum — When the US government takes an unusual diplomatic action specifically to addre...
+    - Lesson 22: When the CEO of a primary dealer bank (JPMorgan/Jamie Dimon, Goldman Sachs, etc.) uses ex...
+    - Lesson 23: When the Federal Reserve delivers a historically large single-session rate hike (75bps or...
+    - Lesson 24: When an existing LONG position with 30%+ unrealized gains receives SIMULTANEOUS instituti...
+
+  ACTIVE THESES (8)
+    JPM (LONG): JPMorgan re-entry at $113.43 — $23 below our prior stop-out at $136.45 — followi
+    SCHW (LONG): Charles Schwab re-entry after prior stop-out. The rate hike thesis has only stre
+    MA (LONG): Mastercard's toll-road payment network generates revenue as a percentage of tran
+    DG (LONG): Dollar General is exhibiting remarkable relative strength (RSI=55, above SMA50, 
+    XOM (LONG): ExxonMobil benefits from elevated oil prices driven by supply discipline (OPEC+)
+    LNG (LONG): Cheniere Energy is the dominant US LNG exporter and a direct beneficiary of the 
+    CVX (LONG): Chevron is a direct energy supply crisis beneficiary. While the entire market se
+    OXY (LONG): Occidental Petroleum is a pure-play upstream oil producer with maximum leverage 
+
+============================================================

@@ -20,17 +20,19 @@ class TestLoadConfig:
         assert "energy_climate" in universe
         assert "finance" in universe
         assert "consumer_inequality" in universe
+        assert "discovery_pool" in universe
         # Check a few key tickers
         assert "NVDA" in universe["ai_technology"]
         assert "LLY" in universe["healthcare_aging"]
         assert "JPM" in universe["finance"]
+        assert "BA" in universe["discovery_pool"]
 
     def test_universe_total_size(self):
         config = load_config()
         all_tickers = set()
         for theme_tickers in config["universe"].values():
             all_tickers.update(theme_tickers)
-        assert len(all_tickers) >= 40
+        assert len(all_tickers) >= 60
 
     def test_trading_params_exist(self):
         config = load_config()

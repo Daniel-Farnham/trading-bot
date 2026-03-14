@@ -1,0 +1,1819 @@
+{
+  "version": "V3",
+  "period": "2021-11-01 to 2022-02-28",
+  "start_date": "2021-11-01",
+  "end_date": "2022-02-28",
+  "trading_days": 81,
+  "initial_cash": 100000.0,
+  "final_value": 92440.87,
+  "total_return_pct": -7.56,
+  "annualized_return_pct": -21.69,
+  "max_drawdown_pct": 12.65,
+  "spy_return_pct": -4.9,
+  "alpha_pct": -2.66,
+  "total_trades": 13,
+  "wins": 0,
+  "losses": 13,
+  "win_rate_pct": 0.0,
+  "total_pnl": -11234.99,
+  "avg_pnl_per_trade": -864.23,
+  "open_positions": 13,
+  "weekly_reviews": 16,
+  "review_decisions": [
+    {
+      "date": "2021-11-05",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Early November 2021 marks a strong bull market with tech leading but many names severely overbought (NVDA RSI=88, AMD RSI=81, SMCI RSI=85). COP26 climate summit is ongoing, providing tailwind for clean energy. News flow is thin this week \u2014 mostly earnings beats in healthcare and energy utilities, with Forum Energy badly missing estimates. The rare standout is ISRG at RSI=21, an exceptionally oversold entry in a structurally sound robotic surgery leader. First deployment: stay conservative, pick 3-4 highest-conviction ideas with good technical setups, keep >60% cash as instructed.",
+        "thesis_updates": [],
+        "new_positions": [
+          {
+            "ticker": "ISRG",
+            "action": "BUY",
+            "allocation_pct": 7,
+            "direction": "LONG",
+            "thesis": "Intuitive Surgical dominates robotic-assisted surgery with a near-monopoly on the da Vinci platform. As populations age globally, surgical volume grows and hospitals upgrade to robotic systems for precision and recovery speed. Switching costs are extremely high \u2014 once a hospital trains surgeons on da Vinci, they don't switch. RSI at 21 suggests a sharp but likely temporary pullback; MACD remains bullish, meaning the trend is intact. This is a rare opportunity to buy a world-class compounder at a deeply oversold entry point.",
+            "invalidation": "Sustained loss of market share to emerging robotic competitors (Medtronic Hugo, J&J Ottava); RSI fails to recover and price breaks below $300; or fundamental surgical volume declines due to structural demand shift",
+            "target_price": 460.0,
+            "stop_price": 299.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=21 is exceptional \u2014 deep oversold on a quality compounder. MACD still bullish, trend intact. Strong asymmetric entry."
+          },
+          {
+            "ticker": "GOOGL",
+            "action": "BUY",
+            "allocation_pct": 7,
+            "direction": "LONG",
+            "thesis": "Alphabet is the foundational infrastructure of AI and cloud computing. Google Cloud is the #3 cloud provider growing >40% YoY, YouTube advertising continues to capture TV ad budgets, and DeepMind/Google Brain represent some of the world's most advanced AI research being commercialised into products. RSI at 63 is healthy \u2014 not overbought like AMD or NVDA, still above SMA50 with bullish MACD. This is the best-positioned AI/automation megacap from a risk-adjusted technical standpoint right now.",
+            "invalidation": "Google Cloud growth decelerates below 30% YoY; antitrust breakup materialises with structural damage; advertising revenue falls more than 10% in a quarter",
+            "target_price": 3500.0,
+            "stop_price": 2440.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=63, above SMA50, MACD bullish \u2014 constructive entry. Not extended like peers."
+          },
+          {
+            "ticker": "PLTR",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Palantir is building the AI operating system for governments and large enterprises \u2014 Foundry for commercial, Gotham for defence/intel. The company is early in its commercial scaling phase after years of government-only revenue. AI/automation tailwinds are structural: organisations need data integration and AI-driven decision tools. RSI=55 with bullish MACD and above SMA50 \u2014 technically neutral to constructive. Smaller allocation given higher growth risk profile and no dividend support.",
+            "invalidation": "Commercial revenue growth slows below 30% YoY; government contract losses signal competitive weakness; RSI breaks below 40 with SMA50 lost",
+            "target_price": 38.0,
+            "stop_price": 21.3,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=55 is a clean, unconcentrated entry. No overbought risk here unlike most AI peers."
+          },
+          {
+            "ticker": "NEE",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "NextEra Energy is the world's largest generator of wind and solar energy and is positioned as the primary beneficiary of the global clean energy transition. COP26 is ongoing \u2014 policy tailwinds for renewables are at an all-time high. NEE's utility subsidiary (FPL) provides stable cash flows that fund aggressive renewable expansion. RSI=61 with bullish MACD and above SMA50 \u2014 a quality entry with no technical red flags. Climate Transition is a multi-decade structural theme; NEE is the highest-quality way to own it.",
+            "invalidation": "Rising interest rates crush utility valuations materially (10Y yield >2.5% sustained); renewable tax credits eliminated legislatively; earnings miss driven by weather or project delays exceeding one quarter",
+            "target_price": 105.0,
+            "stop_price": 70.1,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=61, MACD bullish, above SMA50 \u2014 clean technical setup. COP26 provides near-term catalyst."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 1,
+            "reason": "AMD continuing to push higher following Nvidia's lead signals sustained semiconductor demand for AI workloads. The breadth of strength across AI names (even if technically extended) reflects genuine institutional conviction in the theme."
+          },
+          {
+            "name": "Climate Transition",
+            "delta": 1,
+            "reason": "COP26 climate summit (Oct 31 - Nov 12) is driving policy momentum globally. Alliant Energy's earnings beat and guidance raise reflects underlying strength in regulated utilities executing on clean energy capex. Political backdrop strongest it has been in years for renewables."
+          }
+        ],
+        "lessons": [
+          "First deployment: resist the urge to chase overbought momentum names (NVDA RSI=88, AMD RSI=81) even when the thesis is strong. Wait for pullbacks. The right entry in a quality compounder matters \u2014 overpaying at RSI=88 risks months of sideways consolidation eating into returns.",
+          "RSI extremes in quality names are gifts: ISRG at RSI=21 with intact MACD trend is the kind of setup to deploy aggressively on. When a world-class business with durable moat goes deeply oversold without fundamental change, that is the entry."
+        ],
+        "weekly_summary": "Initiated first four positions on 2021-11-05: ISRG (7%, exceptional oversold entry at RSI=21), GOOGL (7%, best-valued AI megacap technically), NEE (6%, COP26 climate tailwind), PLTR (5%, AI enterprise data platform). Total deployed 25%, cash 75%. Raised AI/Automation and Climate Transition theme scores by 1 each on strong sector signals. Tech sector broadly overbought \u2014 avoided chasing NVDA, AMD, SMCI at RSI 80+. News flow thin this week; earnings mixed across healthcare and energy. Strategy: patience on remaining 75% cash, wait for pullbacks in high-conviction names before adding."
+      }
+    },
+    {
+      "date": "2021-11-12",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Quiet macro week with no major headlines. Market remains broadly bullish \u2014 S&P near ATHs. Key developments: PLTR's Q3 results disappointed analysts with price target cuts, though ARK is aggressively buying the dip ($28M on Wednesday alone). Crypto is heating up (BTC/ETH momentum building, mining stocks breaking out). COP26 ongoing provides continued policy tailwind for clean energy. Biogen's Alzheimer's data positive but Aduhelm remains controversial. EU tech regulation concerns for GOOGL/AMZN/MSFT remain background noise. No macro regime shift \u2014 bull market intact. We are trailing the S&P by 2.3% with 76.7% in cash. That is the primary problem to solve this review.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI dropped further to 22 \u2014 even more deeply oversold. Price slipped another ~$10 from entry to $354.93 but MACD remains bullish, meaning the trend structure is intact. No fundamental news. This is still a world-class compounder being punished by short-term selling pressure. Thesis fully intact. Stop at $299 gives ample room. Hold conviction."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "Essentially flat from entry ($2977 vs $2974). RSI=60, above SMA50, MACD bullish \u2014 technically healthy. EU regulatory risk is real but structural and long-dated; not a thesis invalidation event. YouTube dislike change is a minor product decision. Cloud + AI + YouTube advertising thesis unchanged. Best-positioned AI megacap on a risk-adjusted basis."
+          },
+          {
+            "ticker": "PLTR",
+            "status": "ACTIVE",
+            "notes": "Most concerning position. Down ~12% from entry ($26.00 to $22.83). Q3 results disappointed analysts; price targets cut. RSI=38, MACD bearish, below SMA50. However: (1) near lower Bollinger Band suggests selling may be exhausted, (2) ARK bought $28M in shares on Wednesday \u2014 Cathie Wood has high conviction, (3) stop at $21.30 not yet triggered, giving ~$1.50 of breathing room. Thesis \u2014 AI OS for government/enterprise \u2014 is structurally intact even if commercial ramp is slower than expected. WATCH CLOSELY. If MACD doesn't recover or price breaks $21.50 decisively, reassess exit."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "Only green position, up modestly to $86.31. RSI=63, above SMA50, MACD bullish. COP26 ongoing \u2014 policy environment continues to support renewables. Clean energy stocks (FuelCell, Plug Power, Sunrun) showing life this week. NEE is the highest-quality way to own this theme. Thesis strengthening."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "AMZN",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "Amazon is the #1 cloud provider globally through AWS, which is the most profitable and fastest-growing segment of the business. AWS is foundational AI/automation infrastructure \u2014 every company building AI workloads runs on AWS, Azure, or GCP. Amazon is also building its own AI chips (Trainium, Inferentia), reducing dependence on NVDA. E-commerce flywheel generates the data and logistics network that creates durable competitive moats. RSI=59, above SMA50, MACD bullish \u2014 clean technical setup, not chasing overbought momentum. At current price, AWS alone arguably justifies the market cap. This is a core AI/cloud holding.",
+            "invalidation": "AWS growth decelerates materially below 25% YoY or Azure/GCP gain structural market share at AWS expense. Regulatory breakup risk materialises beyond background noise.",
+            "target_price": 4200.0,
+            "stop_price": 2890.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=59, above SMA50, MACD bullish \u2014 healthy entry, not extended"
+          },
+          {
+            "ticker": "TSM",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "Taiwan Semiconductor manufactures the chips that power every AI system in the world \u2014 NVDA's A100s, Apple's M1s, AMD's processors all run through TSMC's fabs. There is no AI revolution without TSMC. The semiconductor shortage of 2021 has made governments globally realise how strategically critical semiconductor supply chains are, which means policy support (CHIPS Act-style legislation forming in the US) is a tailwind. TSMC is expanding capacity aggressively (Arizona fab announced). RSI=58, above SMA50, MACD bullish \u2014 technically constructive entry. This is pick-and-shovel AI infrastructure with monopoly-like positioning at the leading edge.",
+            "invalidation": "Taiwan geopolitical risk materially escalates (Chinese military action or blockade credible threat). TSMC loses Apple or NVDA as a customer. Intel or Samsung catch up at 3nm/2nm nodes.",
+            "target_price": 155.0,
+            "stop_price": 97.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=58, clean setup \u2014 not overbought, above SMA50, MACD bullish"
+          },
+          {
+            "ticker": "LLY",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Eli Lilly is one of the world's premier pharmaceutical companies with a pipeline that directly addresses the aging population theme. Their diabetes franchise (insulin, tirzepatide in trials) is expanding aggressively. Alzheimer's pipeline (donanemab) is progressing \u2014 Biogen's positive Alzheimer's data this week is a rising-tide signal for the entire category. As global populations age, chronic disease management becomes a multi-decade growth market. LLY has best-in-class R&D productivity. RSI=58, above SMA50, MACD bullish \u2014 technically a clean entry with no overbought risk. Defensive characteristics also provide portfolio balance against our more volatile tech positions.",
+            "invalidation": "Key pipeline failures (tirzepatide Phase 3 miss or donanemab setback). Unexpected pricing legislation that materially caps drug margins. RSI breaks below 40 with MACD turning bearish on no specific news.",
+            "target_price": 320.0,
+            "stop_price": 213.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=58, above SMA50, MACD bullish \u2014 quality entry before aging population tailwind accelerates"
+          },
+          {
+            "ticker": "META",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Meta Platforms (recently rebranded from Facebook) controls the world's largest social graph with 3.5B+ monthly active users across Facebook, Instagram, and WhatsApp. The advertising business is a dominant duopoly with Google, and continues to capture digital ad budgets at scale. The metaverse pivot is optionality \u2014 it may be early and expensive, but the core business generates $40B+ in annual free cash flow to fund it. Meta is investing heavily in AI for ad targeting, content ranking, and translation \u2014 directly fits AI/automation theme. RSI=55, below SMA50, MACD bullish \u2014 the underperformance vs SMA50 creates a better entry than most mega-caps right now. Smaller allocation given metaverse execution uncertainty.",
+            "invalidation": "Core advertising revenue growth falls below 15% YoY. User growth in key demographics (under-35) goes negative. Regulatory breakup of Instagram/WhatsApp becomes a credible near-term risk. MACD turns bearish.",
+            "target_price": 420.0,
+            "stop_price": 279.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=55, below SMA50 (underperforming market), MACD bullish \u2014 contrarian quality entry"
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 0,
+            "reason": "No major AI earnings or announcements this week. Theme conviction unchanged at 4/5."
+          },
+          {
+            "name": "Climate Transition",
+            "delta": 0,
+            "reason": "COP26 ongoing; FuelCell/Plug Power/Sunrun showing momentum. Theme intact. No single event warrants score change."
+          }
+        ],
+        "lessons": [
+          "PLTR lesson: When post-earnings analyst downgrades hit a growth stock with already-elevated expectations, RSI and MACD can deteriorate quickly. For smaller/higher-risk positions, consider trimming 25-30% into the first post-earnings breakdown rather than holding full size into the stop \u2014 especially when MACD turns bearish without a near-term catalyst to reverse it. ARK buying is a useful sentiment check but not sufficient alone to hold conviction.",
+          "Deployment pacing: 76% cash in a bull market where the S&P is hitting ATHs is a performance drag. The cautious approach protects against drawdowns but guarantees underperformance if the bull continues. In the second review, if macro is stable and positions are behaving, deploy at least 20-25% of remaining cash into high-conviction ideas with clean technical setups."
+        ],
+        "weekly_summary": "Second review \u2014 quiet macro week, no regime change. Portfolio is 76% cash and trailing S&P by 2.3%; the primary action this week was capital deployment. Added four new positions: AMZN (cloud/AI infrastructure, 6%), TSM (semiconductor pick-and-shovel for AI, 6%), LLY (aging populations pharma, 5%), META (social media/AI advertising, 5%). This brings invested capital to roughly 50% of portfolio, with ~46% cash remaining \u2014 above the 40% minimum floor. Existing positions: ISRG remains deeply oversold (RSI=22) but thesis intact; GOOGL flat and technically healthy; NEE slightly green with COP26 tailwind; PLTR is the problem child \u2014 down 12%, Q3 disappointed, MACD bearish, though ARK buying aggressively. Will monitor PLTR closely next review for thesis reassessment."
+      }
+    },
+    {
+      "date": "2021-11-19",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Thin macro news week but portfolio-relevant signals are significant. NVDA reported blowout earnings \u2014 analysts reaffirming bullish stance and hiking price targets to $1T club confirms AI/semiconductor demand is accelerating into 2022. Goldman named AMZN as top 2022 internet pick, externally validating our core thesis. Apple planning full in-house 5G chip transition by 2023 is a watch item for TSM (single customer concentration risk). Amazon-Visa fee dispute is a headwind for Visa and a potential tailwind for Mastercard. ISRG remains deeply oversold at RSI=23 with no fundamental change \u2014 thesis intact. The primary issue this week is our 61% cash position generating guaranteed benchmark underperformance in a bull market hitting ATHs. Deploying capital into high-conviction ideas is the most critical action.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI dropped further to 23 \u2014 even more deeply oversold than entry. MACD remains bullish. No negative fundamental news. This is exactly the Lesson 2 setup. Allocation is already at limit so no add, but conviction is highest in portfolio. Hold with confidence."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=59, MACD bullish, above SMA50. Clean. Goldman tech optimism broadly positive for the name. Apple Car autonomous vehicle report implies continued AI competition but Waymo is ahead in the space. Thesis fully intact."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=69, near upper Bollinger Band. Running hot short-term \u2014 consolidation possible. Multi-year climate transition thesis unaffected. No COP26 negative news. Hold."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "Goldman named AMZN top 2022 internet pick \u2014 strong external validation. Starbucks-Amazon cashier-less store shows AWS/Amazon tech expanding into physical retail, another moat-deepening signal. RSI=67 near upper BB \u2014 short-term caution but thesis is the strongest in the portfolio. Hold full size."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "Apple reportedly transitioning fully to in-house chips by 2023 is a risk to monitor \u2014 Apple is TSM's largest customer and losing 5G modem revenue is a real headwind. However, NVDA blowout earnings and AI chip demand acceleration more than compensates in the near term. NVDA's A100s, H100s all run through TSMC's leading-edge fabs \u2014 no alternative exists. RSI=70 near upper BB. Flagging Apple transition as slow-burn thesis risk."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "MACD turned bearish while RSI=58. No fundamental negative catalyst visible. Aging populations thesis intact. Monitoring technical deterioration \u2014 if RSI breaks below 50 or MACD fails to recover within two reviews, will reassess position size."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=57, MACD bullish, above SMA50. Clean technical picture. Goldman positive on internet sector broadly. No negative news. Thesis intact."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "SNOW",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "Snowflake is the data cloud layer sitting on top of AWS, Azure, and GCP \u2014 the platform enterprises use to consolidate, query, and analyse data across cloud providers. As AI/automation spending accelerates following NVDA's blowout quarter, every company building AI workloads must centralise their data first, and Snowflake is the leading platform for this. Growing revenue 100%+ YoY with net revenue retention above 170% \u2014 customers expand dramatically once adopted. Goldman's bullish 2022 internet/tech outlook further supports cloud data infrastructure investment. This is a high-conviction AI/automation infrastructure play that is not yet in portfolio.",
+            "invalidation": "Revenue growth decelerates below 60% YoY, net revenue retention falls below 130%, or a major cloud provider launches a directly competing product with bundled pricing that materially erodes SNOW's win rate.",
+            "target_price": 500.0,
+            "stop_price": 321.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=68, above SMA50, MACD bullish. Healthy momentum without being overbought. Clean entry."
+          },
+          {
+            "ticker": "REGN",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Regeneron is a premier biotech directly aligned with the Aging Populations theme. Dupixent (dupilumab) is one of the best-performing drugs in modern pharmaceutical history \u2014 approved across atopic dermatitis, asthma, and expanding indications. Dupixent revenue is growing 50%+ YoY and is tracking to become a top-5 drug globally. REGN also has Eylea for age-related macular degeneration (a condition growing directly with aging demographics) and a robust oncology and immunology pipeline. RSI=65 with bullish MACD is a clean setup \u2014 healthy momentum, not overbought. Quality compounder with multiple durable growth drivers in a structural demographic theme.",
+            "invalidation": "Dupixent faces unexpected safety signal or major competing biologic with equivalent efficacy launches. Revenue growth decelerates materially. Pipeline failures in key expansion indications.",
+            "target_price": 800.0,
+            "stop_price": 535.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=65, above SMA50, MACD bullish. Not chasing overbought, not waiting for a dip that may not come."
+          },
+          {
+            "ticker": "MA",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Mastercard is global payments infrastructure enabling digital commerce \u2014 aligned with both AI/Automation (digital payments replacing cash, AI-driven fraud detection) and Wealth Inequality (financial inclusion and fintech expansion) themes. The Amazon-Visa fee dispute is a near-term catalyst: Amazon's war on Visa interchange fees directly benefits Mastercard if merchants or Amazon shift preferred network \u2014 historically MA trades at a premium during Visa pricing disputes. RSI=44 with MACD turning bullish is a constructive pullback entry. Digital payments are a structural multi-decade displacement of cash with no fundamental reversal in sight. This is a lower-risk fintech position vs the higher-volatility names we hold.",
+            "invalidation": "Central bank digital currencies (CBDCs) gain material adoption bypassing card networks. Global regulatory action caps interchange fees in a way that materially impairs economics. Amazon-Visa dispute unexpectedly resolves and spreads to Mastercard.",
+            "target_price": 420.0,
+            "stop_price": 278.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=44, MACD bullish \u2014 pullback entry with recovery signal forming. Below SMA50 but turning."
+          },
+          {
+            "ticker": "AVGO",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Broadcom is a critical pick-and-shovel AI/semiconductor play. AVGO supplies networking chips (Tomahawk, Jericho series) that form the backbone of AI data centre interconnects \u2014 every hyperscale cluster running GPU compute for AI inference needs Broadcom networking silicon. Following NVDA's blowout quarter with analysts targeting the $1T club, AI infrastructure demand is clearly accelerating into 2022. AVGO also has a large recurring-revenue software segment (CA Technologies, Symantec Enterprise) providing cashflow stability that pure-play semis lack. The combination of AI hardware exposure and diversified software cashflows makes this a lower-risk semiconductor position than adding more NVDA at RSI=78.",
+            "invalidation": "Major hyperscale customers (AWS, Google, Meta) successfully deploy custom in-house networking silicon at scale, materially reducing AVGO data centre revenue. Software segment shows meaningful churn or pricing deterioration.",
+            "target_price": 720.0,
+            "stop_price": 466.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=70, near upper BB, MACD bullish. Elevated but NVDA blowout is a powerful sector catalyst justifying entry here rather than waiting for a pullback that may not come in strong AI tape."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 1,
+            "reason": "NVDA blowout quarter with analyst price target hikes and $1T club commentary is the clearest possible confirmation that AI/semiconductor demand is structurally accelerating. Goldman naming AMZN as top 2022 pick further validates cloud/AI infrastructure investment cycle. Raising conviction to maximum."
+          }
+        ],
+        "lessons": [
+          "Customer concentration in semiconductor suppliers: Apple's plan to transition fully to in-house 5G chips by 2023 is a reminder that even irreplaceable suppliers like TSMC face slow-burn revenue headwinds when dominant customers build in-house. When a thesis depends partly on a single large customer relationship, proactively monitor that customer's vertical integration roadmap \u2014 it is a legitimate long-term invalidation risk even if near-term demand from other customers more than compensates.",
+          "Deployment urgency in confirmed bull markets: With S&P at ATHs and four clean technical setups available (RSI 44-70, MACD bullish), sitting at 61% cash for a third consecutive review is indefensible. When multiple high-conviction setups exist simultaneously, deploy into all of them in a single review. Do not ration deployments across future reviews when the current review already has the conviction and technical entry signals \u2014 opportunity cost compounds weekly."
+        ],
+        "weekly_summary": "Week of Nov 19 2021: Thin macro week but pivotal for portfolio action. NVDA blowout earnings confirmed AI/semiconductor acceleration \u2014 conviction on AI/Automation theme raised to 5/5. Goldman named AMZN top 2022 internet pick validating core holding. Apple in-house chip transition flagged as slow-burn watch item for TSM. Amazon-Visa fee dispute created Mastercard entry opportunity. ISRG holds at RSI=23 oversold with thesis intact. Deployed excess cash into four new positions: SNOW (data cloud AI infrastructure, 6%), REGN (aging populations/Dupixent compounder, 5%), MA (payments with Visa dispute tailwind, 5%), AVGO (AI networking silicon, 5%). Portfolio now 11 positions, cash reduced from 61% to approximately 41%. Primary focus next review: monitor LLY MACD deterioration, TSM Apple chip risk, and ISRG recovery from oversold levels."
+      }
+    },
+    {
+      "date": "2021-11-29",
+      "type": "monthly",
+      "response": {
+        "world_assessment": "Omicron is the dominant macro event \u2014 a new COVID variant detected in South Africa triggered a broad risk-off selloff. Early data is encouraging: South African doctors report mild symptoms and NIH Director Collins indicates current vaccines likely protective, suggesting this is panic-driven rather than a structural economic disruption. The market selloff is creating entry opportunities in quality names being sold for macro reasons, not fundamental ones. Amazon's holiday price war dominance reinforces our AMZN thesis. Apple leaning further on TSM to reduce Qualcomm reliance is a direct bullish catalyst for our TSM holding. ISRG has deepened to RSI=25 with bullish MACD still intact \u2014 the same setup that made it a high-conviction entry. We are trailing the S&P by 3.1% with 42% cash; the Omicron panic selloff is the deployment opportunity we needed.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "Declined further to $334.74 (RSI=25, bullish MACD intact). Omicron may cause near-term elective surgery delays but does not impair the structural robotic surgery dominance thesis. RSI=25 with bullish MACD is the identical setup that flagged this as a high-conviction entry \u2014 adding to position to lower blended cost basis."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "Price $2,910.61. RSI=50, MACD turned bearish. Held up reasonably well in the selloff. AI/Cloud thesis fully intact. MACD bearish is a caution flag but not an invalidation \u2014 monitoring."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "Position up +3.7% to $88.66. RSI=64, MACD turning bearish near upper Bollinger Band \u2014 consolidation likely near-term. Defensive utility characteristics are helping in the risk-off environment. COP26 policy tailwinds intact. No action needed."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "Holiday price war dominance confirmed \u2014 causing retail ripple effects per news. Internal HubSpot $38B bid signals expanding enterprise/cloud software ambitions beyond AWS. Thesis strengthening. RSI=55, above SMA50. Core holding \u2014 no action."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "Direct bullish catalyst: Apple leaning further on TSM to reduce Qualcomm reliance validates our pick-and-shovel AI semiconductor thesis. Samsung also reducing Qualcomm dependence increases custom foundry demand. Thesis intact and strengthening \u2014 no action needed."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "Down slightly to $254.83. RSI=48, MACD bearish. No fundamental deterioration. Aging populations thesis intact. Monitoring for MACD reversal."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "Holding at $338.03. RSI=51, MACD still bullish \u2014 one of the few portfolio positions with bullish MACD. Core social advertising thesis intact. No action."
+          },
+          {
+            "ticker": "SNOW",
+            "status": "ACTIVE",
+            "notes": "Down 7% from entry to $364.78. MACD bearish, RSI=52. High-multiple growth names are being hit hardest in the Omicron risk-off. No fundamental deterioration in the cloud data infrastructure thesis \u2014 every company building AI workloads still needs Snowflake. Stop at $321 intact. Monitoring closely."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "Best-performing position, essentially flat at $654.40. RSI=62, MACD bullish. Dupixent growth intact. Omicron uncertainty reinforces demand for high-quality biologics/therapeutics infrastructure. Strongest technical position in portfolio."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "Down 5% to $323.01. Below SMA50, MACD bearish, RSI=40. Omicron travel fears and Amazon-Visa dispute overhang are weighing on all payment networks. Fintech news this week is generally constructive for the sector. Stop at $278 intact. Thesis valid but technical setup weak \u2014 monitoring."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "Essentially flat at $564.34. RSI=60, MACD bearish. AI networking silicon thesis intact. No fundamental change. Holding."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "ISRG",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Adding to existing ISRG position. RSI=25 with bullish MACD still intact is the exact technical setup that made this a high-conviction entry originally. The Omicron-driven panic has taken ISRG to $334.74 \u2014 down 8.3% from our $364.95 entry \u2014 without any fundamental change to the robotic surgery dominance thesis. Hospitals will continue adopting da Vinci systems regardless of a COVID variant. Switching costs remain prohibitively high. Adding here lowers our blended cost basis on one of the highest-quality compounders available, at a deeply oversold level with the bullish trend signal still intact.",
+            "invalidation": "MACD turns bearish while RSI remains below 30, signaling structural downtrend rather than oversold correction. Or a credible competitive platform emerges to challenge da Vinci market share.",
+            "target_price": 460.0,
+            "stop_price": 274.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=25, bullish MACD, near lower Bollinger Band \u2014 deepest oversold quality setup in portfolio. Averaging down on thesis-intact compounder."
+          },
+          {
+            "ticker": "CRWD",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "CrowdStrike is the market leader in cloud-native endpoint security. The Falcon platform protects endpoints, cloud workloads, and identity using AI-driven threat detection \u2014 a direct fit with our AI/Automation theme. Cybersecurity is non-discretionary IT spending: remote work and cloud adoption have permanently expanded the attack surface and this trend does not reverse. CRWD is growing revenue 60%+ YoY with best-in-class net revenue retention above 120%. The current selloff to RSI=32 near lower Bollinger Band is macro-driven (Omicron risk-off) rather than fundamental. Cybersecurity spending does not slow during pandemics \u2014 if anything, remote work acceleration increases endpoint exposure and demand. This is a quality AI infrastructure name being sold for the wrong reasons at an approaching-oversold entry.",
+            "invalidation": "Revenue growth decelerates below 40% YoY. A major security breach damages the Falcon brand. MACD remains bearish after RSI recovers above 50, suggesting the trend has genuinely broken.",
+            "target_price": 290.0,
+            "stop_price": 184.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=32 near lower Bollinger Band, MACD bearish \u2014 approaching oversold on macro fear, not fundamentals. Caution flag on bearish MACD but justified by Omicron-driven indiscriminate selling."
+          },
+          {
+            "ticker": "V",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Visa is the world's most dominant payment network with 3.7B+ cards processing $10T+ in annual volume. Digital payments displacing cash is a structural multi-decade trend. The Amazon-Visa UK interchange dispute is a localized issue \u2014 UK represents a fraction of Visa's global volume, and interchange fee negotiations between networks and large merchants are recurring events that resolve without structural damage to the network model. The market is overreacting to a regional dispute. Omicron-driven fear of travel and cross-border payment slowdown adds near-term sentiment pressure but does not change the trajectory of digital commerce. At RSI=35 near lower Bollinger Band, Visa is deeply oversold for a world-class network franchise. Complements our existing MA position across the payments infrastructure theme.",
+            "invalidation": "Amazon-Visa dispute expands globally with other major merchants following suit, structurally threatening interchange economics. Or cross-border payment volume declines for 2+ consecutive quarters indicating genuine disruption.",
+            "target_price": 245.0,
+            "stop_price": 161.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=35 near lower Bollinger Band, MACD bearish \u2014 deeply oversold from Omicron panic and overreaction to localized Amazon-UK dispute. Best entry window for a quality franchise."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Macro shock deployment lesson: when a new COVID variant triggers broad risk-off selling, immediately assess whether portfolio thesis fundamentals are impaired or merely sentiment-affected. Structural tech (AI/cloud/cybersecurity), healthcare, and clean energy theses are not invalidated by a COVID variant \u2014 they are often reinforced (e-commerce over in-store, digital payments over cash, healthcare demand elevated). In macro-driven selloffs, prioritize adding to highest-conviction existing positions showing RSI extremes with bullish MACD (ISRG RSI=25 is the signal), then selectively open new positions in quality names being sold indiscriminately. The key filter: is this thesis-broken or macro-panic? If macro-panic in a quality name, it is a deployment trigger, not a wait-and-see signal."
+        ],
+        "weekly_summary": "Omicron variant triggered a broad risk-off selloff but early data suggests mild symptoms and vaccine protection likely intact. We treated the panic as a deployment opportunity rather than a reason to retreat: added to ISRG (RSI=25, bullish MACD \u2014 averaging down on our highest-quality compounder), initiated CrowdStrike (RSI=32, structural cybersecurity leader hit by macro indiscriminate selling), and opened Visa (RSI=35, Amazon-UK dispute overreaction on a world-class global network). TSM received a direct bullish catalyst as Apple leans further on TSM over Qualcomm, validating our pick-and-shovel semiconductor thesis. Amazon's holiday price war dominance reinforces the AWS/e-commerce thesis. Portfolio cash reduced from 42% to approximately 29% \u2014 better positioned to capture recovery as Omicron uncertainty resolves. Three consecutive reviews of underperformance vs the S&P demanded aggressive deployment into oversold quality; this week we acted on that urgency."
+      }
+    },
+    {
+      "date": "2021-12-06",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Omicron risk-off continues to dominate sentiment with broad MACD deterioration across nearly every sector \u2014 30+ tickers showing bearish MACD simultaneously is a macro-driven panic signal, not fundamental impairment. This week's news flow was thin and largely noise (NFTs, Maxwell trial, box office). One portfolio-relevant data point: LLY's bamlanivimab/etesevimab received emergency use authorization for COVID-19 in patients under 12 \u2014 a minor positive. No new macro developments change our core thesis landscape: AI/automation, climate transition, aging populations, and digital payments are all structurally intact. The rare exception to the bearish MACD sweep is ISRG, which remains bullish \u2014 that divergence is itself a signal of relative fundamental strength and the clearest deployment trigger this week. We are underperforming the S&P by 3.8% with 38.3% cash, which demands we act: add to the highest-conviction setup (ISRG) and open a short against a structurally deteriorating business (AT&T).",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI dropped further to 27 \u2014 even more deeply oversold than last week. Critically, MACD remains bullish, making ISRG the only position in our entire portfolio maintaining a bullish MACD signal. Fundamental thesis completely unchanged: da Vinci switching costs prohibitively high, hospital robotic surgery adoption unaffected by COVID variants, procedure volumes recover post-wave. This is the highest-conviction add available in the portfolio."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "MACD has turned bearish \u2014 technical flag, not a thesis change. Google Cloud >40% growth, YouTube ad dominance, and DeepMind commercialization pipeline all intact. RSI=47 is neutral. Digital advertising does not slow due to Omicron. Monitoring for MACD reversal."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "Portfolio standout \u2014 RSI=62, MACD bullish, above SMA50. Near upper Bollinger Band so not adding, but this position is working. COP26 policy tailwinds intact. Climate transition thesis fully on track."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "MACD turned bearish. AWS cloud dominance thesis intact \u2014 enterprise cloud migration is a multi-year structural tailwind unaffected by Omicron. RSI=45 neutral. Holding."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "MACD turned bearish. RSI=51 neutral. Global semiconductor shortage thesis intact \u2014 chip demand exceeds supply across every category. CHIPS Act-style policy support accelerating. Apple in-house 5G risk (Lesson 5) remains a long-term monitor item but diversified demand from NVDA, AMD, and AI programs compensates near-term. Holding."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "Technically weak: RSI=39, below SMA50, MACD bearish, near lower BB. However COVID antibody authorization for under-12 is a minor positive demonstrating pipeline execution. Aging populations thesis fully intact \u2014 diabetes franchise, Alzheimer's pipeline (donanemab), and Dupixent expansion unchanged. Holding without adding given bearish technical setup."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=42, below SMA50, MACD bearish. Technically weak but no fundamental change. 3.5B MAU base and advertising duopoly are intact. Smaller allocation \u2014 holding through the Omicron noise."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=47, above SMA50 but MACD turned bearish. Dupixent 50%+ YoY revenue growth trajectory intact. Eylea aging demographics play intact. Technical weakness is macro-driven. Holding."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=49, below SMA50, MACD bearish. Digital payments displacement thesis intact. Amazon-Visa dispute remains a potential share-shift catalyst for Mastercard. Holding."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=59, above SMA50, MACD turned bearish. AI data centre networking thesis intact \u2014 hyperscaler capex still elevated. Software segment providing cashflow stability. Technical softening is Omicron-driven macro. Holding."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "active",
+            "notes": "Yellow flag: MACD has turned bearish. RSI=27 near lower BB is extremely oversold but a bearish MACD in conjunction with near lower BB can signal further downside rather than a bounce. The key question is macro panic vs fundamental: cybersecurity spending does not slow during pandemics (Lesson 7), remote work expands the attack surface, and Falcon platform growth trajectory is intact. Treating MACD deterioration as macro noise but NOT adding here \u2014 we do not average into a name with bearish MACD at lower BB even if RSI is extreme. Stop at $184 is intact."
+          },
+          {
+            "ticker": "V",
+            "status": "active",
+            "notes": "RSI=47, below SMA50, but MACD remains bullish \u2014 alongside ISRG, one of only two positions maintaining bullish MACD in the portfolio. Slight gain ($202.68 vs $196.29 entry). Amazon-Visa dispute resolution will be a catalyst. Digital payments thesis intact. The bullish MACD is a positive technical divergence in a bear-MACD environment."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "ISRG",
+            "action": "BUY",
+            "allocation_pct": 4,
+            "direction": "LONG",
+            "thesis": "Adding to existing ISRG position at even deeper oversold levels. RSI=27 is now more extreme than last week's RSI=25 entry signal. Most importantly, ISRG maintains a bullish MACD while every other position in the portfolio has turned bearish \u2014 this MACD divergence in a broad risk-off selloff is itself a powerful signal of relative fundamental strength. The stock is at $323.77, down 11.3% from our original $364.95 entry, without any change to the robotic surgery dominance thesis. Da Vinci switching costs remain prohibitively high. Hospital capex for surgical robotics is not cancelled by a COVID variant \u2014 these are long-term infrastructure purchases with multi-year hospital planning cycles. Procedure volumes recover as each variant wave passes. Adding here lowers our blended cost basis on the highest-quality surgical compounder available and concentrates capital in the one portfolio name with both extreme oversold RSI and intact bullish MACD trend signal.",
+            "invalidation": "MACD turns bearish, removing the key technical differentiator that sets ISRG apart in current environment. OR hospitals materially cut surgical robotics capex budgets due to sustained COVID financial stress. OR a competing robotic platform demonstrates meaningful market share capture against da Vinci across multiple procedure categories.",
+            "target_price": 460.0,
+            "stop_price": 274.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=27 with lone bullish MACD in portfolio \u2014 highest conviction add signal available this week"
+          },
+          {
+            "ticker": "T",
+            "action": "SHORT",
+            "allocation_pct": 4,
+            "direction": "SHORT",
+            "thesis": "AT&T is a structurally declining legacy telecom executing a value-destroying strategic unwind. The company is spinning off WarnerMedia into a Discovery merger \u2014 a deal requiring slashing the dividend, one of the most iconic yield stocks in the market. Forced selling from dividend-income institutions upon the official cut will create sustained selling pressure. AT&T carries approximately $180B in total debt following ill-conceived media acquisitions (DirecTV, Time Warner). The core wireless business faces structural competitive pressure from T-Mobile's aggressive pricing and superior post-Sprint network investment. 5G infrastructure requirements demand massive ongoing capex with long and uncertain return timelines. The combination of debt burden, imminent dividend cut, deal execution risk on the WarnerMedia spin-off, and secular wireline decline creates a compelling short thesis. Critically, this is one of the rare cases where the technical breakdown (RSI=38, below SMA50, MACD bearish) reflects genuine fundamental deterioration rather than macro Omicron panic \u2014 the macro selloff is masking the stock's independent secular decline.",
+            "invalidation": "AT&T unexpectedly retains full dividend AND wireless subscriber growth meaningfully accelerates AND debt reduction exceeds consensus expectations. Cover immediately if the WarnerMedia deal is cancelled and management commits to dividend preservation with a credible deleveraging plan.",
+            "target_price": 19.0,
+            "stop_price": 26.5,
+            "horizon": "3-6 months",
+            "confidence": "medium",
+            "timing_note": "RSI=38, MACD bearish, below SMA50 \u2014 confirmed technical downtrend aligned with fundamental deterioration"
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Broad simultaneous MACD deterioration is a macro signal, not a stock-specific signal: when 30+ tickers simultaneously show bearish MACD, the market is in a broad risk-off event. In these environments, the rare name maintaining bullish MACD (ISRG) stands out as highest-conviction \u2014 that divergence from the pack is itself a signal of relative fundamental strength and should trigger concentrated deployment. When adding to positions in a broad bearish-MACD environment, prioritize the exceptions, not the rule."
+        ],
+        "weekly_summary": "Week of Dec 6, 2021: Omicron-driven risk-off continued with broad MACD deterioration across virtually the entire market. No major fundamental news for core holdings \u2014 LLY received minor positive on COVID antibody authorization for patients under 12. Two actions taken: (1) Added to ISRG at RSI=27 with sole bullish MACD in portfolio \u2014 highest conviction entry signal available; (2) Opened first short in AT&T (structural decline thesis: dividend cut incoming, $180B debt, WarnerMedia spin-off execution risk, T-Mobile competitive pressure). Portfolio now at 12 longs + 1 short, cash reduced from 38.3% to approximately 30%. All long theses remain fundamentally intact despite technical weakness \u2014 Omicron selloff is macro panic not fundamental impairment. CRWD bearish MACD flagged as yellow flag to monitor."
+      }
+    },
+    {
+      "date": "2021-12-13",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Markets stabilizing from Omicron-driven risk-off with selective sector rotation into quality. ASH 2021 is the dominant portfolio-relevant event: REGN delivering 75% response rate for REGN5458 in heavily pretreated myeloma \u2014 meaningful positive catalyst confirming the Aging Populations thesis across the portfolio. LLY's Loxo BRUIN data also constructive (171/252 patients responded). Amazon navigated AWS outage explanation and warehouse tornado tragedy \u2014 neither breaks the cloud/AI thesis but MACD turning bearish suggests technical weakness persists. Crypto in speculative frenzy (meme coins +4,000% overnight, BTC/ETH dominating news) signals late-cycle retail risk appetite that historically precedes volatility. Apple approaching $3T milestone suggests mega-cap quality still bid. Technically, most tech/growth names in MACD bearish territory, but healthcare names (REGN, MA, META, AVGO, NEE) maintaining bullish MACD \u2014 sector rotation into defensives and quality compounders is clear.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "Recovering from deeply oversold levels \u2014 RSI moved from 25-27 at entry to 39 now. MACD remains bullish. No fundamental change to robotic surgery dominance. Our blended cost basis averaging down at oversold levels is working as planned. Hold."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=51, MACD bullish, above SMA50. Clean technical setup. No adverse news. AI/cloud infrastructure thesis fully intact. Core holding."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=69 approaching upper Bollinger Band \u2014 beginning to look stretched. MACD bullish. Clean energy thesis intact with post-COP26 tailwinds. Monitor: if RSI exceeds 75 with price pressing upper BB, consider trimming 25-30% to lock gains."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "AWS outage Dec 7 explained as isolated infrastructure event \u2014 not structural. Warehouse tornado tragedy is PR noise, not thesis. MACD turned bearish and RSI=43 below SMA50 \u2014 technically weak. Thesis intact; no addition until MACD recovers."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=44, near lower Bollinger Band, MACD bearish. Technically weak. CHIPS Act-style policy momentum building. Apple in-house chip risk is a known slow-burn factor. Hyperscaler AI chip demand from NVDA, AMD, Apple offsets. Hold."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "Loxo BRUIN data positive at ASH 2021 \u2014 171/252 patients responded with pirtobrutinib in heavily pretreated setting. Pipeline depth thesis confirmed. However MACD turned bearish, RSI=46 below SMA50 \u2014 technically challenged. Thesis intact, no addition until MACD recovers."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=53, above SMA50, MACD bullish \u2014 among the cleanest technical setups in the portfolio. No adverse news. Social graph and AI ad targeting thesis intact. Hold."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "THESIS STRENGTHENING: REGN5458 showing 75% response rate at highest dose levels in heavily pretreated multiple myeloma at ASH 2021 \u2014 this is exceptional clinical data that expands the pipeline narrative beyond Dupixent and Eylea. RSI=60, MACD bullish, above SMA50. Quality setup. Aging Populations thesis gaining momentum from conference data flow. Consider adding on next pullback to RSI below 50."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=54, above SMA50, MACD bullish. Amazon-Visa UK interchange dispute creating relative tailwind for Mastercard. Digital payments thesis intact. Hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=71 near upper Bollinger Band \u2014 overbought territory approaching. MACD bullish. AI networking silicon thesis intact. Alert set: if RSI exceeds 75 with price pressing upper BB, trim 25-30% to lock gains. Do not chase here."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "ACTIVE",
+            "notes": "RSI=33, MACD bearish. Approaching oversold but MACD still deteriorating \u2014 lesson from prior reviews is not to add in bearish MACD environments even at oversold RSI. Cybersecurity spending thesis non-discretionary. Hold; do not add until MACD turns bullish."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=54, MACD bullish. Technical recovery underway. Amazon-Visa UK dispute no escalation this week. Digital payments thesis intact. Hold."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "SHORT working \u2014 $22.44 vs $23.28 entry (+3.6% gain on short). RSI=31, MACD bearish. WarnerMedia/Discovery spin-off dividend cut catalyst still approaching. T-Mobile competitive pressure structural. Do not cover on oversold RSI \u2014 thesis-driven decline, not macro panic. Continue holding."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "NVO",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Novo Nordisk is the world leader in GLP-1 receptor agonists \u2014 semaglutide (Ozempic for type 2 diabetes, Wegovy for obesity) represents a paradigm shift in chronic disease management that is directly and structurally aligned with the Aging Populations theme. As global populations age, the prevalence of type 2 diabetes and obesity compounds \u2014 NVO is the primary pharmacological beneficiary of this demographic inevitability. GLP-1 drugs are now demonstrating cardiovascular risk reduction beyond glucose control, expanding the addressable patient population significantly and increasing the clinical imperative to prescribe. NVO operates in a high-barrier duopoly with Eli Lilly \u2014 branded injectable switching costs are high once patients are stabilised on a regimen, and the manufacturing complexity of peptide biologics creates meaningful scale moats. Double-digit earnings growth, strong free cash flow, and a dividend growth track record provide defensive characteristics that balance our more volatile tech positions. ASH 2021 conference data this week is confirming the Aging Populations thesis broadly \u2014 REGN in myeloma, LLY in oncology, and the broader biotech sector is showing R&D productivity that validates staying long quality healthcare compounders. NVO at RSI=68, MACD bullish, above SMA50 is a technically constructive entry in a confirmed uptrend \u2014 not chasing overbought levels but participating in healthy momentum.",
+            "invalidation": "GLP-1 competitor pricing war that materially compresses NVO revenue per patient; safety signal emerging from post-market semaglutide data restricting prescribing; loss of regulatory exclusivity faster than anticipated; RSI breaks below stop alongside MACD turning bearish",
+            "target_price": 145.0,
+            "stop_price": 94.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=68, MACD bullish, above SMA50 \u2014 confirmed uptrend without extreme overbought levels. ASH 2021 conference providing positive backdrop for aging/healthcare sector this week."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "Aging Populations",
+            "delta": 1,
+            "reason": "ASH 2021 delivering strong clinical data across aging-disease pipeline in a single week: REGN's REGN5458 at 75% myeloma response rate, LLY's Loxo pirtobrutinib BRUIN data at 68% response in heavily pretreated patients, Pfizer/Sangamo hemophilia gene therapy showing sustained two-year bleeding control. Multiple independent data points confirm pharma R&D productivity in aging-disease categories is accelerating \u2014 this is not noise, it is confirmation of the structural investment thesis. Adding NVO this week as third aging populations position alongside LLY and REGN. Raising conviction from 3 to 4."
+          }
+        ],
+        "lessons": [
+          "Major medical conference windows (ASH, ASCO, ESMO, JPM Healthcare) are predictable catalyst events for healthcare positions. In weeks with major biotech conferences, existing healthcare positions should be reviewed for presentation calendars \u2014 REGN ASH 2021 delivered 75% response rate in myeloma, a clear positive catalyst that validated holding through pre-conference uncertainty. Monitoring conference calendars and anticipating data readouts is a repeatable edge in healthcare investing; consider maintaining a rolling 4-week forward calendar of major medical conferences and which portfolio names have presentations.",
+          "When a short position (T) reaches RSI oversold levels (31) while MACD remains bearish, do not cover prematurely on oversold technical readings alone. Oversold RSI on a structurally declining business is a pause, not a reversal \u2014 the thesis catalyst (dividend cut, WarnerMedia spin-off) is approaching on a known timeline. The discipline is: cover when the thesis is invalidated, not when RSI looks extended. T's RSI=31 with intact bearish MACD and unchanged fundamental deterioration narrative means the short remains valid."
+        ],
+        "weekly_summary": "Week of Dec 13, 2021: Portfolio at $101,660 outperforming S&P +0.3%. ASH 2021 dominated portfolio-relevant news \u2014 REGN delivered exceptional REGN5458 myeloma data (75% response rate) and LLY's Loxo BRUIN data confirmed pipeline depth. Opened NVO (Novo Nordisk) as 14th position at $115.70 on 5% allocation \u2014 GLP-1 diabetes/obesity platform is the highest-conviction expression of Aging Populations theme currently available at a technically clean entry (RSI=68, MACD bullish). T short position working (+3.6%). AVGO and NEE flagged for overbought monitoring. AMZN and CRWD technically weak but thesis intact. Aging Populations conviction raised to 4/5 on strong conference data flow confirming R&D acceleration in chronic disease categories. Cash: ~$35,400 post-deployment (~34.8% \u2014 comfortably above 20% floor). Portfolio: 12 longs + 1 short + 1 new NVO = 14 positions (1 slot remaining for high-conviction opportunity)."
+      }
+    },
+    {
+      "date": "2021-12-20",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Holiday-shortened week with thin news flow. The market remains in broad technical weakness \u2014 the majority of names sit below SMA50 with bearish MACD, consistent with ongoing Omicron-variant risk-off. No macro headlines this week, suggesting the selloff is exhausting rather than accelerating. Two portfolio-specific developments require attention: (1) NVO faces a dual headwind \u2014 Deutsche Bank downgrade from Buy to Hold AND Wegovy supply challenges in the U.S., a meaningful near-term negative for our position; (2) T SHORT thesis is technically deteriorating with RSI=55 and MACD turning bullish, which is the opposite of what we want to see on a short. On the positive side, YouTube-Disney carriage deal resolved positively for GOOGL, AVGO is the standout technical performer (RSI=69, MACD bullish, upper BB), and the semiconductor 2022 outlook article confirms strong AI/cloud demand tailwinds for our core thesis names. With no macro catalysts this week, the environment favours patience on new entries and disciplined monitoring of the T short stop.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI=38, below SMA50, MACD bullish. The MACD remains bullish while the broader market deteriorates \u2014 this divergence continues to be the key signal. No fundamental news this week. Holding at blended cost basis after last week's add. Thesis fully intact."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=43, below SMA50, MACD bearish \u2014 technical deterioration this week. Partially offset by a genuine positive: YouTube-Disney carriage dispute resolved, restoring ESPN, FX, and Disney channels to YouTube TV subscribers. TikTok testing a gaming/streaming app is a longer-term competitive watch item but not a near-term threat to YouTube's dominance. Thesis intact but MACD turning bearish is a concern to monitor."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=55, above SMA50, MACD bearish. Still above SMA50 which is better than most portfolio names. MACD turning bearish is a modest technical warning but climate transition thesis unchanged. No news this week. Hold."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=41, below SMA50, MACD bearish, near lower BB. Spider-Man box office ($253M opening) is not material for AWS thesis. Cell phone warehouse ban story is minor HR policy. Near lower BB represents potential support. AWS/AI thesis fully intact. Hold."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=42, below SMA50, MACD bearish, near lower BB. Semiconductor 2022 themes article (automotive shortage, cloud demand, AI/ML for metaverse) is constructive for TSMC's long-term demand picture. Technical weakness is macro-driven. Thesis intact."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=57, above SMA50, MACD bullish \u2014 the strongest technical profile among our healthcare names this week. Biotech regulatory decisions ahead (Amgen, Aquestive) are not LLY-relevant but confirm active biotech calendar. Thesis intact and performing well technically."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=46, below SMA50, MACD bullish. No material news. Thesis intact at smaller allocation given metaverse uncertainty. MACD bullish is constructive."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=38, below SMA50, MACD bearish, near lower BB. Technical weakness continues post-ASH conference. No material new news this week. Dupixent and aging populations thesis remain intact. Position is down ~7.6% from entry \u2014 approaching but not at stop ($535). Monitoring closely."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=48, below SMA50, MACD bullish. Benzinga sentiment article tagged MA \u2014 unclear directional signal, treating as neutral. Amazon-Visa dispute context still benefits MA marginally. Thesis intact."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=69, above SMA50, MACD bullish, near upper BB \u2014 the strongest technical position in the portfolio. Semiconductor 2022 themes article bullish on AI/ML, cloud, and data centre networking demand. Up ~13.4% from entry. Near upper BB suggests near-term consolidation possible but no sell signal. Thesis intact and outperforming."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "ACTIVE",
+            "notes": "RSI=41, below SMA50, MACD bullish. No news this week. Cybersecurity demand thesis unchanged \u2014 remote work and cloud adoption continue to expand attack surface. MACD bullish while RSI approaches oversold is constructive. Hold."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=50, below SMA50, MACD bullish. Cannabis/Visa article is irrelevant to thesis. Amazon-Visa dispute appears to be de-escalating \u2014 no new negative headlines. Thesis intact."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "CAUTION \u2014 SHORT THESIS FACING TECHNICAL HEADWINDS. T at $24.19 (RSI=55, MACD bullish) is moving against us from our $23.28 entry. MACD turning bullish on a short position is the exact opposite of the ideal signal. However, the fundamental thesis remains intact: WarnerMedia-Discovery spin-off is proceeding (CNN+ charging $5.99/month, pulling content from HBO Max \u2014 this confirms the separation is advancing), dividend cut remains imminent as a result, and the debt burden is unchanged. RSI=55 with bullish MACD could indicate a technical short squeeze. Stop remains $26.50 \u2014 we have $2.31 of buffer at current price. Watching closely: if price approaches $26, we should reassess before stop triggers. Thesis not invalidated but technical risk elevated."
+          },
+          {
+            "ticker": "NVO",
+            "status": "ACTIVE",
+            "notes": "WATCH \u2014 DUAL HEADWINDS THIS WEEK. Deutsche Bank downgraded from Buy to Hold AND Novo Nordisk announced supply challenges for Wegovy in the U.S. (FY21 guidance maintained, FY22 guidance deferred to February 2022). RSI=37, below SMA50, MACD bearish, near lower BB \u2014 technically weak. Supply constraints are a near-term negative: they limit near-term revenue growth and create patient access issues. However, supply constraints on a blockbuster drug also signal demand is exceeding manufacturing capacity, which is ultimately a quality problem to have. The long-term GLP-1/aging populations thesis is fully intact. Down ~10.6% from $115.70 entry, stop at $94. Not selling here \u2014 supply issues are a 1-4 quarter resolution, not a structural thesis break. But no adds until supply normalises and technical picture improves."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "UNH",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "UnitedHealth Group is the largest managed care organisation in the United States and is structurally aligned with the Aging Populations theme. As the U.S. population ages, healthcare utilisation \u2014 particularly Medicare Advantage \u2014 grows in a durable, policy-supported manner. UNH is the dominant Medicare Advantage provider with extraordinary scale advantages in data analytics, pharmacy benefits (OptumRx), and care delivery (Optum Health). The business compounds earnings at 12-15% annually with exceptional capital allocation discipline. This is the defensive healthcare holding the portfolio needs: while most of our healthcare names (NVO, REGN, ISRG) are technically weak with bearish MACD, UNH stands out with RSI=65, MACD bullish, and above SMA50 \u2014 the cleanest technical profile among all healthcare names scanned this week. Omicron-driven medical cost uncertainty is the near-term headwind, but managed care organisations have leverage to adjust premiums annually \u2014 what looks like a cost shock this year becomes next year's pricing tailwind. UNH fills our 15th and final position slot and provides defensive cash-flow stability to balance our higher-beta tech positions in a volatile Omicron environment.",
+            "invalidation": "Medicare Advantage regulatory changes materially limiting plan profitability; sustained loss ratio deterioration without pricing remediation; Optum antitrust action that forces divestiture of the health services business; RSI breaks below 45 with MACD turning bearish and price below SMA50",
+            "target_price": 580.0,
+            "stop_price": 396.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=65 with MACD bullish and above SMA50 \u2014 the cleanest technical setup in healthcare this week. Not chasing overbought levels but buying constructive momentum in a broadly weak market. The relative strength of UNH vs peers is itself a signal of fundamental quality."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Supply challenges in pharmaceutical positions: when a key drug faces supply constraints (as with NVO/Wegovy), distinguish between demand-driven supply shortfalls (bullish long-term \u2014 demand exceeds capacity) and manufacturing/quality-driven supply failures (bearish \u2014 process problems). NVO's Wegovy supply issue appears demand-driven, which preserves the thesis but creates a 1-4 quarter revenue timing headwind. Rule: do not add to a pharmaceutical position in the same week it announces supply constraints AND receives an analyst downgrade \u2014 wait for FY22 guidance clarity before sizing up. The concurrent downgrade and supply announcement in the same week is a signal to pause, not sell.",
+          "Short position MACD divergence as a cover warning: when a SHORT position's underlying stock develops bullish MACD while fundamental thesis remains intact, it signals elevated short-squeeze risk even if the stop has not been triggered. Protocol: when a short position develops bullish MACD, tighten mental stop to within $1-1.50 of current price (rather than waiting for the full hard stop) and require a fresh negative catalyst to hold conviction. The fundamental thesis being intact is necessary but not sufficient \u2014 a bullish MACD on a short means the market is disagreeing with us in the near term and we should reduce, not hold full size through technical adversity."
+        ],
+        "weekly_summary": "Week of Dec 20 2021: Holiday-shortened week with minimal macro news. Portfolio at 14/15 positions, 35.5% cash, outperforming S&P by +1.4%. Opened UNH as 15th position (5% allocation) \u2014 cleanest technical setup in healthcare (RSI=65, MACD bullish) and defensive balance for aging populations theme. Two watch items: T SHORT developing bullish MACD (elevated short-squeeze risk, monitoring approach to $26 stop); NVO facing dual headwinds from Deutsche Bank downgrade and Wegovy supply challenges \u2014 thesis intact but no adds until FY22 guidance clarity in February. AVGO continues to be the portfolio standout, up ~13.4% with RSI=69 near upper BB. LLY is the strongest technical healthcare name in the existing book. Broad market remains technically weak with most names below SMA50 and MACD bearish \u2014 portfolio's outperformance is driven by thesis quality and selective position management rather than momentum chasing."
+      }
+    },
+    {
+      "date": "2021-12-28",
+      "type": "monthly",
+      "response": {
+        "world_assessment": "Extremely thin holiday news week \u2014 Christmas to New Year. The single most actionable macro development is the CDC cutting COVID isolation from 10 to 5 days, signalling that Omicron is being treated as endemic rather than pandemic. This is modestly bullish for travel, consumer, and payments recovery. Goldman Sachs booster mandate confirms institutional adaptation continuing. Apple closing NYC retail stores to shoppers shows Omicron retail disruption still active but contained. Joe Terranova explicitly bullish on mega-cap tech (AMZN, GOOGL, MSFT) for 2022 \u2014 validates our core AI/cloud holdings. CNBC Final Trades flagged UNH positively. Critically, the T SHORT has developed RSI=61, above SMA50, and bullish MACD \u2014 triggering Lesson 12's short cover protocol. No new macro events invalidate any long thesis. Positioning for 2022 is the priority: clean up the T short that is working against us technically and add a high-quality oversold opportunity.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI=57, above SMA50, MACD bullish, near upper BB. Strong recovery from our oversold entry. Original thesis fully intact \u2014 robotic surgery dominance, high switching costs, procedure volume recovery as Omicron is treated as endemic. Near upper BB suggests near-term consolidation possible but no action needed. Hold."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=53, above SMA50, MACD bullish. Slightly below our $2977 entry price but technically constructive. Terranova's mega-cap tech bullishness for 2022 validates. Google Cloud AI infrastructure thesis unchanged. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=62, above SMA50, but MACD has turned bearish \u2014 watch. Up from $85.53 entry to $91.88 (+7.4%). No fundamental news this week to invalidate climate transition thesis. MACD bearish is a caution flag but insufficient to exit a quality position above SMA50 with intact macro tailwinds. Hold and monitor."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=48, below SMA50, MACD bearish \u2014 technically weak. Down ~3% from entry. Alexa app passing Disney/Twitter shows ecosystem strength. Terranova bullish on AMZN for 2022. AWS AI infrastructure thesis unchanged. Below SMA50 with bearish MACD means we do not add here, but thesis is not broken. Hold."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=56, above SMA50, MACD bullish. Up ~2.8% from entry. China signaling support for continued US listings is a mild positive for geopolitical overhang. AI chip manufacturing monopoly thesis unchanged. Clean technical setup. Hold."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=64, above SMA50, MACD bullish. Up ~6.5% from entry. Best technical profile among our healthcare names. Aging populations thesis and tirzepatide pipeline unchanged. Hold."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=59, above SMA50, MACD bullish, near upper BB. Up ~1.6% from entry. Core social graph / advertising thesis intact. Near upper BB suggests limited near-term upside catalyst but no exit signal. Hold."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=52, above SMA50, MACD bearish. Down ~2.2% from entry post-ASH conference giveback. Dupixent growing 50%+ YoY thesis unchanged. MACD bearish is a caution but Dupixent fundamentals and aging populations tailwind are intact. Hold."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=59, above SMA50, MACD bullish. Up ~6.2% from entry. Digital payments recovery aligns with CDC endemic-signaling of Omicron. Amazon-Alexa ecosystem growth is positive for digital commerce. Hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=72, above SMA50, MACD bullish. Up ~17.6% from entry \u2014 largest winner in portfolio. Whale activity noted this week. RSI=72 is elevated but not extreme enough to force a trim given intact AI networking silicon thesis. Monitor \u2014 if RSI pushes above 78-80 next review, consider trimming 25-30% to lock gains. Hold for now."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "ACTIVE",
+            "notes": "RSI=42, below SMA50, MACD bullish. Down ~7.7% from entry. The bullish MACD below SMA50 is constructive \u2014 suggesting accumulation phase. Cybersecurity spend is non-discretionary; Omicron endemic treatment and return-to-office actually increases endpoint surface area. Thesis intact. Hold."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=59, above SMA50, MACD bullish. Up ~11.1% from entry \u2014 strong recovery from oversold entry. CDC endemic signaling supports cross-border and travel payment recovery. Amazon-Visa dispute remains but no new escalation. Thesis intact. Hold."
+          },
+          {
+            "ticker": "T",
+            "status": "CLOSING",
+            "notes": "LESSON 12 TRIGGERED. Entry SHORT at $23.28, now $24.82. RSI=61, above SMA50, MACD bullish \u2014 all three technical indicators have turned against the short. Per Lesson 12: when a short develops bullish MACD while stop approaches, tighten to within $1-1.50 of price. We are now $1.68 from our $26.50 stop with technical momentum against us. The fundamental thesis (WarnerMedia spin-off, dividend cut) remains intact but no near-term catalyst is present to reverse the technical trend. Covering here limits loss to ~$252 vs risking a full stop-out at $26.50 for ~$202 additional loss. Close."
+          },
+          {
+            "ticker": "NVO",
+            "status": "ACTIVE",
+            "notes": "RSI=51, above SMA50, MACD bearish. Down ~4.2% from entry. Supply constraint headwind from prior weeks still unresolved. Per Lesson 11: do not add while supply constraint + analyst downgrade clouds persist. Thesis (GLP-1 dominance, obesity/diabetes aging populations theme) unchanged long-term. Hold at current size, await FY22 guidance clarity."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=74, above SMA50, MACD bullish. Up ~4% from entry. CNBC Final Trades named UNH explicitly this week \u2014 positive near-term sentiment. RSI=74 is elevated; will not add at these levels but thesis is the strongest in the healthcare bucket technically. Medicare Advantage + Optum compounding thesis unchanged. Hold."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "SQ",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "Block (formerly Square) is a dual-engine fintech platform: the Seller ecosystem (payment processing, business banking for SMBs) and Cash App (P2P payments, banking, bitcoin) together serve approximately 70M+ monthly actives. The recent Afterpay acquisition (closed January 2022) adds BNPL capabilities targeting the underbanked and younger demographics \u2014 directly aligned with our Wealth Inequality theme (financial inclusion, alternative banking for those outside traditional finance). Block also fits AI/Automation: Cash App's monetization of financial data and Seller's AI-driven fraud detection are structural advantages. At RSI=33, Block is deeply oversold \u2014 below SMA50 but with bullish MACD, the classic accumulation signal (selling pressure exhausting while buyers begin to accumulate). The growth deceleration fears that have driven the selloff are macro-sentiment-driven, not fundamental: Cash App gross profit grew 33% YoY in Q3 2021 and Afterpay integration is a new revenue layer not yet priced in. This is a high-quality disruptive fintech being sold to deeply oversold levels in a thin holiday week \u2014 exactly the kind of setup our rules are designed to capture.",
+            "invalidation": "Thesis broken if: Cash App monthly actives growth turns negative for two consecutive quarters; Afterpay integration costs materially exceed guidance and management revises synergy expectations down; gross profit growth decelerates below 20% YoY for two consecutive quarters; or RSI recovers but price fails to reclaim SMA50 within 8 weeks of entry (suggesting structural rather than cyclical breakdown).",
+            "target_price": 215.0,
+            "stop_price": 134.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=33 is deeply oversold territory; MACD is bullish despite price below SMA50 \u2014 classic divergence signaling accumulation phase. Holiday thin volume amplifies oversold readings. This is a technically compelling entry."
+          }
+        ],
+        "close_positions": [
+          {
+            "ticker": "T",
+            "reason": "Lesson 12 protocol triggered: short position has developed RSI=61, price above SMA50, and bullish MACD \u2014 all three technical indicators have inverted against the short thesis. At $24.82 we are $1.68 from our $26.50 hard stop with no near-term fundamental catalyst (WarnerMedia spin-off, dividend cut) to reverse momentum. Cover to limit loss to approximately $252 (~$1.54/share \u00d7 164 shares) and free the position slot for better risk/reward. Fundamental thesis remains valid but technical risk/reward has deteriorated to unacceptable levels for a short."
+          }
+        ],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 0,
+            "reason": "No incremental news this week \u2014 holiday period. AVGO whale activity and Terranova mega-cap tech bullishness for 2022 are affirming but not new information. Hold at 5/5."
+          },
+          {
+            "name": "Climate Transition",
+            "delta": -1,
+            "reason": "NEE MACD has turned bearish \u2014 our primary climate proxy showing technical deterioration. No negative fundamental news, but no positive catalysts either in this thin holiday week. Dropping to 3/5 reflects near-term technical caution, not thesis abandonment."
+          },
+          {
+            "name": "Aging Populations",
+            "delta": 0,
+            "reason": "CNBC Final Trades bullish on UNH. LLY and NVO thesis intact. No new catalysts this week but post-ASH conference validation from last week supports holding conviction at 4/5."
+          },
+          {
+            "name": "Wealth Inequality",
+            "delta": 0,
+            "reason": "Opening SQ aligns with this theme (financial inclusion, underbanked access). V and MA recovering confirms digital payments displacement thesis. Hold at 3/5."
+          }
+        ],
+        "lessons": [
+          "Holiday week discipline: the period between Christmas and New Year produces minimal actionable fundamental news. In these thin windows, do not initiate positions based on sparse data \u2014 focus instead on technical protocol enforcement (Lesson 12 for T short) and adding to oversold high-conviction names with clear technical setups (RSI < 35 with bullish MACD). The quality of the setup matters more than the urgency to deploy. Resist the temptation to manufacture conviction from noise headlines when the signal-to-noise ratio is at its annual low."
+        ],
+        "weekly_summary": "Holiday week December 23-28 2021. Extremely thin news cycle. Primary action: closed T short per Lesson 12 protocol as RSI reached 61 with bullish MACD and price above SMA50 \u2014 technical momentum had fully inverted against the short with no near-term fundamental catalyst to reverse it. Opened SQ (Block) long at RSI=33 with bullish MACD \u2014 deeply oversold fintech with Afterpay acquisition as unpriced catalyst, fitting Wealth Inequality and AI/Automation themes. CDC cutting isolation to 5 days signals Omicron being treated as endemic, supportive of travel/payments recovery (positive for V, MA). Terranova mega-cap tech bullish for 2022 affirms AMZN/GOOGL core holdings. Portfolio holds 15 positions post-swap (closed T, opened SQ). At 29.7% cash pre-trade, we remain disciplined on the 20% minimum floor. AVGO up 17.6% from entry \u2014 watch for RSI > 78 to trigger partial trim next review. Climate Transition theme score reduced to 3/5 on NEE MACD deterioration."
+      }
+    },
+    {
+      "date": "2022-01-04",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Holiday week (Dec 30 - Jan 4, 2022) with minimal macro signal \u2014 exactly the thin-volume environment Lesson 13 warned against manufacturing conviction from. Key reads: chip stocks (NVDA/AMD/TSM) gaining momentum on AI/data centre demand acceleration; UNH extended its Insperity partnership through 2026; JPMorgan Healthcare Conference begins Jan 11 \u2014 an imminent catalyst window for LLY, NVO, UNH, REGN, ISRG. Broader market is rotating into cyclicals and value (energy, financials, industrials all near upper Bollinger Bands) as investors price in rate hikes and reopening. Our portfolio is trailing S&P by -5.1% \u2014 growth and tech weakness in December is the primary driver. We have one position slot open. CRWD at RSI=33, MACD bullish, near lower Bollinger Band is the cleanest re-entry setup available and cybersecurity is non-discretionary \u2014 prior stop-out was Omicron macro panic, not fundamental deterioration.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI recovered from oversold 27 to neutral 49, above SMA50, MACD bullish intact. Our aggressive add at RSI=27 is in early recovery phase. Robotic surgery monopoly thesis unchanged. JPM Healthcare Conference Jan 11 \u2014 watch for any hospital capex commentary. Hold full position."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=47, below SMA50, MACD bearish \u2014 near-term technical weakness in growth rotation. No portfolio-relevant news. Long-term AI/cloud/YouTube thesis unchanged. Do not add into bearish MACD. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=52, above SMA50, MACD bearish. CES 2022 Wallbox EV charging launch reinforces the electrification megatrend NEE benefits from. Bearish MACD is mild caution, not a thesis invalidator. Hold."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=44, below SMA50, MACD bearish. Mentioned alongside CRM in Najarian's top picks \u2014 mild positive. AWS AI infrastructure thesis intact. Technical weakness persists \u2014 patience required, no add. Hold."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=71, near upper Bollinger Band, MACD bullish. The 'chip stocks gained steam' article directly validates pick-and-shovel AI silicon thesis. Approaching overbought \u2014 do not add here. If MACD turns bearish above RSI=70, consider trimming. Hold full position with elevated monitoring."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=52, above SMA50, MACD bullish \u2014 clean technical posture. Whale activity in healthcare noted. JPM Healthcare Conference Jan 11 is an imminent catalyst for tirzepatide pipeline data. Hold and monitor for any data readouts."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=51, above SMA50, MACD bullish \u2014 fully recovered to neutral technical posture. No company-specific news. Core social graph and AI ad targeting thesis intact. Hold."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=43, below SMA50, MACD bearish. Benzinga ratings mention REGN but unclear direction. JPM Healthcare Conference Jan 11 could provide a Dupixent or Eylea pipeline catalyst. Do not add with MACD bearish. Hold through conference."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=66, above SMA50, MACD bullish, near upper Bollinger Band. Recovered strongly from our RSI=44 entry. Approaching overextended \u2014 do not add here. Digital payments thesis intact. Hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=70, above SMA50, MACD bearish \u2014 elevated caution. Near-overbought RSI with deteriorating MACD is a yellow flag. Whale activity noted but direction ambiguous. Entry $568.72, current $670.92 = +17.9% gain. AI networking silicon and recurring software thesis intact fundamentally. Watch closely \u2014 if MACD deepens into bearish territory or RSI fails to hold above 60 on the next pullback, consider trimming 25-30% of position to lock in gains. No action this week but this is the highest monitoring priority in the portfolio."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=64, above SMA50, MACD bullish, near upper Bollinger Band. Strong recovery from our RSI=35 oversold entry. Amazon-Visa UK dispute remains contained. Do not add near upper BB. Hold."
+          },
+          {
+            "ticker": "NVO",
+            "status": "ACTIVE",
+            "notes": "RSI=42, below SMA50, MACD bearish. Wegovy supply constraints and prior analyst downgrade headwinds persist. No new NVO-specific news. JPM Healthcare Conference Jan 11 \u2014 watch for supply update commentary from management. Lesson 11 applies: no add until MACD recovers and FY22 guidance clarity emerges. Hold."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=57, above SMA50, MACD bearish. Insperity partnership extended through 2026 is a concrete positive \u2014 durable enterprise relationship reinforcing managed care moat. Named top pick for 2022 by Joe Terranova. MACD bearish is mild concern but Medicare Advantage secular tailwinds dwarf near-term noise. JPM Healthcare Conference Jan 11 likely features UNH management commentary. Hold."
+          },
+          {
+            "ticker": "SQ",
+            "status": "ACTIVE",
+            "notes": "RSI=32, below SMA50, MACD bullish \u2014 the deeply oversold with accumulation-phase MACD pattern that is one of our highest-confidence signals. Crypto-friendly stocks top picks article is positive for Cash App and bitcoin exposure. Afterpay integration timeline tracking on plan. At max positions after CRWD, cannot add. Hold conviction."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "CRWD",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "CrowdStrike is the market-leading cloud-native endpoint security platform. The Falcon AI-driven threat detection platform protects endpoints, cloud workloads, and identity \u2014 a structural fit with the AI/Automation theme. Cybersecurity is non-discretionary IT spending: remote work and cloud adoption have permanently expanded the enterprise attack surface and this trend does not reverse as interest rates rise or variants emerge. CRWD grows revenue 60%+ YoY with net revenue retention above 120% \u2014 best-in-class SaaS cohort economics. We were previously stopped out during the Omicron macro panic selloff, not because of any fundamental deterioration in the thesis or business. The distinction matters: cybersecurity spending does not decline in a pandemic \u2014 if anything, remote work acceleration increases endpoint exposure and demand. The re-entry signal is textbook: RSI=33, MACD bullish, near lower Bollinger Band \u2014 deeply oversold with accumulation-phase momentum. This is our final position slot (15/15) and the most actionable setup available given our cash constraints.",
+            "invalidation": "Revenue growth decelerates below 40% YoY, net revenue retention falls below 110%, a major platform breach damages Falcon brand trust, or RSI recovers above 55 and MACD simultaneously turns bearish indicating a failed technical recovery that breaks the accumulation thesis.",
+            "target_price": 265.0,
+            "stop_price": 155.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=33, MACD bullish, near lower Bollinger Band. Previous stop-out was Omicron macro-driven, not fundamental. Re-entry protocol valid per Lesson 7."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Re-entry after macro-driven stop-outs: when a quality compounder is stopped out during a broad macro panic (Omicron risk-off, rate shock) rather than fundamental deterioration, the re-entry signal is valid when RSI returns below 35 with bullish MACD. The critical filter is stop-out cause: macro panic (thesis intact) versus fundamental break (thesis invalidated). Do not let stop-out recency bias prevent re-entry on technically clean setups in structurally sound businesses. CRWD at RSI=33 with MACD bullish after an Omicron-panic stop is a re-entry, not a pass.",
+          "Pre-conference position review protocol: the JPMorgan Healthcare Conference (first or second week of January annually) is a high-signal event for all healthcare positions \u2014 plan to review healthcare allocation and thesis conviction the week prior. Portfolio names LLY, NVO, UNH, REGN, ISRG all have exposure. Ahead of Jan 11, assess whether any healthcare name warrants pre-conference sizing adjustment, and flag data readout risks across all presentations. This extends the Lesson 9 medical conference calendar framework to include JPM Healthcare as a recurring annual anchor event."
+        ],
+        "weekly_summary": "Holiday week Jan 4, 2022. Minimal macro news \u2014 disciplined inaction on most positions per holiday week protocol. Key action: re-opened CRWD (RSI=33, MACD bullish, near lower BB) in our final position slot at 5% allocation \u2014 prior stop-out was Omicron macro panic, cybersecurity thesis fully intact. Portfolio now fully deployed at 15/15 positions with ~20% cash floor. AVGO elevated to highest monitoring priority: RSI=70 with MACD turning bearish is an emerging risk in our best-performing semiconductor position; if MACD deepens bearish, trim 25-30% to lock gains. TSM also approaching upper BB \u2014 watch for overbought conditions. Upcoming catalyst: JPMorgan Healthcare Conference Jan 11 \u2014 LLY, NVO, UNH, REGN, ISRG all have exposure; healthcare allocation review planned for next week. Portfolio trailing S&P -5.1%; full deployment with quality setups is the correct response."
+      }
+    },
+    {
+      "date": "2022-01-11",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Extremely thin news week \u2014 JPMorgan Healthcare Conference is the dominant catalyst event in play, directly relevant to our healthcare-heavy portfolio (LLY, NVO, REGN, UNH, ISRG). Macro backdrop remains a growth-to-value rotation driven by rate hike expectations: energy (XOM RSI=78, CVX RSI=78) and financials (JPM RSI=62, MACD bullish) are attracting capital while growth/tech remains under broad selling pressure. Rob Sechan's CNBC appearance naming REGN and JPM as top 2022 picks provides positive institutional sentiment validation for our REGN position. The portfolio has 11 of 14 positions with bearish MACD \u2014 this is consistent with a macro rotation event, not individual thesis breaks. Cash is at $24.7K (25.9%), barely above our 20% floor, which constrains new deployment. No new position openings this week \u2014 patience is warranted until JPM Healthcare Conference catalysts clear and cash headroom improves.",
+        "thesis_updates": [
+          {
+            "ticker": "ISRG",
+            "status": "ACTIVE",
+            "notes": "RSI improved from 27 to 36 but MACD has turned bearish \u2014 key change from our entry signal. However, the fundamental thesis remains fully intact: Da Vinci moat, hospital capex multi-year planning cycles, procedure volume recovery. The MACD deterioration is consistent with the broad market growth selloff, not ISRG-specific weakness. JPM Healthcare Conference this week is a potential positive catalyst. Hold through conference."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "Whale trade activity flagged this week signals institutional positioning. RSI=41, below SMA50, MACD bearish reflects the broad growth rotation. Alphabet's AI infrastructure thesis (Google Cloud >40% growth, YouTube ad budgets, DeepMind commercialisation) is not affected by rate sentiment. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "Approaching lower Bollinger Band with RSI=35 and MACD bearish \u2014 rate hike pressure on utility/bond-proxy stocks is the clear driver. COP26 climate transition thesis and FPL stable cashflow narrative unchanged. Do not add until MACD recovers. Hold."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=44, below SMA50, MACD bearish. AWS AI infrastructure thesis completely unchanged. The January 2022 growth selloff is macro-driven multiple compression, not fundamental deterioration. Hold."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "Portfolio's strongest technical setup: RSI=59, above SMA50, MACD bullish. Up approximately 8.8% from entry. AI chip manufacturing monopoly thesis performing exactly as expected. No action needed \u2014 this is the portfolio anchor in a sea of bearish MACD names. Hold."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=49, above SMA50, MACD turning bearish. Slightly above entry. JPM Healthcare Conference this week is a potential positive catalyst for tirzepatide pipeline updates. Aging Populations thesis intact. Hold through conference."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=50, above SMA50, MACD bearish. No new negative catalysts this week. Metaverse execution uncertainty remains but core advertising duopoly is unchanged. Hold."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=50, below SMA50, MACD bearish. Critically, Rob Sechan named REGN as a top 2022 pick on CNBC this week \u2014 meaningful institutional sentiment validation during JPM Healthcare Conference week. Dupixent 50%+ YoY growth trajectory and AMD/Eylea aging population tailwinds are fully intact. CNBC coverage plus unchanged thesis tips the balance firmly to hold."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "Portfolio's second-best technical setup: RSI=57, above SMA50, MACD bullish. Up approximately 7.8% from entry. Digital payments displacement thesis intact. Amazon-Visa dispute continues as mild Mastercard tailwind. Outperforming expectations \u2014 hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=47, above SMA50, MACD turning bearish. Up approximately 9.4% from entry. AI data centre networking thesis (Tomahawk/Jericho silicon for hyperscale GPU clusters) is intact. Broad tech MACD deterioration is macro. Hold."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=50, above SMA50, MACD bearish. Up approximately 9.2% from entry. Digital payments thesis intact. MACD turned bearish alongside broader growth rotation. Amazon-Visa UK dispute remains localised. Hold."
+          },
+          {
+            "ticker": "NVO",
+            "status": "ACTIVE",
+            "notes": "Most technically concerning position: RSI=36, below SMA50, MACD bearish. Down approximately 12.5% from entry. Supply constraints on Wegovy plus analyst downgrade are compounding headwinds. Per Lesson 11, no adding here. JPM Healthcare Conference is a near-term catalyst \u2014 hold through the event, then reassess. If conference guidance disappoints or supply issue timeline extends beyond Q2 2022, this becomes a close candidate. Watch closely."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=43, above SMA50, MACD bearish. Down approximately 3% from entry. JPM Healthcare Conference is a natural catalyst \u2014 UNH is a major Medicare Advantage presenter at JPM annually. Omicron medical cost uncertainty is the near-term headwind; premium adjustment thesis for 2023 pricing remains intact. Hold."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "ACTIVE",
+            "notes": "Re-entry performing: RSI=43, below SMA50, MACD bullish \u2014 bullish MACD divergence from the bearish market is the same signal that triggered the re-entry. Up approximately 3.7% from re-entry at $189.19. Options activity this week (Friday $195 calls, 297 contracts vs 1,791 OI) suggests institutional interest near current levels. Cybersecurity non-discretionary spending thesis intact. Hold."
+          }
+        ],
+        "new_positions": [],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Rate rotation posture when at cash floor: when the broad market is executing a growth-to-value rotation (energy RSI=78 overbought, tech RSI=36-44 oversold) and portfolio cash is within 6% of the 20% minimum, the correct posture is to hold existing positions and wait \u2014 not to deploy the last available capital into new setups however technically clean they appear. The asymmetry at the cash floor is adverse: any further portfolio decline forces breach of the 20% rule, restricting future flexibility. Preserve the last buffer of cash for stop-loss rebuilding or high-conviction re-entries after a clear rotation inflection, not for incremental new ideas in a trending-down tape.",
+          "JPMorgan Healthcare Conference (reinforcing Lesson 15): institutional CNBC coverage naming portfolio holdings as top picks during conference week (REGN named by Rob Sechan) is a sentiment confirmation signal worth tracking but not acting on alone. Combined with unchanged fundamentals and RSI above 45, it tips the balance from 'consider trimming' to 'hold with conviction'. File CNBC healthcare conference coverage under the same framework as analyst upgrades \u2014 useful context, not standalone buy signal."
+        ],
+        "weekly_summary": "Week of Jan 6-11, 2022: Thin news week; no position changes executed. Portfolio held at 14 positions, $24.7K cash (25.9%). Macro backdrop is a clear growth-to-value rotation on rate hike expectations \u2014 energy and financials attracting capital while tech/growth sells off broadly. Portfolio technical health: TSM (+8.8%, MACD bullish) and MA (+7.8%, MACD bullish) are the standout performers; NVO (-12.5%, MACD bearish) is the primary concern with supply constraints and analyst pressure. REGN received positive institutional validation via CNBC. CRWD re-entry is performing with bullish MACD divergence. Cash floor proximity ($843 above 20% minimum) prevented opening the 15th position slot despite available setups (FSLR RSI=33 bullish MACD). Portfolio continues to underperform S&P by 6.6pp \u2014 rate rotation creating headwinds for growth-heavy positioning. No thesis invalidations identified. Patience warranted through JPM Healthcare Conference and into Q4 2021 earnings season starting mid-January."
+      }
+    },
+    {
+      "date": "2022-01-19",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "The market is in a broad, aggressive rate-hike-driven selloff. Fed hawkishness is accelerating the growth-to-value rotation that began in late December \u2014 nearly every growth name in the universe now shows bearish MACD and is below SMA50. This is a macro regime shift, not thesis-specific deterioration for our core holdings. Energy (XOM RSI=78, CVX RSI=74, OXY RSI=67) is the sole sector with bullish momentum \u2014 a classic flight to value/inflation hedges. Key portfolio-specific news: (1) bipartisan surveillance advertising bill targets Google and Meta's core business model \u2014 regulatory risk elevated, (2) Morgan Stanley cuts REGN price target to $585, (3) Amazon shares falling for unspecified macro reasons, (4) UNH earnings ahead. News is sparse overall. The critical discipline this week: distinguish macro-driven technical weakness (hold) from thesis invalidation (exit). Almost all our positions fall in the former category. TSM stands out as the sole portfolio name with bullish MACD and above SMA50 \u2014 a signal of genuine relative strength worth noting.",
+        "thesis_updates": [
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=35, below SMA50, MACD bearish \u2014 technically weakened materially from entry at RSI=63. Bipartisan surveillance advertising bill is a new regulatory headwind but unlikely to pass in current form; Google's core search advertising is less affected than Meta. YouTube scaling back original programming is actually cost-discipline (positive). AI/cloud thesis (Google Cloud >40% YoY, DeepMind) fully intact. This is macro-driven selling, not thesis invalidation. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=34, below SMA50, MACD bearish. Rate-sensitive utility hit hard by Fed hawkishness \u2014 rising rates compress utility valuations mechanically. Climate transition thesis unchanged; COP26 policy tailwinds remain. This is a rate-driven valuation compression, not a clean energy demand story reversal. Hold \u2014 but note NEE is the most rate-sensitive name in the portfolio and further rate hike acceleration is a genuine thesis pressure point."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=32, below SMA50, MACD bearish, near lower Bollinger Band. Shares falling with no specific fundamental catalyst \u2014 pure macro growth selloff. AWS thesis fully intact; cloud demand is structurally accelerating. At current price, AWS alone arguably justifies valuation. Deeply oversold but MACD bearish prevents adding. Hold."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=55, above SMA50, MACD bullish \u2014 THE standout in both the portfolio and the broader universe. While every other growth name is technically broken, TSM is holding above SMA50 with bullish MACD in the most brutal growth selloff since 2020. This relative strength in a broad risk-off event is a signal of genuine fundamental differentiation. AI chip manufacturing monopoly thesis fully intact. No action needed \u2014 this is the portfolio anchor."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=35, below SMA50, MACD bearish, near lower Bollinger Band. Pharma being sold indiscriminately with growth. Tirzepatide pipeline and aging populations thesis completely intact. No fundamental deterioration \u2014 JPM Healthcare Conference is upcoming and could serve as catalyst. Hold."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=42, below SMA50, MACD bearish. The bipartisan surveillance advertising bill is a direct regulatory threat to Meta's core business model in a way it is not for Google \u2014 Meta's entire revenue model is behavioral targeting. Bill passage is far from certain but the regulatory risk is now more concrete. Thesis weakened but not broken \u2014 $40B+ annual free cash flow gives enormous defensive cushion. Monitor closely. If the bill gains material legislative traction, this becomes a thesis invalidation event."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=48, below SMA50, MACD bearish. Morgan Stanley cuts price target to $585 \u2014 not a downgrade, just a price target reduction. Dupixent multi-indication expansion thesis intact. Eylea aging populations thesis intact. Hold \u2014 MS price target cut is a sentiment headwind not a fundamental thesis break."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=50, above SMA50, MACD bearish. One of the more technically resilient portfolio positions \u2014 still above SMA50. Digital payments structural thesis intact. No portfolio action needed."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=30, below SMA50, MACD bearish, near lower Bollinger Band. Deeply oversold. AI networking silicon thesis (Tomahawk, Jericho data center interconnects) fully intact \u2014 NVDA's AI accelerator buildout requires Broadcom networking. Recurring software segment (CA Technologies, Symantec) provides cashflow stability. Macro selloff only. Hold."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=50, above SMA50, MACD bearish. Relatively resilient \u2014 still above SMA50. Digital payments displacing cash thesis intact. Cross-border volumes improving as Omicron fades. Hold."
+          },
+          {
+            "ticker": "NVO",
+            "status": "ACTIVE",
+            "notes": "RSI=32, below SMA50, MACD bearish. Deeply oversold. GLP-1/semaglutide structural thesis fully intact \u2014 demand-driven supply shortfall on Wegovy is a timing issue not a thesis break. Per Lesson 11, not adding while supply constraints and analyst downgrades overhang. Hold and wait for FY22 guidance clarity."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=41, below SMA50, MACD bearish. Earnings upcoming \u2014 Q4 results will test Omicron medical cost thesis. Medicare Advantage structural dominance unchanged. Managed care pricing adjustment mechanism protects medium-term margins. Hold into earnings."
+          },
+          {
+            "ticker": "CRWD",
+            "status": "ACTIVE",
+            "notes": "RSI=35, below SMA50, MACD bearish. Recently re-entered at $189.19 \u2014 now trading at $175.71, below entry. Cybersecurity spending is non-discretionary. The re-entry thesis (macro panic stop-out, not fundamental break) is still valid. At RSI=35 in a broad bearish MACD environment, no action. Hold."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "T",
+            "action": "SHORT",
+            "allocation_pct": 4,
+            "direction": "SHORT",
+            "thesis": "AT&T re-short at materially better prices and a more overbought technical setup. Our previous T short was stopped out at $26.50 when the broad market value rotation drove dividend-seeking capital into yield plays as growth sold off. That rotation has now pushed T to RSI=76 with MACD bullish \u2014 AT&T is being bought for the wrong reasons by income investors who don't yet realize the dividend is about to be cut. The WarnerMedia-Discovery spin-off and accompanying dividend cut remain the thesis catalyst: when the cut is announced, forced selling from dividend-income institutions will create sustained pressure. The $180B debt burden has not changed. The structural wireline decline has not changed. T-Mobile's competitive pressure has not changed. The irony is that value/income rotation into T has made the short re-entry cleaner \u2014 RSI=76 is the most overbought T has been in years, and it is trading at $27.28 vs our stopped-out entry of $23.28. We are re-shorting a structurally deteriorating business at a 17% higher price into extreme technical overbought conditions, with a known fundamental catalyst (dividend cut) on an approaching timeline. This is a better short entry than the original.",
+            "invalidation": "Dividend cut announcement reversed or WarnerMedia spin-off abandoned. T breaks above $30 with sustained momentum (suggests the value rotation thesis is stronger than the fundamental deterioration thesis). Close if RSI sustains above 75 for more than 2 weeks without a fundamental catalyst emerging.",
+            "target_price": 19.0,
+            "stop_price": 30.0,
+            "horizon": "3-6 months",
+            "confidence": "medium",
+            "timing_note": "RSI=76 overbought in a broad selloff is anomalous \u2014 dividend-rotation bid is unsustainable ahead of imminent cut. Re-shorting at 17% higher than original stopped-out entry."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "Climate Transition",
+            "delta": -1,
+            "reason": "Fed hawkishness and rate hike acceleration materially compress utility and renewable energy valuations \u2014 NEE is a rate-sensitive asset and the mechanism is structural, not temporary. Rising discount rates hurt long-duration clean energy projects disproportionately. Climate policy tailwinds remain but the valuation headwind from rates is now a near-term reality. Reducing conviction score to reflect this pressure."
+          }
+        ],
+        "lessons": [
+          "Re-shorting a stopped-out short at better prices: when a short position is stopped out due to a macro-driven value rotation (not fundamental thesis change), and the stock subsequently rallies to extreme overbought levels (RSI=76), the re-short at the higher price is a superior entry \u2014 lower-risk because (a) more overbought means more mean-reversion potential, (b) the fundamental catalyst (dividend cut) is now closer in time, and (c) the stop can be placed tighter because the overbought extreme is more defined. Lesson: stopped-out shorts in structurally declining businesses are candidates for re-entry when the rotation bid exhausts at overbought RSI levels. The re-entry is better than the original when the catalyst is approaching and RSI is more extreme."
+        ],
+        "weekly_summary": "Week of Jan 14-19, 2022: Broad growth-to-value rotation accelerating under Fed rate hike expectations \u2014 essentially the entire growth universe now trades with bearish MACD and below SMA50. Portfolio underperforming benchmark by 5.5% primarily due to long-growth positioning in a rate-driven selloff. No thesis invalidations \u2014 all 13 positions holding on fundamental grounds despite technical deterioration. TSM is the sole portfolio standout with bullish MACD and above SMA50, confirming its relative fundamental strength. Added T SHORT re-entry at $27.28 (RSI=76, overbought value rotation bid) with dividend cut catalyst approaching. Reduced Climate Transition theme score due to rate-sensitive headwinds for utilities/renewables. Regulatory risk elevated for META from surveillance advertising bill \u2014 monitoring for legislative traction. News is sparse; market is in a macro regime transition driven by Fed policy normalization."
+      }
+    },
+    {
+      "date": "2022-01-26",
+      "type": "monthly",
+      "response": {
+        "world_assessment": "The market is experiencing a broad rate-shock selloff driven by Fed hawkishness and aggressive tightening expectations. This is categorically different from the Omicron COVID panic of November \u2014 virtually every growth/tech name in the universe shows bearish MACD simultaneously, which per Lesson 8 protocol is a MACRO signal, not stock-specific weakness. The only bullish MACD names in the entire universe are energy (XOM RSI=73, CVX RSI=75, OXY RSI=66) at overbought levels and isolated fintech (SOFI). Microsoft Q2 cloud revenue of $22.1B validates AI/cloud thesis fundamentals, but macro rate repricing is overriding company-specific strength across the board. The AT&T short is working well (+11% from entry). With 48% cash and broad bearish-MACD confirming a macro bear environment, capital preservation is the correct posture \u2014 resist deploying into RSI-extreme longs when MACD is bearish everywhere, as rate-driven multiple compression persists longer than COVID-panic sentiment selloffs.",
+        "thesis_updates": [
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=32, bearish MACD, below SMA50. Microsoft Q2 cloud at $22.1B is a direct peer validation \u2014 Azure momentum implies Google Cloud growing similarly. YouTube NFT exploration shows continued platform monetisation optionality. Fundamental thesis intact. Technical deterioration is rate-shock macro, not company-specific. Hold, do not add yet \u2014 wait for MACD stabilisation."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "RSI=20, near lower BB, bearish MACD \u2014 most oversold name in portfolio. Clean energy thesis is structurally intact (COP26 policy tailwinds, renewable buildout). However utilities trade as bond proxies: Fed hawkishness creates a legitimate near-term headwind as investors reprice yield alternatives. RSI extreme is notable but rate-shock MACD deterioration argues for patience. Hold, do not add until MACD stabilises."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=46, bearish MACD \u2014 relatively strongest technical profile in portfolio. NVIDIA quietly abandoning ARM acquisition clarifies semiconductor competitive landscape and actually removes a potential threat to TSMC's independence. AI chip demand acceleration unchanged. Hold."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=30, bearish MACD. Whale activity noted in news \u2014 institutional accumulation signal worth monitoring. Tirzepatide pipeline and aging populations thesis unchanged. Rate shock driving multiple compression in pharma growth names. Hold."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=32, near lower BB, bearish MACD. Google/YouTube NFT exploration signals that every major platform is competing for creator monetisation \u2014 moderate competitive pressure on Meta's optionality thesis. Core advertising fundamentals unchanged. Metaverse costs remain the key uncertainty. Hold."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=43, bearish MACD. JPM Healthcare Conference passed without negative surprises. Dupixent growth and myeloma/ophthalmology pipeline intact. Most technically resilient healthcare long (RSI=43 vs LLY=30, NVO=26). Hold."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=41, near lower BB, bearish MACD. Amex crypto rewards exploration validates ongoing digital payments innovation \u2014 reinforces the structural displacement of cash thesis. Mastercard's network moat and AI fraud detection advantages unchanged. Hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=37, bearish MACD. Microsoft cloud strength implies continued hyperscaler capex \u2014 directly supports Broadcom networking silicon demand thesis. Software segment (CA Technologies, Symantec) provides cashflow stability in volatile tape. Hold."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=40, bearish MACD. Above entry ($205.87 vs $196.29 entry) \u2014 one of the portfolio's few profitable longs. Amex crypto exploration validates digital payments expansion. UK interchange dispute remains contained. Hold."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=39, bearish MACD. Most defensively positioned long in portfolio \u2014 Medicare Advantage growth is demographic inevitability, not rate-sensitive. Optum analytics and pharmacy benefits provide structural earnings compounding. Best risk-adjusted hold in current environment. Hold."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "SHORT continuing to work \u2014 T declined from $27.28 entry to $24.25 (~11% gain on short position). RSI=35, near lower BB, MACD bearish. Per Lesson 10: do not cover on oversold RSI alone when MACD is still bearish. WarnerMedia-Discovery spin-off and dividend cut thesis catalyst is approaching on known timeline. $180B debt burden and structural wireline decline unchanged. Target $19 intact. Hold short."
+          }
+        ],
+        "new_positions": [],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 0,
+            "reason": "Microsoft Q2 cloud revenue of $22.1B validates the AI/cloud infrastructure thesis \u2014 but macro rate shock is compressing multiples regardless of fundamentals. Thesis conviction unchanged, execution environment temporarily adverse."
+          }
+        ],
+        "lessons": [
+          "Rate-shock selloffs differ fundamentally from COVID-panic selloffs and require a different deployment protocol. In COVID panics, quality names maintain bullish MACD (fear is temporary, thesis intact), and RSI extremes below 35 with bullish MACD are clean buying opportunities. In rate-shock selloffs (Fed signals aggressive tightening, growth-to-energy rotation, ALL growth names showing bearish MACD simultaneously), MACD turns bearish broadly because the repricing is fundamental \u2014 higher discount rates structurally compress growth multiples, not temporarily. Trigger for this distinction: when 30+ tickers simultaneously show bearish MACD AND energy/commodity names are the only bullish MACD exceptions, the market is in rate-shock mode, not panic mode. In this environment: (1) do NOT deploy into RSI-extreme longs even in highest-conviction names \u2014 RSI extreme alone is insufficient when the repricing driver is structural, (2) wait for MACD to begin stabilising or turning before adding new longs, (3) the dual confirmation signal changes to: RSI extreme PLUS MACD turning/flattening, not RSI alone. Rate repricing can persist 4-8 weeks longer than COVID-variant selloffs."
+        ],
+        "weekly_summary": "Week of Jan 26 2022: Broad rate-shock selloff as Fed hawkishness repriced growth multiples globally. Every growth/tech name showed bearish MACD simultaneously \u2014 confirmed macro bear signal per Lesson 8 protocol. Microsoft Q2 cloud $22.1B validated AI/cloud thesis fundamentals but macro overrode company strength. AT&T short continued working toward target ($27.28 entry \u2192 $24.25, ~11% short gain). Held all 11 positions with 48% cash preserved. New lesson established distinguishing rate-shock (fundamental multiple compression, persist longer) from COVID-panic selloffs (sentiment-driven, bullish MACD maintained on quality). No deployments this week \u2014 MACD stabilisation required before adding to any long."
+      }
+    },
+    {
+      "date": "2022-02-02",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "GOOGL dominates this week with a blowout Q4 print \u2014 EPS $30.69 vs $27.48 estimate (+11.7% beat), revenue $75.33B vs $72.13B, plus a 20-for-1 stock split announcement that will dramatically expand retail accessibility. This is the most important earnings event of the week and validates our AI/cloud thesis at its core. YouTube slowdown is explicitly a lapping effect, not structural deterioration. AT&T spinout news ('AT&T Spins Out') confirms our T short catalyst is approaching \u2014 the WarnerMedia-Discovery separation is in motion, dividend cut incoming. GM CFO noted semiconductor availability improved in Q4 and expects further improvement in 2022 \u2014 a mixed signal for TSM that explains its MACD turning bearish. Macro environment remains rate-shock driven with growth-to-value rotation partially unwinding. We are trailing the S&P by 2.5% with 51.5% cash \u2014 this is indefensible when multiple quality names show RSI in the 34-47 range with bullish MACD. Aggressive deployment is required this week.",
+        "thesis_updates": [
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "Thesis strongly reinforced. Q4 EPS $30.69 vs $27.48 estimate (+11.7% beat). Revenue $75.33B vs $72.13B estimate. 20-for-1 stock split announced \u2014 this expands retail accessibility significantly and is a near-term demand catalyst. YouTube slowdown explicitly attributed to lapping strong brand sales year prior, not structural. Google Cloud continues growing >40% YoY. RSI=66, above SMA50, MACD bullish \u2014 still constructive technically. Near upper BB so adding cautiously but the earnings catalyst justifies incremental add. Adding 3% to bring position closer to 9% total."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "MACD has turned bearish \u2014 this is a yellow flag requiring monitoring. GM CFO commentary on semiconductor availability improvement in Q4 is a near-term headwind signal: if supply normalises, the urgency premium in semiconductor pricing compresses. However, TSM's monopoly at the leading edge (3nm ramp, Arizona fab) for AI chips remains structurally intact \u2014 NVDA, Apple, AMD all route through TSMC. This is technical deterioration in a rate-shock environment, not thesis invalidation. We are profitable (+4.6%) from entry. Holding but will not add until MACD stabilises. Watching for whether bearish MACD extends or reverses in 1-2 weeks."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "Below SMA50 but MACD bullish \u2014 the constructive divergence suggests selling pressure is exhausting rather than accelerating. Aging populations thesis unchanged. Tirzepatide Phase 3 data remains a major upcoming catalyst. Whale trades being tracked per news (institutional interest). RSI=50 is neutral \u2014 not a re-entry point but not a concern. Holding full position."
+          },
+          {
+            "ticker": "META",
+            "status": "ACTIVE",
+            "notes": "RSI=52, below SMA50 but MACD bullish. Technically in accumulation phase below the 50-day. Core thesis intact \u2014 3.5B+ MAU social graph, dominant digital ad duopoly with Google, $40B+ FCF funding the metaverse optionality. AI investment in ad targeting and content ranking accelerating. Metaverse execution uncertainty remains the primary risk. Holding position and watching for earnings catalyst. MACD bullish below SMA50 is the re-entry/hold signal per our protocol."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=52, below SMA50, MACD bullish. Dupixent continues to grow 50%+ YoY across expanding indications. Eylea provides stable base revenue from age-related macular degeneration. ASH 2021 myeloma data (75% response rate) validated quality biotech pipeline execution. Below SMA50 is a mild headwind but MACD bullish suggests accumulation. Thesis unchanged. Holding."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "Working well \u2014 RSI=68, above SMA50, MACD bullish, near upper BB. Position up ~17% from entry ($339.72 \u2192 $396.75). Near upper BB suggests do not add. Digital payments displacement of cash thesis remains structurally intact. Visa-Amazon dispute dynamics continue to provide minor tailwind for Mastercard share. Holding \u2014 near upper BB means we're close to taking profit territory but not at target ($420) yet."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=55, above SMA50, MACD bullish. Up ~6% from entry. AI data centre networking chip thesis intact \u2014 every GPU cluster needs Broadcom interconnect silicon. Combination of AI hardware exposure and recurring software cashflows (CA Technologies, Symantec Enterprise) provides defensive characteristics. Clean technical setup. Holding."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=70, above SMA50, MACD bullish, near upper BB. Up ~20% from entry ($196.29 \u2192 $235.42). Approaching target of $245. At RSI=70 near upper BB, this is not a position to add to. Amazon-Visa UK fee dispute appears to be de-escalating as expected. Digital payments thesis intact. Will monitor for target approach \u2014 at $235 we are within 4% of $245 target. Holding but watching closely."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=58, above SMA50, MACD bullish, near upper BB. Effectively flat on the position ($483.73 entry \u2192 $479.78). Medicare Advantage dominance thesis unchanged. Aging populations structural driver intact. Omicron medical cost headwind is manageable given annual premium adjustment levers. Cleanest technical profile among healthcare names. Holding."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "SHORT thesis accelerating. AT&T spinout news this week ('PreMarket Prep Stock Of The Day: AT&T Spins Out') confirms the WarnerMedia-Discovery separation is actively in progress. The dividend cut will accompany or follow the spin-off. Currently at $24.54 vs our short entry of $27.28 \u2014 we are up ~10% on this short position. RSI=42, below SMA50, MACD bearish \u2014 all signals aligned with short thesis. Target $19 remains intact. Stop at $30 remains in place. The $180B debt, wireline decline, and T-Mobile competitive pressure are unchanged. The approaching catalyst (spin-off/dividend cut) is now actively in news headlines, validating the thesis timeline."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "GOOGL",
+            "action": "BUY",
+            "allocation_pct": 3,
+            "direction": "LONG",
+            "thesis": "Adding to existing GOOGL position on the back of an exceptional Q4 earnings print \u2014 EPS $30.69 vs $27.48 estimate (11.7% beat), revenue $75.33B vs $72.13B. The 20-for-1 stock split announcement is a near-term retail demand catalyst that makes Alphabet accessible to a dramatically wider investor base. YouTube CFO commentary about lapping strong brand sales from prior year is the correct framing \u2014 this is a comparison effect, not structural decay. Google Cloud growing >40% YoY remains foundational AI infrastructure. The stock split catalysts historically see buying pressure in the weeks between announcement and execution. RSI=66, MACD bullish, above SMA50 \u2014 still technically constructive. Adding 3% incremental to bring total GOOGL allocation toward 9% on what is the highest-conviction single-week earnings event in the portfolio.",
+            "invalidation": "Google Cloud revenue growth decelerates below 25% YoY for two consecutive quarters, or regulatory action breaks up Google's core search advertising business",
+            "target_price": 3500.0,
+            "stop_price": 2440.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "Earnings beat + stock split is an exceptional catalyst to add. Near upper BB so keeping add to 3% rather than full 5%."
+          },
+          {
+            "ticker": "NVDA",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "NVIDIA is the dominant AI compute infrastructure provider \u2014 A100 GPUs power every major AI training workload globally. We correctly avoided entry at RSI=88 in prior reviews. Now at RSI=47 with MACD turning bullish below SMA50, this is the pullback entry we waited for. The rate-shock selloff has dragged NVDA from peak to a much more reasonable entry point. The AI/automation theme is structurally accelerating \u2014 hyperscalers (AWS, Azure, GCP) are all guiding to increased AI infrastructure capex, and NVDA is the sole supplier of training-grade AI compute at scale. TSMC's continued capacity ramp (which we benefit from via our TSM position) directly enables NVDA chip production growth. The NVDA thesis is unchanged: it is the picks-and-shovels play on every company building AI. RSI=47 with bullish MACD after a major pullback is the exact entry signal our rules target.",
+            "invalidation": "AMD MI300 gains meaningful AI training market share (>20%) or NVDA reports two consecutive quarters of data centre revenue decline",
+            "target_price": 330.0,
+            "stop_price": 207.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=47 vs prior RSI=88 rejection \u2014 this is the pullback entry we patiently waited for. MACD bullish confirms accumulation phase."
+          },
+          {
+            "ticker": "AMZN",
+            "action": "BUY",
+            "allocation_pct": 6,
+            "direction": "LONG",
+            "thesis": "Amazon Web Services is the dominant cloud infrastructure provider globally \u2014 #1 market share, highest margins, and the foundational layer for AI workloads across every major industry. AMZN's own AI chips (Trainium for training, Inferentia for inference) reduce GPU dependence and create cost advantages that compound over time. The e-commerce flywheel generates the data, logistics, and consumer behaviour insights that make AWS's AI offerings uniquely grounded in real-world applications. At $3,012, AMZN has pulled back significantly from highs \u2014 RSI=43, below SMA50, MACD bullish. This is the MACD bullish with below-SMA50 accumulation pattern we have used successfully to time other entries. AWS alone arguably justifies current market cap at growing >30% YoY with 30%+ operating margins. The AI/automation theme is AMZN's core competitive advantage over the next decade.",
+            "invalidation": "AWS loses >5 percentage points of market share to Azure or GCP in two consecutive quarters, or federal antitrust action forces AWS separation from retail Amazon",
+            "target_price": 4200.0,
+            "stop_price": 2470.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=43 with MACD bullish below SMA50 \u2014 classic accumulation entry signal. Strong fundamental value at current levels."
+          },
+          {
+            "ticker": "PLTR",
+            "action": "BUY",
+            "allocation_pct": 4,
+            "direction": "LONG",
+            "thesis": "Palantir is the AI operating system for governments and enterprises \u2014 Gotham for defence/intelligence, Foundry for commercial data integration and AI-driven decision making. RSI=34 with bullish MACD below SMA50 is a deeply oversold re-entry signal that meets Lesson 14 criteria: we were previously stopped out during a macro-driven selloff (rate shock), not because of fundamental thesis deterioration. Commercial revenue growth continues to expand. The US government remains a structural customer base. AI/automation tailwinds for data integration platforms are structural \u2014 as enterprises build AI capabilities, they need the data plumbing first, and Palantir is that plumbing. Smaller allocation (4%) acknowledges the higher growth-profile risk and no dividend support. RSI=34 is the deepest oversold reading among re-entry candidates, making this the highest-priority re-entry from a technical timing standpoint.",
+            "invalidation": "Commercial revenue growth decelerates below 25% YoY for two consecutive quarters, or US government contract pipeline declines materially",
+            "target_price": 20.0,
+            "stop_price": 10.9,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=34 with MACD bullish meets Lesson 14 re-entry criteria for macro-panic stop-out. Smaller 4% allocation reflects higher risk profile."
+          },
+          {
+            "ticker": "SNOW",
+            "action": "BUY",
+            "allocation_pct": 4,
+            "direction": "LONG",
+            "thesis": "Snowflake is the data cloud layer sitting on top of AWS, Azure, and GCP \u2014 the platform enterprises use to consolidate, query, and analyse data across cloud providers. As AI workloads accelerate (validated by GOOGL's massive cloud beat and NVDA AI chip demand), every company building AI must first centralise their data, and Snowflake is the leading platform for enterprise data consolidation. Net revenue retention above 170% means customers dramatically expand usage once onboarded \u2014 this cohort metric is best-in-class among all software companies. RSI=41 with MACD bullish below SMA50 meets re-entry criteria per Lesson 14. We were stopped out previously during macro panic at $321 \u2014 the thesis is unchanged and we are now entering at $268, a significantly better price point. Smaller allocation (4%) acknowledges the growth premium valuation risk in a rising rate environment.",
+            "invalidation": "Net revenue retention falls below 130% for two consecutive quarters, or AWS/Azure/GCP builds a competitive native data lake product that materially impacts Snowflake win rates",
+            "target_price": 380.0,
+            "stop_price": 220.0,
+            "horizon": "6-12 months",
+            "confidence": "high",
+            "timing_note": "RSI=41 with MACD bullish is constructive re-entry after macro-driven stop-out. Entering at $268 vs prior stop at $321 \u2014 meaningfully better risk/reward."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "AI/Automation",
+            "delta": 0,
+            "reason": "GOOGL's massive Q4 beat confirms AI cloud infrastructure demand remains structurally accelerating \u2014 Google Cloud >40% growth validates the theme. No score change needed as theme is already at maximum conviction (5/5), but this week's data further entrenches our high-conviction view."
+          },
+          {
+            "name": "Wealth Inequality",
+            "delta": 0,
+            "reason": "PayPal CEO notes supply chain issues disproportionately impacted small business merchants and cross-border volumes \u2014 confirms structural inequality in supply chain access. No score change but validates the fintech/payments thesis for underserved segments. Theme holds at 3/5."
+          }
+        ],
+        "lessons": [
+          "Major earnings beat + stock split announcement is a compound catalyst that warrants adding to an existing position even when RSI is in the mid-60s: the stock split expands retail accessibility (demand catalyst) while the earnings beat validates the fundamental thesis simultaneously. The dual catalyst changes the risk/reward of adding near the upper Bollinger Band \u2014 the earnings re-rating and split-driven retail inflow typically sustain price momentum beyond what pure technical analysis would suggest. Protocol: when a portfolio holding beats EPS by >10% AND announces a stock split in the same report, add 2-3% incremental regardless of proximity to upper BB, capped at 10% total position size."
+        ],
+        "weekly_summary": "Week of Feb 2, 2022: GOOGL delivered the portfolio's most significant single-stock catalyst \u2014 Q4 EPS beat of 11.7% plus a 20-for-1 stock split announcement. AT&T spinout news confirms our T short thesis is approaching its catalyst. Deployed aggressively into 4 new positions (NVDA, AMZN, PLTR, SNOW) and added to GOOGL, reducing cash from 51.5% to approximately 28% \u2014 necessary given we were trailing the S&P by 2.5% with excess idle cash. Total positions now 14 of 15 maximum. TSM's MACD turned bearish following GM semiconductor availability improvement commentary \u2014 monitoring but not selling profitable position. T short continues to work (+10% from entry) as WarnerMedia spin-off approaches. Portfolio in aggressive deployment mode to close benchmark gap."
+      }
+    },
+    {
+      "date": "2022-02-09",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Thin news week with no macro headlines \u2014 the rate-shock environment from prior weeks continues but technicals are stabilizing. Key signals: AMZN telehealth nationwide launch expands the AWS/AI healthcare thesis. Enphase Q4 earnings beat ('shares popping') validates clean energy theme. META appears to be in genuine fundamental deterioration (first DAU decline, weak guidance) \u2014 RSI=28 MACD bearish is a falling knife, not a re-entry. Citi remains bullish on NVDA despite Arm deal fallout, reinforcing AI infrastructure demand. Broad MACD picture has improved from prior weeks \u2014 most portfolio names now showing bullish MACD, signaling the rate-shock selloff may be stabilizing. We are 2.4% behind the S&P and have 38.5% cash \u2014 deploying into two quality setups to fill our final two position slots.",
+        "thesis_updates": [
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "RSI=54, above SMA50, MACD bullish. Stock split catalyst and strong Q4 fundamentals intact. Technically healthy, no action needed."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "MACD turned BEARISH this week \u2014 flagging for close monitoring. RSI=52, still above SMA50. Thesis (AI chip manufacturing monopoly) remains fundamentally intact, but bearish MACD in a rate-shock environment warrants caution per Lesson 19. Will not add; if MACD deteriorates further and price breaks below SMA50, will reassess."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "RSI=44, below SMA50, MACD bullish. Mild technical softness but aging population diabetes/oncology thesis fully intact. No action."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "RSI=50, below SMA50, MACD bullish. Dupixent and Eylea franchises unaffected by macro. Hold."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "RSI=57, above SMA50, MACD bullish. Featured in '5 Best Digital Payments Stocks' coverage. Whale activity noted. Technical strength validates the digital payments thesis."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=57, above SMA50, MACD bullish. AI data center networking thesis intact. One of the stronger technical setups in the portfolio."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=62, above SMA50, MACD bullish. Digital payments structural trend intact. Amazon-Visa dispute remains a localized UK issue. Strong recovery from our entry."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=66, above SMA50, MACD bullish, near upper BB. Near upper Bollinger Band \u2014 approaching extended territory. Thesis intact, but do not add here. Monitor for any Omicron medical cost guidance updates."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "SHORT working: T at $24.50 vs $27.28 entry \u2014 gain of $2.78/share ($375 total). RSI=44, below SMA50, MACD bearish. Structural decline thesis intact. Dividend cut and WarnerMedia spin-off catalyst has not yet triggered \u2014 short thesis remains valid. Well below our $30 stop."
+          },
+          {
+            "ticker": "NVDA",
+            "status": "ACTIVE",
+            "notes": "RSI=56, below SMA50, MACD bullish. Citi remains bullish post-Arm deal fallout \u2014 GPU AI dominance thesis unaffected by the deal collapse. Arm deal falling through may reduce regulatory risk and capital allocation concerns. Constructive."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=56, below SMA50, MACD bullish. Now above our entry ($3,223 vs $3,012). Telehealth nationwide launch is a new thesis confirmation signal \u2014 AWS is expanding into healthcare delivery, not just infrastructure. This compounds the AI/cloud thesis with a high-margin recurring healthcare vertical."
+          },
+          {
+            "ticker": "PLTR",
+            "status": "ACTIVE",
+            "notes": "RSI=43, below SMA50, MACD bullish. Minimal news this week. Thesis (AI operating system for governments and enterprises) unchanged. Holding with discipline at smaller allocation."
+          },
+          {
+            "ticker": "SNOW",
+            "status": "ACTIVE",
+            "notes": "RSI=56, below SMA50, MACD bullish, near upper BB. Strong recovery from $268 entry toward $308. Near upper BB suggests some near-term resistance \u2014 do not add here, but thesis intact. Data cloud demand for AI workloads is accelerating."
+          }
+        ],
+        "new_positions": [
+          {
+            "ticker": "SQ",
+            "action": "BUY",
+            "allocation_pct": 5,
+            "direction": "LONG",
+            "thesis": "Block (formerly Square) re-entry at $112.84 \u2014 a 31% discount to our prior stopped-out entry of $163.67. This is a structurally superior entry point, not a capitulation buy. The dual-engine fintech thesis is intact: Cash App (70M+ monthly actives, P2P + banking + bitcoin) and Seller ecosystem (SMB payments, business banking) are both growing. The Afterpay acquisition closed in January 2022, adding a BNPL layer targeting the underbanked \u2014 a direct structural fit with the Wealth Inequality theme (financial inclusion for those outside traditional banking). Afterpay's revenue contribution is not yet priced into Street estimates at current levels. RSI=41 with bullish MACD below SMA50 is the classic accumulation pattern per our entry framework: selling pressure exhausting as buyers accumulate. The macro-driven selloff that triggered our prior stop has created a materially better entry. This is a Lesson 14 re-entry: stopped out during broad macro panic (not fundamental deterioration), re-entering on technically clean oversold setup at a significantly lower price.",
+            "invalidation": "Cash App monthly actives decline quarter-over-quarter, Afterpay integration shows material negative unit economics, or regulatory action targeting BNPL or crypto within Cash App. Stop at $92 (~18% below entry).",
+            "target_price": 165.0,
+            "stop_price": 92.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=41, below SMA50, MACD bullish \u2014 accumulation phase entry. 31% below prior stop-out entry, substantially improved risk/reward."
+          },
+          {
+            "ticker": "NEE",
+            "action": "BUY",
+            "allocation_pct": 4,
+            "direction": "LONG",
+            "thesis": "NextEra Energy re-entry at $76.66 \u2014 a 10% discount to our prior stopped-out entry of $85.53. NEE is the world's largest generator of renewable energy (wind and solar) and the highest-quality vehicle to own the Climate Transition theme. The utility subsidiary (FPL) provides stable regulated cash flows that fund aggressive renewable capacity expansion. COP26 policy tailwinds for renewables remain structurally intact \u2014 energy transition is a multi-decade infrastructure buildout, not a single-quarter trade. Enphase's Q4 earnings beat this week ('shares popping') is a sector validation signal confirming end-market demand for clean energy equipment remains robust. RSI=40, below SMA50, MACD bullish \u2014 a clean accumulation-phase re-entry with no overbought risk. Smaller 4% allocation acknowledges our lower Climate Transition theme conviction (2/5) and the interest rate sensitivity of regulated utilities in a rising rate environment.",
+            "invalidation": "US federal clean energy policy materially reverses (IRA equivalent legislation fails or repealed), utility solar/wind permitting faces systematic regulatory blockage, or NEE's FPL regulated ROE is structurally compressed below 10% by state regulators. Stop at $63 (~18% below entry).",
+            "target_price": 98.0,
+            "stop_price": 63.0,
+            "horizon": "6-12 months",
+            "confidence": "medium",
+            "timing_note": "RSI=40, below SMA50, MACD bullish. Enphase earnings beat validates clean energy sector demand. Re-entry at 10% below prior stop-out level."
+          }
+        ],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [
+          {
+            "name": "Climate Transition",
+            "delta": 1,
+            "reason": "Enphase Energy Q4 earnings beat with shares rallying validates clean energy end-market demand. Utility and solar names showing improved technicals (MACD bullish across ENPH, FSLR, NEE). Renewable demand theme is proving more resilient in the rate-shock environment than initially feared."
+          }
+        ],
+        "lessons": [
+          "Lesson 21 \u2014 RSI extreme with MACD bearish during confirmed fundamental deterioration is a falling knife, not a re-entry: META at RSI=28 MACD bearish coincides with the first-ever DAU decline and deeply negative Q1 guidance. This is NOT a macro-panic oversold entry \u2014 it is a business going through genuine fundamental stress (user stagnation, metaverse cash burn, rising costs, weakening ad pricing). The filter: was the selloff caused by macro-panic (thesis intact, temporary) or confirmed fundamental deterioration (first-ever metric reversal, guidance miss, structural cost escalation)? When RSI extreme coincides with a confirmed fundamental break \u2014 first-ever negative user metric, management guidance well below consensus \u2014 the oversold reading is a warning that prior valuation assumptions are being permanently repriced, not a contrarian buy signal. Protocol: only apply RSI-extreme re-entry logic when the thesis is intact; when the metric that defines the thesis (MAU growth, revenue growth rate) shows its first structural reversal, treat RSI extreme as a falling knife indicator regardless of how low it reads."
+        ],
+        "weekly_summary": "Thin news week with no macro headlines, but technicals broadly stabilized. Deployed remaining two position slots: SQ re-entry at 31% below prior stop (Wealth Inequality/fintech theme, Afterpay integration catalyst) and NEE re-entry at 10% below prior stop (Climate Transition, Enphase sector validation). T short continues working as expected ($24.50 vs $27.28 entry). AMZN telehealth nationwide launch and Citi NVDA bullishness are positive thesis confirmations. TSM MACD turn bearish is the one technical flag requiring monitoring. META avoided despite RSI=28 extreme \u2014 confirmed fundamental deterioration (first DAU decline) distinguishes this from macro-panic oversold setups. Portfolio now fully allocated at 15 positions with approximately 29% cash. Climate Transition theme upgraded to 3/5 on Enphase earnings beat."
+      }
+    },
+    {
+      "date": "2022-02-16",
+      "type": "weekly",
+      "response": {
+        "world_assessment": "Thin macro week with no major catalysts. The single most significant portfolio-relevant item is the CNN+ report \u2014 people inside the network concede it is low quality, too expensive, and won't be profitable for years. This is a direct confirmation of our T short thesis: AT&T's capital allocation into streaming is failing publicly. AMD/NVDA/TSM all rising together this week validates AI semiconductor demand remains structurally intact. TSM's US fab construction falling behind schedule is notable but thesis-neutral \u2014 the fab eventually gets built. Piper Sandler bullish on NVDA. PLTR receiving WSB attention. Otherwise minimal signal this week; no macro surprises and no portfolio repositioning required.",
+        "thesis_updates": [
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "CNN+ report is textbook short thesis confirmation: AT&T's streaming content bet is failing (low quality product, too expensive, unprofitable for years per insiders). This validates the capital misallocation narrative \u2014 $180B debt burden funding a streaming service no one wants. Short is working at $23.94 vs $27.28 entry (+12.2%). MACD bearish, RSI=41, below SMA50 \u2014 downtrend intact. No cover. Hold."
+          },
+          {
+            "ticker": "NVDA",
+            "status": "ACTIVE",
+            "notes": "Piper Sandler optimistic, technical reversal signal noted, WSB top mentions. RSI=54 near upper BB \u2014 do not add here per rules. Profitable at $265.11 vs $252.42 entry. MACD bullish, thesis intact. Hold, no addition at upper band."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "US chip plant construction falling behind schedule is a mild negative but thesis-neutral \u2014 the fab is still being built and the CHIPS Act policy tailwind remains. Japan expansion with DENSO acquiring stake is a positive diversification signal. RSI=50, above SMA50, MACD bullish. Thesis intact."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "MACD turning bearish is a caution flag \u2014 flagging for monitoring. Still above SMA50, RSI=57, profitable at $382.93 vs $339.72 entry. No thesis invalidation; digital payments displacement thesis unchanged. Will require a bearish MACD + RSI deterioration or fundamental break to act. Hold but watchlisted."
+          },
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "Drone delivery unit CTO promotion is minor operational news, not a thesis mover. RSI=49, below SMA50, MACD bullish. Position underwater at $2,754 vs $2,977 blended entry. Stock split catalyst and AI cloud growth thesis remain intact. Hold."
+          },
+          {
+            "ticker": "PLTR",
+            "status": "ACTIVE",
+            "notes": "WSB top-10 mentions and Palantir-specific coverage. RSI=47, MACD bullish, slightly profitable at $13.97 vs $13.32 entry. No fundamental news. Thesis intact."
+          },
+          {
+            "ticker": "SNOW",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=55, MACD bullish. Profitable at $304.70 vs $268.28 entry. Thesis intact."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=52, MACD bullish. Profitable at $597.21 vs $568.72 entry. Thesis intact."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=59, MACD bullish, above SMA50. Profitable at $228.82 vs $196.29 entry. Thesis intact."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=53, MACD bullish. Profitable at $3,162.01 vs $3,012.25 entry. Thesis intact."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=55, MACD bullish, above SMA50. Slightly underwater at $630.90 vs $652.68 entry. Aging populations thesis intact. Hold."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=50, MACD bullish. Underwater at $245.58 vs $259.65 entry. Aging populations thesis intact \u2014 no fundamental change warrants action."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=52, MACD bullish, above SMA50. Essentially flat at $480.05 vs $483.73 entry. Thesis intact."
+          },
+          {
+            "ticker": "SQ",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=41, MACD bullish. Slightly underwater at $109.00 vs $112.84 entry. Afterpay integration thesis intact. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "No news. RSI=37, MACD bullish. Slightly underwater at $75.23 vs $76.66 entry. Climate Transition thesis intact. RSI approaching oversold again \u2014 monitoring."
+          }
+        ],
+        "new_positions": [],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Lesson 22 \u2014 Short thesis confirmation via subsidiary execution failures: when a conglomerate's subsidiary or spinoff publicly concedes failure (AT&T's CNN+ insiders admitting low quality, unprofitable, too expensive), treat this as a high-conviction thesis confirmation for any short position on the parent. The key signal is not the stock move \u2014 it is the public acknowledgment of capital misallocation from within the organisation itself. Protocol: when insider reporting contradicts management's public narrative on a key strategic bet, upgrade short conviction and tighten the mental cover trigger. Do not cover into confirmatory bad news \u2014 the market often needs time to fully price in publicly confirmed strategic failures."
+        ],
+        "weekly_summary": "Thin news week, no macro catalysts. Key development: CNN+ insiders publicly confirming AT&T's streaming strategy is failing (low quality, too expensive, unprofitable) \u2014 direct confirmation of T short thesis which is up 12.2% ($27.28 entry, now $23.94). AMD/NVDA/TSM all rising together validates AI semiconductor demand. TSM US fab behind schedule is thesis-neutral. NVDA near upper BB \u2014 no addition. MA MACD turning bearish flagged for monitoring. All 15 positions held with intact theses. Portfolio at 15/15 capacity, cash 29.8% comfortably above 20% floor. No position changes warranted this week."
+      }
+    },
+    {
+      "date": "2022-02-24",
+      "type": "monthly",
+      "response": {
+        "world_assessment": "Extremely thin news week \u2014 no major macro catalysts, no earnings surprises, no geopolitical escalation signals in the provided data. The dominant story is the technical picture: nearly every name in our universe is below SMA50 with bearish MACD, consistent with the continued rate-shock selloff described in Lesson 19. Energy remains a pocket of relative strength. Notable exceptions with bullish MACD include LLY, NEE, SQ, CRWD, ISRG, DXCM, ENPH, FSLR, and AMD. The T short continues to work exactly as intended \u2014 T has moved from our $27.28 entry to $23.23, a ~15% gain on the short. No portfolio-relevant fundamental news changes any active thesis this week. Capital preservation is the correct posture.",
+        "thesis_updates": [
+          {
+            "ticker": "GOOGL",
+            "status": "ACTIVE",
+            "notes": "MACD has turned bearish since entry and price has fallen to $2,652 from $2,977 entry. Thesis remains intact \u2014 earnings beat, stock split catalyst, Google Cloud AI infrastructure story unchanged. MACD deterioration is concerning but consistent with broad market rate-shock. No fundamental invalidation. Monitor for MACD stabilisation before considering add."
+          },
+          {
+            "ticker": "TSM",
+            "status": "ACTIVE",
+            "notes": "RSI=35, near lower BB, MACD bearish. Price $111.88 vs $118.69 entry. Wide stop at ~$97 not threatened. AI semiconductor thesis intact \u2014 CHIPS Act legislation forming, leading-edge monopoly unchanged. BofA bullish on AMD/NVDA this week is indirect validation of the AI compute demand cycle that feeds TSM order books. Watchlist: if MACD deteriorates further and RSI breaks below 30, reassess."
+          },
+          {
+            "ticker": "LLY",
+            "status": "ACTIVE",
+            "notes": "One of only two portfolio holdings with bullish MACD. RSI=49, below SMA50. Relative strength standout in the healthcare sleeve. Aging populations thesis intact. No news this week directly affecting the position. Hold with conviction \u2014 MACD bullish divergence from peers is a positive signal."
+          },
+          {
+            "ticker": "REGN",
+            "status": "ACTIVE",
+            "notes": "MACD has turned bearish since our entry. RSI=45, below SMA50. Dupixent growth thesis unchanged. Biotech sector broadly soft. No ASH-style conference catalyst this week. Thesis intact but technical setup has weakened. No action."
+          },
+          {
+            "ticker": "MA",
+            "status": "ACTIVE",
+            "notes": "Notably still above SMA50 \u2014 relative strength in the financial sleeve. RSI=49, MACD bearish but the SMA50 persistence is a positive signal vs peers. We are UP on the position ($369 vs $339 entry). Payments infrastructure thesis intact. Hold."
+          },
+          {
+            "ticker": "AVGO",
+            "status": "ACTIVE",
+            "notes": "RSI=48, MACD bearish, below SMA50. Roughly flat from entry ($580 vs $568). AI networking chip thesis intact. BofA bullish on NVDA/AMD this week is indirect demand confirmation for AVGO's data centre interconnect chips. No action."
+          },
+          {
+            "ticker": "V",
+            "status": "ACTIVE",
+            "notes": "RSI=44, MACD bearish, below SMA50. We are UP on the position ($217 vs $196 entry). Whale trades spotted this week \u2014 institutional activity. Payments displacement thesis unchanged. Hold."
+          },
+          {
+            "ticker": "UNH",
+            "status": "ACTIVE",
+            "notes": "RSI=37, near lower BB, MACD bearish. Most technically stressed of active longs. Price $455 vs $483 entry. Stop at ~$396 not threatened. Medicare Advantage managed care thesis unchanged \u2014 no earnings news, no regulatory news. Monitor closely; if MACD does not stabilise when RSI approaches 30, re-evaluate thesis integrity."
+          },
+          {
+            "ticker": "T",
+            "status": "ACTIVE",
+            "notes": "Short working exceptionally well \u2014 $23.23 vs $27.28 entry, ~15% gain. RSI=34 approaching oversold territory but per Lesson 10, do NOT cover on RSI alone when thesis is intact. WarnerMedia-Discovery spin-off and dividend cut catalyst remains on an approaching timeline. MACD remains bearish. No CNN+ confirmation news this week but no reversal of the thesis either. Tighten awareness per Lesson 12 \u2014 if MACD turns bullish, reduce exposure. For now: hold."
+          },
+          {
+            "ticker": "NVDA",
+            "status": "ACTIVE",
+            "notes": "RSI=45, MACD bearish, below SMA50. BofA bullish on AMD/NVDA this week is a modest thesis confirmation \u2014 institutional analysts still constructive on AI compute. Price $237 vs $252 entry, slightly underwater. Wide stop at $207 not threatened. Hold \u2014 AI training infrastructure monopoly thesis unchanged."
+          },
+          {
+            "ticker": "AMZN",
+            "status": "ACTIVE",
+            "notes": "RSI=47, MACD bearish. Roughly flat from entry ($3,027 vs $3,012). Microsoft security chief citing cloud adoption for combating cyberattacks is an indirect AWS tailwind \u2014 enterprise cloud migration thesis intact. No action."
+          },
+          {
+            "ticker": "SNOW",
+            "status": "ACTIVE",
+            "notes": "RSI=44, MACD bearish, below SMA50. Roughly flat from entry ($270 vs $268). Data cloud thesis intact \u2014 if anything, cloud migration narrative reinforced by MSFT security cloud commentary. Net revenue retention above 170% is a durable cohort metric. Hold."
+          },
+          {
+            "ticker": "NEE",
+            "status": "ACTIVE",
+            "notes": "The other portfolio holding with bullish MACD alongside LLY. RSI=44, below SMA50 but MACD bullish divergence is a positive signal. Slightly below entry ($75.44 vs $76.66). Climate Transition thesis intact. ENPH RSI=51 with bullish MACD is sector validation. Hold with conviction."
+          }
+        ],
+        "new_positions": [],
+        "close_positions": [],
+        "reduce_positions": [],
+        "theme_updates": [],
+        "lessons": [
+          "Lesson 23 \u2014 Thin news + broad bearish MACD = hold posture, not deployment posture: when a review week produces no material fundamental news for portfolio holdings AND nearly all names in the universe show bearish MACD simultaneously (rate-shock environment per Lesson 19), the correct decision is disciplined inaction. The absence of new information is itself information \u2014 no new thesis is born from noise headlines about minor dividend raises and unrelated small-cap earnings. Protocol: in weeks where (a) no portfolio-relevant fundamental catalyst exists and (b) the technical regime is broad MACD bearish, default to zero new deployments regardless of available cash. The opportunity cost of waiting one more week is far lower than the cost of opening a position in a deteriorating tape without a confirming fundamental catalyst."
+        ],
+        "weekly_summary": "Thin news week with no actionable macro or portfolio-specific catalysts. Broad market continues rate-shock selloff with near-universal bearish MACD across the universe. T short performing well at +15% gain ($23.23 vs $27.28 entry) \u2014 held per Lesson 10 as dividend cut thesis remains intact. LLY and NEE are the portfolio's relative strength standouts with bullish MACD divergence from bearish peers. All 13 positions held with no thesis invalidations. Lesson 23 recorded: disciplined inaction in thin news + rate-shock weeks is the correct posture. No new positions opened, no positions closed. Cash maintained at ~39% well above the 20% minimum floor."
+      }
+    }
+  ],
+  "closed_trades": [
+    {
+      "ticker": "PLTR",
+      "quantity": 192,
+      "entry_price": 26.0,
+      "exit_price": 21.32,
+      "pnl": -898.56,
+      "stop_loss": 21.32,
+      "take_profit": 52.0,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "SNOW",
+      "quantity": 15,
+      "entry_price": 392.15,
+      "exit_price": 321.56,
+      "pnl": -1058.85,
+      "stop_loss": 321.56,
+      "take_profit": 784.3,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "T",
+      "quantity": 164,
+      "entry_price": 23.28,
+      "exit_price": 24.82,
+      "pnl": -252.56,
+      "stop_loss": 27.47,
+      "take_profit": 11.64,
+      "is_short": true
+    },
+    {
+      "ticker": "CRWD",
+      "quantity": 21,
+      "entry_price": 224.57,
+      "exit_price": 184.15,
+      "pnl": -848.82,
+      "stop_loss": 184.15,
+      "take_profit": 449.14,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "SQ",
+      "quantity": 36,
+      "entry_price": 163.67,
+      "exit_price": 134.21,
+      "pnl": -1060.56,
+      "stop_loss": 134.21,
+      "take_profit": 327.34,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "ISRG",
+      "quantity": 19,
+      "entry_price": 364.95,
+      "exit_price": 299.26,
+      "pnl": -1248.11,
+      "stop_loss": 299.26,
+      "take_profit": 729.9,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "AMZN",
+      "quantity": 1,
+      "entry_price": 3525.15,
+      "exit_price": 2890.62,
+      "pnl": -634.53,
+      "stop_loss": 2890.62,
+      "take_profit": 7050.3,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "NVO",
+      "quantity": 43,
+      "entry_price": 115.7,
+      "exit_price": 94.87,
+      "pnl": -895.69,
+      "stop_loss": 94.87,
+      "take_profit": 231.4,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "CRWD",
+      "quantity": 25,
+      "entry_price": 189.19,
+      "exit_price": 155.14,
+      "pnl": -851.25,
+      "stop_loss": 155.14,
+      "take_profit": 378.38,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "NEE",
+      "quantity": 70,
+      "entry_price": 85.53,
+      "exit_price": 70.13,
+      "pnl": -1078.0,
+      "stop_loss": 70.13,
+      "take_profit": 171.06,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "META",
+      "quantity": 14,
+      "entry_price": 340.89,
+      "exit_price": 279.53,
+      "pnl": -859.04,
+      "stop_loss": 279.53,
+      "take_profit": 681.78,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "PLTR",
+      "quantity": 290,
+      "entry_price": 13.32,
+      "exit_price": 10.92,
+      "pnl": -696.0,
+      "stop_loss": 10.92,
+      "take_profit": 26.64,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    },
+    {
+      "ticker": "SQ",
+      "quantity": 42,
+      "entry_price": 112.84,
+      "exit_price": 92.53,
+      "pnl": -853.02,
+      "stop_loss": 92.53,
+      "take_profit": 225.68,
+      "is_short": false,
+      "exit_reason": "stopped_out"
+    }
+  ]
+}

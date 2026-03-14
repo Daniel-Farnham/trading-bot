@@ -1,0 +1,121 @@
+============================================================
+  V3 THESIS SIMULATION REPORT
+============================================================
+
+  Period:              2021-11-01 to 2022-02-28
+  Trading Days:        81
+  Weekly Reviews:      16
+
+  PERFORMANCE
+  Initial Capital:     $100,000.00
+  Final Value:         $92,440.87
+  Total Return:        -7.56%
+  Annualized Return:   -21.69%
+  Max Drawdown:        -12.65%
+
+  TRADES
+  Total Trades:        13 (0W / 13L)
+  Win Rate:            0.0%
+  Total P&L:           $-11,234.99
+  Avg P&L/Trade:       $-864.23
+  Open Positions:      13
+
+  PER-TICKER PERFORMANCE
+    T         $   -252.56  (1 trades)
+    AMZN      $   -634.53  (1 trades)
+    META      $   -859.04  (1 trades)
+    NVO       $   -895.69  (1 trades)
+    SNOW      $ -1,058.85  (1 trades)
+    NEE       $ -1,078.00  (1 trades)
+    ISRG      $ -1,248.11  (1 trades)
+    PLTR      $ -1,594.56  (2 trades)
+    CRWD      $ -1,700.07  (2 trades)
+    SQ        $ -1,913.58  (2 trades)
+
+  LESSONS LEARNED (23 total)
+    - First deployment: resist the urge to chase overbought momentum names (NVDA RSI=88, AMD RSI=81) even when the thesis is strong. Wait for pullbacks. The right entry in a quality compounder matters — overpaying at RSI=88 risks months of sideways consolidation eating into returns.
+
+---
+    - RSI extremes in quality names are gifts: ISRG at RSI=21 with intact MACD trend is the kind of setup to deploy aggressively on. When a world-class business with durable moat goes deeply oversold without fundamental change, that is the entry.
+
+---
+    - PLTR lesson: When post-earnings analyst downgrades hit a growth stock with already-elevated expectations, RSI and MACD can deteriorate quickly. For smaller/higher-risk positions, consider trimming 25-30% into the first post-earnings breakdown rather than holding full size into the stop — especially when MACD turns bearish without a near-term catalyst to reverse it. ARK buying is a useful sentiment check but not sufficient alone to hold conviction.
+
+---
+    - Deployment pacing: 76% cash in a bull market where the S&P is hitting ATHs is a performance drag. The cautious approach protects against drawdowns but guarantees underperformance if the bull continues. In the second review, if macro is stable and positions are behaving, deploy at least 20-25% of remaining cash into high-conviction ideas with clean technical setups.
+
+---
+    - Customer concentration in semiconductor suppliers: Apple's plan to transition fully to in-house 5G chips by 2023 is a reminder that even irreplaceable suppliers like TSMC face slow-burn revenue headwinds when dominant customers build in-house. When a thesis depends partly on a single large customer relationship, proactively monitor that customer's vertical integration roadmap — it is a legitimate long-term invalidation risk even if near-term demand from other customers more than compensates.
+
+---
+    - Deployment urgency in confirmed bull markets: With S&P at ATHs and four clean technical setups available (RSI 44-70, MACD bullish), sitting at 61% cash for a third consecutive review is indefensible. When multiple high-conviction setups exist simultaneously, deploy into all of them in a single review. Do not ration deployments across future reviews when the current review already has the conviction and technical entry signals — opportunity cost compounds weekly.
+
+---
+    - Macro shock deployment lesson: when a new COVID variant triggers broad risk-off selling, immediately assess whether portfolio thesis fundamentals are impaired or merely sentiment-affected. Structural tech (AI/cloud/cybersecurity), healthcare, and clean energy theses are not invalidated by a COVID variant — they are often reinforced (e-commerce over in-store, digital payments over cash, healthcare demand elevated). In macro-driven selloffs, prioritize adding to highest-conviction existing positions showing RSI extremes with bullish MACD (ISRG RSI=25 is the signal), then selectively open new positions in quality names being sold indiscriminately. The key filter: is this thesis-broken or macro-panic? If macro-panic in a quality name, it is a deployment trigger, not a wait-and-see signal.
+
+---
+    - Broad simultaneous MACD deterioration is a macro signal, not a stock-specific signal: when 30+ tickers simultaneously show bearish MACD, the market is in a broad risk-off event. In these environments, the rare name maintaining bullish MACD (ISRG) stands out as highest-conviction — that divergence from the pack is itself a signal of relative fundamental strength and should trigger concentrated deployment. When adding to positions in a broad bearish-MACD environment, prioritize the exceptions, not the rule.
+
+---
+    - Major medical conference windows (ASH, ASCO, ESMO, JPM Healthcare) are predictable catalyst events for healthcare positions. In weeks with major biotech conferences, existing healthcare positions should be reviewed for presentation calendars — REGN ASH 2021 delivered 75% response rate in myeloma, a clear positive catalyst that validated holding through pre-conference uncertainty. Monitoring conference calendars and anticipating data readouts is a repeatable edge in healthcare investing; consider maintaining a rolling 4-week forward calendar of major medical conferences and which portfolio names have presentations.
+
+---
+    - When a short position (T) reaches RSI oversold levels (31) while MACD remains bearish, do not cover prematurely on oversold technical readings alone. Oversold RSI on a structurally declining business is a pause, not a reversal — the thesis catalyst (dividend cut, WarnerMedia spin-off) is approaching on a known timeline. The discipline is: cover when the thesis is invalidated, not when RSI looks extended. T's RSI=31 with intact bearish MACD and unchanged fundamental deterioration narrative means the short remains valid.
+
+---
+    - Supply challenges in pharmaceutical positions: when a key drug faces supply constraints (as with NVO/Wegovy), distinguish between demand-driven supply shortfalls (bullish long-term — demand exceeds capacity) and manufacturing/quality-driven supply failures (bearish — process problems). NVO's Wegovy supply issue appears demand-driven, which preserves the thesis but creates a 1-4 quarter revenue timing headwind. Rule: do not add to a pharmaceutical position in the same week it announces supply constraints AND receives an analyst downgrade — wait for FY22 guidance clarity before sizing up. The concurrent downgrade and supply announcement in the same week is a signal to pause, not sell.
+
+---
+    - Short position MACD divergence as a cover warning: when a SHORT position's underlying stock develops bullish MACD while fundamental thesis remains intact, it signals elevated short-squeeze risk even if the stop has not been triggered. Protocol: when a short position develops bullish MACD, tighten mental stop to within $1-1.50 of current price (rather than waiting for the full hard stop) and require a fresh negative catalyst to hold conviction. The fundamental thesis being intact is necessary but not sufficient — a bullish MACD on a short means the market is disagreeing with us in the near term and we should reduce, not hold full size through technical adversity.
+
+---
+    - Holiday week discipline: the period between Christmas and New Year produces minimal actionable fundamental news. In these thin windows, do not initiate positions based on sparse data — focus instead on technical protocol enforcement (Lesson 12 for T short) and adding to oversold high-conviction names with clear technical setups (RSI < 35 with bullish MACD). The quality of the setup matters more than the urgency to deploy. Resist the temptation to manufacture conviction from noise headlines when the signal-to-noise ratio is at its annual low.
+
+---
+    - Re-entry after macro-driven stop-outs: when a quality compounder is stopped out during a broad macro panic (Omicron risk-off, rate shock) rather than fundamental deterioration, the re-entry signal is valid when RSI returns below 35 with bullish MACD. The critical filter is stop-out cause: macro panic (thesis intact) versus fundamental break (thesis invalidated). Do not let stop-out recency bias prevent re-entry on technically clean setups in structurally sound businesses. CRWD at RSI=33 with MACD bullish after an Omicron-panic stop is a re-entry, not a pass.
+
+---
+    - Pre-conference position review protocol: the JPMorgan Healthcare Conference (first or second week of January annually) is a high-signal event for all healthcare positions — plan to review healthcare allocation and thesis conviction the week prior. Portfolio names LLY, NVO, UNH, REGN, ISRG all have exposure. Ahead of Jan 11, assess whether any healthcare name warrants pre-conference sizing adjustment, and flag data readout risks across all presentations. This extends the Lesson 9 medical conference calendar framework to include JPM Healthcare as a recurring annual anchor event.
+
+---
+    - Rate rotation posture when at cash floor: when the broad market is executing a growth-to-value rotation (energy RSI=78 overbought, tech RSI=36-44 oversold) and portfolio cash is within 6% of the 20% minimum, the correct posture is to hold existing positions and wait — not to deploy the last available capital into new setups however technically clean they appear. The asymmetry at the cash floor is adverse: any further portfolio decline forces breach of the 20% rule, restricting future flexibility. Preserve the last buffer of cash for stop-loss rebuilding or high-conviction re-entries after a clear rotation inflection, not for incremental new ideas in a trending-down tape.
+
+---
+    - JPMorgan Healthcare Conference (reinforcing Lesson 15): institutional CNBC coverage naming portfolio holdings as top picks during conference week (REGN named by Rob Sechan) is a sentiment confirmation signal worth tracking but not acting on alone. Combined with unchanged fundamentals and RSI above 45, it tips the balance from 'consider trimming' to 'hold with conviction'. File CNBC healthcare conference coverage under the same framework as analyst upgrades — useful context, not standalone buy signal.
+
+---
+    - Re-shorting a stopped-out short at better prices: when a short position is stopped out due to a macro-driven value rotation (not fundamental thesis change), and the stock subsequently rallies to extreme overbought levels (RSI=76), the re-short at the higher price is a superior entry — lower-risk because (a) more overbought means more mean-reversion potential, (b) the fundamental catalyst (dividend cut) is now closer in time, and (c) the stop can be placed tighter because the overbought extreme is more defined. Lesson: stopped-out shorts in structurally declining businesses are candidates for re-entry when the rotation bid exhausts at overbought RSI levels. The re-entry is better than the original when the catalyst is approaching and RSI is more extreme.
+
+---
+    - Rate-shock selloffs differ fundamentally from COVID-panic selloffs and require a different deployment protocol. In COVID panics, quality names maintain bullish MACD (fear is temporary, thesis intact), and RSI extremes below 35 with bullish MACD are clean buying opportunities. In rate-shock selloffs (Fed signals aggressive tightening, growth-to-energy rotation, ALL growth names showing bearish MACD simultaneously), MACD turns bearish broadly because the repricing is fundamental — higher discount rates structurally compress growth multiples, not temporarily. Trigger for this distinction: when 30+ tickers simultaneously show bearish MACD AND energy/commodity names are the only bullish MACD exceptions, the market is in rate-shock mode, not panic mode. In this environment: (1) do NOT deploy into RSI-extreme longs even in highest-conviction names — RSI extreme alone is insufficient when the repricing driver is structural, (2) wait for MACD to begin stabilising or turning before adding new longs, (3) the dual confirmation signal changes to: RSI extreme PLUS MACD turning/flattening, not RSI alone. Rate repricing can persist 4-8 weeks longer than COVID-variant selloffs.
+
+---
+    - Major earnings beat + stock split announcement is a compound catalyst that warrants adding to an existing position even when RSI is in the mid-60s: the stock split expands retail accessibility (demand catalyst) while the earnings beat validates the fundamental thesis simultaneously. The dual catalyst changes the risk/reward of adding near the upper Bollinger Band — the earnings re-rating and split-driven retail inflow typically sustain price momentum beyond what pure technical analysis would suggest. Protocol: when a portfolio holding beats EPS by >10% AND announces a stock split in the same report, add 2-3% incremental regardless of proximity to upper BB, capped at 10% total position size.
+
+---
+    - Lesson 21 — RSI extreme with MACD bearish during confirmed fundamental deterioration is a falling knife, not a re-entry: META at RSI=28 MACD bearish coincides with the first-ever DAU decline and deeply negative Q1 guidance. This is NOT a macro-panic oversold entry — it is a business going through genuine fundamental stress (user stagnation, metaverse cash burn, rising costs, weakening ad pricing). The filter: was the selloff caused by macro-panic (thesis intact, temporary) or confirmed fundamental deterioration (first-ever metric reversal, guidance miss, structural cost escalation)? When RSI extreme coincides with a confirmed fundamental break — first-ever negative user metric, management guidance well below consensus — the oversold reading is a warning that prior valuation assumptions are being permanently repriced, not a contrarian buy signal. Protocol: only apply RSI-extreme re-entry logic when the thesis is intact; when the metric that defines the thesis (MAU growth, revenue growth rate) shows its first structural reversal, treat RSI extreme as a falling knife indicator regardless of how low it reads.
+
+---
+    - Lesson 22 — Short thesis confirmation via subsidiary execution failures: when a conglomerate's subsidiary or spinoff publicly concedes failure (AT&T's CNN+ insiders admitting low quality, unprofitable, too expensive), treat this as a high-conviction thesis confirmation for any short position on the parent. The key signal is not the stock move — it is the public acknowledgment of capital misallocation from within the organisation itself. Protocol: when insider reporting contradicts management's public narrative on a key strategic bet, upgrade short conviction and tighten the mental cover trigger. Do not cover into confirmatory bad news — the market often needs time to fully price in publicly confirmed strategic failures.
+
+---
+    - Lesson 23 — Thin news + broad bearish MACD = hold posture, not deployment posture: when a review week produces no material fundamental news for portfolio holdings AND nearly all names in the universe show bearish MACD simultaneously (rate-shock environment per Lesson 19), the correct decision is disciplined inaction. The absence of new information is itself information — no new thesis is born from noise headlines about minor dividend raises and unrelated small-cap earnings. Protocol: in weeks where (a) no portfolio-relevant fundamental catalyst exists and (b) the technical regime is broad MACD bearish, default to zero new deployments regardless of available cash. The opportunity cost of waiting one more week is far lower than the cost of opening a position in a deteriorating tape without a confirming fundamental catalyst.
+
+---
+
+  ACTIVE THESES (13)
+    GOOGL (LONG): Adding to existing GOOGL position on the back of an exceptional Q4 earnings prin
+    NEE (LONG): NextEra Energy re-entry at $76.66 — a 10% discount to our prior stopped-out entr
+    AMZN (LONG): Amazon Web Services is the dominant cloud infrastructure provider globally — #1 
+    TSM (LONG): Taiwan Semiconductor manufactures the chips that power every AI system in the wo
+    LLY (LONG): Eli Lilly is one of the world's premier pharmaceutical companies with a pipeline
+    SNOW (LONG): Snowflake is the data cloud layer sitting on top of AWS, Azure, and GCP — the pl
+    REGN (LONG): Regeneron is a premier biotech directly aligned with the Aging Populations theme
+    MA (LONG): Mastercard is global payments infrastructure enabling digital commerce — aligned
+    AVGO (LONG): Broadcom is a critical pick-and-shovel AI/semiconductor play. AVGO supplies netw
+    V (LONG): Visa is the world's most dominant payment network with 3.7B+ cards processing $1
+    T (SHORT): AT&T re-short at materially better prices and a more overbought technical setup.
+    UNH (LONG): UnitedHealth Group is the largest managed care organisation in the United States
+    NVDA (LONG): NVIDIA is the dominant AI compute infrastructure provider — A100 GPUs power ever
+
+============================================================

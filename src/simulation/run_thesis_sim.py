@@ -126,11 +126,9 @@ def _generate_text_report(report: dict, sim: ThesisSimulation) -> str:
     lessons = sim.thesis_manager.get_all_lessons()
     if lessons:
         lines.append(f"  LESSONS LEARNED ({len(lessons)} total)")
-        for lesson in lessons[-10:]:
+        for lesson in lessons:
             lesson_lines = lesson.split("\n", 1)
             content = lesson_lines[1].strip() if len(lesson_lines) > 1 else lesson_lines[0]
-            if len(content) > 100:
-                content = content[:100] + "..."
             lines.append(f"    - {content}")
         lines.append("")
 

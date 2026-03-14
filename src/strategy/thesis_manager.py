@@ -529,9 +529,9 @@ class ThesisManager:
     # ------------------------------------------------------------------
 
     def clear_all(self) -> None:
-        """Clear in-sim memory files. Preserves simulation_log and themes across runs."""
+        """Clear in-sim memory files. Preserves simulation_log across runs."""
         for key in self._paths:
-            if key in ("sim_log", "themes"):
+            if key == "sim_log":
                 continue
             path = self._paths[key]
             if path.exists():

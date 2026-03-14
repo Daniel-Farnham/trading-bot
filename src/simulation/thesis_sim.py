@@ -102,15 +102,16 @@ class ThesisSimulation:
                 self.thesis_manager.add_theme(name, desc, score=3)
             logger.info("Seeded %d initial themes", len(default_themes))
 
-        # Download historical data for the full curated universe
+        # Download historical data for the full curated universe + SPY benchmark
         universe = self._get_universe_tickers()
-        logger.info("Downloading historical data for %d tickers...", len(universe))
-        self._all_bars = self._download_bars(universe)
+        logger.info("Downloading historical data for %d tickers + SPY benchmark...", len(universe))
+        all_tickers = universe if "SPY" in universe else universe + ["SPY"]
+        self._all_bars = self._download_bars(all_tickers)
         self._trading_days = self._get_trading_days()
         logger.info("Got %d trading days across %d tickers.", len(self._trading_days), len(self._all_bars))
 
         # Main simulation loop — step day by day, review every N days
-        days_since_review = self.review_cadence  # Force review on first day
+        days_since_review = 0  # Observe one cycle before first review
         days_since_monthly = 0
 
         for i, day in enumerate(self._trading_days):
@@ -189,13 +190,20 @@ class ThesisSimulation:
         technicals_summary = self._build_technicals_summary(day)
 
         # Step 3: Claude review
-        logger.info("  Calling Claude for %s review...", review_type)
+        pv = self.broker.portfolio_value
+        bot_return = ((pv / self.initial_cash) - 1) * 100
+        spy_return = self._get_spy_return(day)
+        logger.info("  Bot: %+.1f%% | SPY: %+.1f%% | Calling Claude for %s review...",
+                     bot_return, spy_return, review_type)
         response = self.decision_engine.run_weekly_review(
             sim_date=str(day),
             world_state=world_state,
             technicals_summary=technicals_summary,
-            portfolio_value=self.broker.portfolio_value,
+            portfolio_value=pv,
             cash=self.broker.cash,
+            bot_return_pct=bot_return,
+            spy_return_pct=spy_return,
+            review_number=self._weeks_elapsed + 1,
         )
 
         # Step 4: Execute decisions
@@ -315,19 +323,25 @@ class ThesisSimulation:
 
             # Convert to SimBroker-compatible plan
             from src.strategy.risk_v3 import PositionPlan
+            is_short = plan.side == "SHORT"
+            if is_short:
+                # Short take-profit is BELOW entry (we profit when price drops)
+                take_profit = plan.entry_price * 0.5
+            else:
+                # Long take-profit is ABOVE entry (we profit when price rises)
+                take_profit = plan.entry_price * 2
             sim_plan = PositionPlan(
                 ticker=plan.ticker,
                 quantity=plan.quantity,
                 entry_price=plan.entry_price,
                 stop_loss=plan.catastrophic_stop,
-                take_profit=plan.entry_price * 2,  # Thesis-driven exit, not target
+                take_profit=take_profit,
                 risk_amount=0,
                 position_value=plan.position_value,
                 risk_pct=0,
-                is_short=(plan.side == "SHORT"),
+                is_short=is_short,
             )
 
-            is_short = plan.side == "SHORT"
             result = self.broker.place_bracket_order(
                 sim_plan, is_short=is_short, opened_at=day_dt.isoformat(),
             )
@@ -514,6 +528,17 @@ class ThesisSimulation:
 
         return self._get_price_for_date(ticker, day_dt)
 
+    def _get_spy_return(self, day) -> float:
+        """Get SPY return from sim start to given day."""
+        spy_bars = self._all_bars.get("SPY")
+        if spy_bars is None:
+            return 0.0
+        first_bar = self._get_bar_for_date(spy_bars, self._trading_days[0])
+        current_bar = self._get_bar_for_date(spy_bars, day)
+        if not first_bar or not current_bar:
+            return 0.0
+        return ((current_bar["close"] / first_bar["open"]) - 1) * 100
+
     def _record_snapshot(self, day) -> None:
         self.daily_snapshots.append({
             "date": str(day),
@@ -553,15 +578,23 @@ class ThesisSimulation:
         total_pnl = sum(t.get("pnl", 0) for t in closed)
         avg_pnl = total_pnl / total_trades if total_trades > 0 else 0
 
+        # SPY benchmark
+        spy_return_pct = self._get_spy_return(self._trading_days[-1]) if self._trading_days else 0.0
+        alpha = total_return * 100 - spy_return_pct
+
         report = {
             "version": "V3",
             "period": f"{self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}",
+            "start_date": self.start_date.strftime("%Y-%m-%d"),
+            "end_date": self.end_date.strftime("%Y-%m-%d"),
             "trading_days": num_days,
             "initial_cash": self.initial_cash,
             "final_value": round(final_value, 2),
             "total_return_pct": round(total_return * 100, 2),
             "annualized_return_pct": round(annualized * 100, 2),
             "max_drawdown_pct": round(max_dd * 100, 2),
+            "spy_return_pct": round(spy_return_pct, 2),
+            "alpha_pct": round(alpha, 2),
             "total_trades": total_trades,
             "wins": wins,
             "losses": losses,
@@ -585,6 +618,8 @@ class ThesisSimulation:
         logger.info("  Initial Capital:     $%s", f"{report['initial_cash']:,.2f}")
         logger.info("  Final Value:         $%s", f"{report['final_value']:,.2f}")
         logger.info("  Total Return:        %+.2f%%", report["total_return_pct"])
+        logger.info("  S&P 500 Return:      %+.2f%%", report["spy_return_pct"])
+        logger.info("  Alpha:               %+.2f%%", report["alpha_pct"])
         logger.info("  Annualized Return:   %+.2f%%", report["annualized_return_pct"])
         logger.info("  Max Drawdown:        -%.2f%%", report["max_drawdown_pct"])
         logger.info("  Total Trades:        %d (%dW / %dL)", total_trades, wins, losses)
@@ -599,9 +634,13 @@ class ThesisSimulation:
         run_id = datetime.utcnow().strftime("%Y-%m-%d_%H%M")
         body = (
             f"**Date Run:** {datetime.utcnow().strftime('%Y-%m-%d')} | "
-            f"**Architecture:** V3 | **Initial Cash:** ${report['initial_cash']:,.0f}\n\n"
+            f"**Architecture:** V3 | **Initial Cash:** ${report['initial_cash']:,.0f}\n"
+            f"**Sim Period:** {report.get('start_date', 'N/A')} to {report.get('end_date', 'N/A')}\n\n"
             f"**Results:**\n"
             f"- Final Value: ${report['final_value']:,.2f} ({report['total_return_pct']:+.1f}%)\n"
+            f"- S&P 500 Return: {report.get('spy_return_pct', 0):+.1f}%\n"
+            f"- Alpha vs S&P: {report.get('alpha_pct', 0):+.1f}%\n"
+            f"- Annualized Return: {report.get('annualized_return_pct', 0):+.1f}%\n"
             f"- Total Trades: {report['total_trades']} ({report['wins']}W / {report['losses']}L)\n"
             f"- Win Rate: {report['win_rate_pct']:.1f}%\n"
             f"- Max Drawdown: -{report['max_drawdown_pct']:.1f}%\n"
