@@ -1,0 +1,45 @@
+============================================================
+  V3 THESIS SIMULATION REPORT
+============================================================
+
+  Period:              2024-01-01 to 2024-03-30
+  Trading Days:        61
+  Weekly Reviews:      13
+
+  PERFORMANCE
+  Initial Capital:     $100,000.00
+  Final Value:         $105,679.42
+  Total Return:        +5.68%
+  Annualized Return:   +25.63%
+  Max Drawdown:        -0.00%
+
+  TRADES
+  Total Trades:        8 (8W / 0L)
+  Win Rate:            100.0%
+  Total P&L:           $+5,679.42
+  Avg P&L/Trade:       $+709.93
+  Open Positions:      3
+
+  PER-TICKER PERFORMANCE
+    NVDA      $ +3,110.21  (5 trades)
+    LLY       $ +1,624.63  (2 trades)
+    COST      $   +944.58  (1 trades)
+
+  LESSONS LEARNED (11 total)
+    - CES proved to be a strong catalyst week for semiconductor/AI names — in future years, consider build...
+    - When the Fed pushes back on rate cut expectations (as Waller did this week), watch for rotation out ...
+    - When a position reaches its target price AND RSI exceeds 80, take partial profits even if the thesis...
+    - When a position approaches its original target but the underlying thesis has materially strengthened...
+    - When multiple sell-side analysts raise price targets in the same week on a position already at targe...
+    - When trimming overbought winners, raise the stop on the remaining position to lock in gains — don't ...
+    - When NVDA reports earnings that blow away estimates but the stock still sells off, it signals that e...
+    - When a competitor reports strong clinical trial data against one of our pharma holdings (e.g., Vikin...
+    - When 92% in cash with all three positions overbought (RSI > 80 on two of three), the priority is har...
+    - When a position gets stopped out but the underlying thesis proves correct (NVDA stopped at $395, now...
+
+  ACTIVE THESES (3)
+    NVDA (LONG): Re-entering NVDA after stop-out. The AI infrastructure buildout thesis is strong
+    LLY (LONG): Eli Lilly is at the center of the GLP-1 revolution with Mounjaro (diabetes) and 
+    COST (LONG): Costco benefits from the wealth inequality theme — as consumer debt rises toward
+
+============================================================

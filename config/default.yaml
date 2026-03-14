@@ -1,75 +1,90 @@
-# Trading Bot Configuration
+# Trading Bot Configuration — V3 Thesis-Driven
 
 alpaca:
-  # Paper trading base URL (switch to live URL when ready)
   base_url: "https://paper-api.alpaca.markets"
   data_url: "https://data.alpaca.markets"
 
-watchlist:
-  # V3: Diverse 5-stock universe across themes
-  symbols:
-    - NVDA    # AI/Tech — semiconductor leader
-    - LLY     # Healthcare — GLP-1/pharma
-    - JPM     # Finance — largest US bank
-    - XOM     # Energy — oil major
-    - COST    # Consumer — defensive retail
+# Curated stock universe — themed candidates Claude can pick from
+universe:
+  ai_technology:
+    - NVDA    # GPU/AI infrastructure leader
+    - AVGO    # Networking chips, custom AI silicon
+    - AMD     # GPU competitor, data center growth
+    - MSFT    # Azure AI, OpenAI partnership
+    - GOOGL   # AI research, cloud, search
+    - AMZN    # AWS, logistics automation
+    - META    # AI research, social media
+    - CRM     # Enterprise AI/SaaS
+    - PLTR    # AI/government analytics
+    - CRWD    # Cybersecurity (AI-adjacent)
+    - SMCI    # AI server infrastructure
+    - ARM     # Chip design, AI edge computing
+    - TSM     # Foundry — makes everyone's chips
+    - MU      # Memory chips for AI workloads
+    - SNOW    # Cloud data platform
+
+  healthcare_aging:
+    - LLY     # GLP-1 leader (Mounjaro/Zepbound)
+    - NVO     # GLP-1 competitor (Ozempic/Wegovy)
+    - UNH     # Health insurance + Optum
+    - JNJ     # Pharma + medical devices
+    - ABBV    # Immunology, oncology
+    - ISRG    # Surgical robotics
+    - DXCM    # Continuous glucose monitoring
+    - TMO     # Life sciences tools
+    - VRTX    # Gene therapy, rare diseases
+    - REGN    # Biotech, immunology
+
+  energy_climate:
+    - XOM     # Oil major, energy transition
+    - CVX     # Oil major, hydrogen/CCS
+    - ENPH    # Solar microinverters
+    - FSLR    # Solar panels (US manufacturing)
+    - NEE     # Largest US renewable utility
+    - VST     # Nuclear + renewable power
+    - CEG     # Nuclear power (AI data centers)
+    - LNG     # LNG exports, energy security
+    - OXY     # Oil + carbon capture
+
+  finance:
+    - JPM     # Largest US bank
+    - GS      # Investment banking, trading
+    - V       # Payment networks
+    - MA      # Payment networks
+    - BLK     # Asset management
+    - SQ      # Fintech, Cash App
+    - COIN    # Crypto exchange
+    - SOFI    # Digital banking
+    - SCHW    # Brokerage, wealth management
+
+  consumer_inequality:
+    - COST    # Membership warehouse, defensive
+    - WMT     # Discount retail, ecommerce
+    - TGT     # Value retail
+    - DG      # Dollar stores, low-income consumer
+    - NKE     # Consumer brands, global
+    - SBUX    # Consumer discretionary
+    - CMG     # Fast casual dining
+    - HD      # Home improvement, housing cycle
 
 trading:
-  # Risk management
-  max_position_pct: 0.10        # Max 10% of portfolio per position
-  max_open_positions: 10
-  max_daily_loss_pct: 0.03      # Stop trading after 3% daily loss
-  max_drawdown_pct: 0.15        # Pause bot after 15% drawdown
-  min_cash_reserve_pct: 0.20    # Always keep 20% cash
-  theme_nudge_strength: 0.20    # How much themes affect confidence (20%)
-
-  # Signal thresholds
-  sentiment_buy_threshold: 0.6   # Min positive sentiment to buy
-  sentiment_sell_threshold: -0.4  # Sentiment below this triggers sell
-  rsi_overbought: 70
-  rsi_oversold: 30
-
-  # Short selling
+  max_position_pct: 0.10
+  max_open_positions: 15
+  max_daily_loss_pct: 0.03
+  max_drawdown_pct: 0.25
+  min_cash_reserve_pct: 0.20
   enable_short_selling: true
-  short_sentiment_threshold: -0.6  # Sentiment below this triggers short
-  max_short_exposure_pct: 0.30     # Max 30% of portfolio in shorts
-  max_short_position_pct: 0.10     # Max 10% per short position
-
-  # Position management
-  atr_stop_loss_multiplier: 2.0   # Stop-loss at 2x ATR
-  atr_take_profit_multiplier: 3.0 # Take-profit at 3x ATR
-  max_hold_days: 10               # Max days to hold a position
+  max_short_exposure_pct: 0.30
+  max_short_position_pct: 0.10
 
 scheduler:
-  # Trading loop interval in minutes
   loop_interval_minutes: 30
-  # Market hours (ET)
   market_open: "09:30"
   market_close: "16:00"
-  # Daily review time (ET)
   daily_review_time: "16:30"
 
 database:
   path: "data/trading.db"
-
-adaptation:
-  # Max parameter change per day (safety bound)
-  max_param_change_pct: 0.20
-  # Claude Code CLI budget cap per review
-  claude_max_budget_usd: 0.50
-  # Strategy journal
-  journal_path: "data/strategy_journal.md"
-  journal_max_entries: 20
-  # Weekly strategic review
-  weekly_review_enabled: true
-  weekly_max_budget_usd: 1.00
-  weekly_max_watchlist_adds: 5
-  weekly_max_watchlist_removes: 3
-
-tiingo:
-  base_url: "https://api.tiingo.com/tiingo"
-  max_articles: 50
-  macro_tags: ["economy", "fed", "inflation", "tariffs", "unemployment", "geopolitics"]
 
 memory:
   theses_path: "data/active_theses.md"
@@ -77,5 +92,7 @@ memory:
   summaries_path: "data/quarterly_summaries.md"
   lessons_path: "data/lessons_learned.md"
   sim_log_path: "data/simulation_log.md"
+  themes_path: "data/themes.md"
   max_active_theses: 15
   max_quarterly_summaries: 8
+  max_themes: 8

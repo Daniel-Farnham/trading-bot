@@ -9,24 +9,34 @@ class TestLoadConfig:
     def test_loads_default_config(self):
         config = load_config()
         assert "alpaca" in config
-        assert "watchlist" in config
+        assert "universe" in config
         assert "trading" in config
-        assert "scheduler" in config
-        assert "database" in config
 
-    def test_watchlist_has_symbols(self):
+    def test_universe_has_themed_stocks(self):
         config = load_config()
-        symbols = config["watchlist"]["symbols"]
-        assert isinstance(symbols, list)
-        assert len(symbols) > 0
-        assert "NVDA" in symbols
+        universe = config["universe"]
+        assert "ai_technology" in universe
+        assert "healthcare_aging" in universe
+        assert "energy_climate" in universe
+        assert "finance" in universe
+        assert "consumer_inequality" in universe
+        # Check a few key tickers
+        assert "NVDA" in universe["ai_technology"]
+        assert "LLY" in universe["healthcare_aging"]
+        assert "JPM" in universe["finance"]
+
+    def test_universe_total_size(self):
+        config = load_config()
+        all_tickers = set()
+        for theme_tickers in config["universe"].values():
+            all_tickers.update(theme_tickers)
+        assert len(all_tickers) >= 40
 
     def test_trading_params_exist(self):
         config = load_config()
         trading = config["trading"]
         assert "max_position_pct" in trading
         assert "max_open_positions" in trading
-        assert "sentiment_buy_threshold" in trading
 
 
 class TestGetAlpacaKeys:

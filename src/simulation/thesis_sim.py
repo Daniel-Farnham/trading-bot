@@ -17,7 +17,7 @@ from alpaca.data.timeframe import TimeFrame
 from src.analysis.technical import TechnicalAnalyzer, TechnicalSnapshot
 from src.config import CONFIG
 from src.data.market import MarketData
-from src.research.tiingo import TiingoClient
+from src.research.news_client import AlpacaNewsClient
 from src.research.world_state import build_world_state
 from src.simulation.sim_broker import SimBroker
 from src.strategy.decision_engine import DecisionEngine
@@ -51,20 +51,21 @@ class ThesisSimulation:
 
         # Components
         self.market = MarketData()
-        self.tiingo = TiingoClient()
+        self.news_client = AlpacaNewsClient()
         self.technicals = TechnicalAnalyzer()
         self.risk = RiskManagerV3()
         self.broker = SimBroker(initial_cash=initial_cash)
 
-        # Memory system — isolated to sim data dir
+        # Memory system — isolated to sim data dir, except sim_log which persists
         self.thesis_manager = ThesisManager(base_dir=self._data_dir)
-        # Override paths to be relative to data_dir
+        # Override paths: in-sim files go to data_dir, sim_log stays at project root
         self.thesis_manager._paths = {
             "theses": self._data_dir / "active_theses.md",
             "ledger": self._data_dir / "portfolio_ledger.md",
             "summaries": self._data_dir / "quarterly_summaries.md",
             "lessons": self._data_dir / "lessons_learned.md",
-            "sim_log": self._data_dir / "simulation_log.md",
+            "sim_log": Path("data/simulation_log.md"),
+            "themes": self._data_dir / "themes.md",
         }
 
         self.decision_engine = DecisionEngine(thesis_manager=self.thesis_manager)
@@ -86,13 +87,25 @@ class ThesisSimulation:
             f"{self.initial_cash:,.0f}",
         )
 
-        # Clear previous sim memory
+        # Clear previous sim memory (preserves themes and sim_log)
         self.thesis_manager.clear_all()
 
-        # Download historical data for a broad universe
-        watchlist = CONFIG.get("watchlist", {}).get("symbols", [])
-        logger.info("Downloading historical data for %d tickers...", len(watchlist))
-        self._all_bars = self._download_bars(watchlist)
+        # Seed initial themes if none exist
+        if not self.thesis_manager.get_all_themes():
+            default_themes = [
+                ("AI/Automation", "Companies building or benefiting from AI, robotics, automation"),
+                ("Climate Transition", "Clean energy, EVs, sustainability, grid infrastructure"),
+                ("Aging Populations", "Healthcare, pharma, medical devices, senior services"),
+                ("Wealth Inequality", "Financial services, fintech, discount retail, luxury"),
+            ]
+            for name, desc in default_themes:
+                self.thesis_manager.add_theme(name, desc, score=3)
+            logger.info("Seeded %d initial themes", len(default_themes))
+
+        # Download historical data for the full curated universe
+        universe = self._get_universe_tickers()
+        logger.info("Downloading historical data for %d tickers...", len(universe))
+        self._all_bars = self._download_bars(universe)
         self._trading_days = self._get_trading_days()
         logger.info("Got %d trading days across %d tickers.", len(self._trading_days), len(self._all_bars))
 
@@ -105,6 +118,7 @@ class ThesisSimulation:
 
             # Daily: update prices, check catastrophic stops
             daily_bars = self._get_daily_bars(day)
+            self.broker.update_prices(daily_bars)
             self._check_catastrophic_stops(daily_bars, day_dt)
             self._update_ledger_values(daily_bars)
             self._record_snapshot(day)
@@ -155,17 +169,17 @@ class ThesisSimulation:
         )
         logger.info("=" * 60)
 
-        # Step 1: Research — build world state from Tiingo
+        # Step 1: Research — build world state from Alpaca News
         week_start = day_dt - timedelta(days=self.review_cadence)
         try:
             holdings_tickers = [h["ticker"] for h in self.thesis_manager.get_holdings()]
-            watchlist_tickers = CONFIG.get("watchlist", {}).get("symbols", [])
+            universe_tickers = self._get_universe_tickers()
             world_state = build_world_state(
                 start_date=week_start.strftime("%Y-%m-%d"),
                 end_date=day_dt.strftime("%Y-%m-%d"),
                 holdings=holdings_tickers or None,
-                watchlist=watchlist_tickers,
-                client=self.tiingo,
+                watchlist=universe_tickers,
+                client=self.news_client,
             )
         except Exception as e:
             logger.warning("Failed to build world state: %s", e)
@@ -274,8 +288,8 @@ class ThesisSimulation:
 
             bar = daily_bars.get(ticker)
             if not bar:
-                # Try to get price from bars data
-                price = self._get_price_for_date(ticker, day_dt)
+                # On-demand: download bars for a newly discovered ticker
+                price = self._get_or_download_price(ticker, day_dt)
                 if not price:
                     logger.warning("    No price data for %s, skipping", ticker)
                     continue
@@ -364,10 +378,9 @@ class ThesisSimulation:
     def _build_technicals_summary(self, day) -> str:
         """Build a technicals summary string for Claude."""
         lines = []
+        # Start with current holdings, then add universe tickers with data
         tickers = list(self.broker.positions.keys())
-        # Add some watchlist tickers too
-        watchlist = CONFIG.get("watchlist", {}).get("symbols", [])
-        for t in watchlist[:10]:
+        for t in self._get_universe_tickers():
             if t not in tickers:
                 tickers.append(t)
 
@@ -404,6 +417,22 @@ class ThesisSimulation:
     # ------------------------------------------------------------------
     # Data helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_universe_tickers() -> list[str]:
+        """Get all tickers from the curated universe config."""
+        universe = CONFIG.get("universe", {})
+        tickers = []
+        seen = set()
+        for theme_tickers in universe.values():
+            for t in theme_tickers:
+                if t not in seen:
+                    tickers.append(t)
+                    seen.add(t)
+        # Fallback to old watchlist if no universe configured
+        if not tickers:
+            tickers = CONFIG.get("watchlist", {}).get("symbols", [])
+        return tickers
 
     def _download_bars(self, tickers: list[str]) -> dict[str, pd.DataFrame]:
         all_bars = {}
@@ -469,6 +498,21 @@ class ThesisSimulation:
             return None
         bar = self._get_bar_for_date(bars, day_dt.date())
         return bar["close"] if bar else None
+
+    def _get_or_download_price(self, ticker: str, day_dt: datetime) -> float | None:
+        """Try to get price, downloading bars on-demand if needed."""
+        # Check if we already have it
+        price = self._get_price_for_date(ticker, day_dt)
+        if price:
+            return price
+
+        # On-demand download for discovered tickers
+        if ticker not in self._all_bars:
+            logger.info("    Downloading bars for discovered ticker %s...", ticker)
+            new_bars = self._download_bars([ticker])
+            self._all_bars.update(new_bars)
+
+        return self._get_price_for_date(ticker, day_dt)
 
     def _record_snapshot(self, day) -> None:
         self.daily_snapshots.append({

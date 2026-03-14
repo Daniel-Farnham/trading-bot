@@ -18,9 +18,11 @@ def manager(tmp_path):
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
+        "themes": tmp_path / "themes.md",
     }
     mgr._max_theses = 15
     mgr._max_summaries = 8
+    mgr._max_themes = 8
     return mgr
 
 

@@ -1,8 +1,8 @@
 """Research aggregator — builds structured world-state briefs for Claude.
 
-Pulls news from Tiingo and formats into focused sections:
-macro headlines, sector news, portfolio-relevant news, and a discovery
-section for emerging opportunities outside the current watchlist.
+Pulls news from Alpaca's news API (Benzinga) and formats into focused
+sections: macro headlines, sector news, portfolio-relevant news, and a
+discovery section for emerging opportunities outside the current watchlist.
 """
 from __future__ import annotations
 
@@ -10,19 +10,9 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime
 
-from src.research.tiingo import TiingoClient
+from src.research.news_client import AlpacaNewsClient
 
 logger = logging.getLogger(__name__)
-
-# Only surface articles from financial/business sources
-FINANCIAL_SOURCES = {
-    "reuters.com", "bloomberg.com", "cnbc.com", "wsj.com", "ft.com",
-    "barrons.com", "marketwatch.com", "seekingalpha.com", "benzinga.com",
-    "investing.com", "finance.yahoo.com", "thestreet.com", "fool.com",
-    "investors.com", "zacks.com", "nasdaq.com", "businessinsider.com",
-    "nytimes.com", "washingtonpost.com", "economist.com", "bbc.com",
-    "apnews.com", "politico.com", "axios.com", "theguardian.com",
-}
 
 # Noise keywords — skip articles with these in the title
 NOISE_KEYWORDS = [
@@ -51,25 +41,6 @@ def _format_range(start_date: str | date, end_date: str | date) -> str:
     return f"{_to_str(start_date)} - {_to_str(end_date)}"
 
 
-def _is_financial(article: dict) -> bool:
-    """Check if article is from a financial source or has financial tags."""
-    source = (article.get("source") or "").lower()
-    # Accept if source matches known financial outlets
-    if any(fs in source for fs in FINANCIAL_SOURCES):
-        return True
-    # Accept if it has stock tickers attached
-    tickers = article.get("tickers") or []
-    if tickers:
-        return True
-    # Accept if tags look financial
-    tags = article.get("tags") or []
-    financial_tags = {"earnings", "economy", "fed", "markets", "stocks", "bonds",
-                      "trading", "investing", "ipo", "merger", "acquisition"}
-    if any(t.lower() in financial_tags for t in tags):
-        return True
-    return False
-
-
 def _is_noise(article: dict) -> bool:
     """Check if article is likely noise/irrelevant."""
     title = ((article.get("title") or "") + " " + (article.get("description") or "")).lower()
@@ -77,8 +48,8 @@ def _is_noise(article: dict) -> bool:
 
 
 def _filter_articles(articles: list[dict]) -> list[dict]:
-    """Filter out noise, keep financially relevant articles."""
-    return [a for a in articles if _is_financial(a) and not _is_noise(a)]
+    """Filter out noise articles."""
+    return [a for a in articles if not _is_noise(a)]
 
 
 def _format_article(article: dict) -> str:
@@ -131,7 +102,7 @@ def build_world_state(
     end_date: str | date,
     holdings: list[str] | None = None,
     watchlist: list[str] | None = None,
-    client: TiingoClient | None = None,
+    client: AlpacaNewsClient | None = None,
 ) -> str:
     """Build a structured world-state brief for Claude.
 
@@ -140,12 +111,12 @@ def build_world_state(
         end_date: Period end for news fetching.
         holdings: List of ticker symbols currently held.
         watchlist: Full watchlist of tickers we're tracking.
-        client: Optional TiingoClient instance.
+        client: Optional AlpacaNewsClient instance.
 
     Returns:
         Formatted markdown string with macro, sector, portfolio, and discovery news.
     """
-    tiingo = client or TiingoClient()
+    news_client = client or AlpacaNewsClient()
     date_range = _format_range(start_date, end_date)
     sections = []
 
@@ -155,14 +126,18 @@ def build_world_state(
     if watchlist:
         known_tickers.update(t.upper() for t in watchlist)
 
-    # --- Macro headlines ---
+    # --- Broad news (macro + sector + discovery) ---
     try:
-        macro_articles = _filter_articles(
-            tiingo.get_macro_news(start_date=start_date, end_date=end_date)
+        all_articles = _filter_articles(
+            news_client.get_news(start_date=start_date, end_date=end_date, limit=50)
         )
     except Exception:
-        logger.warning("Failed to fetch macro news")
-        macro_articles = []
+        logger.warning("Failed to fetch news")
+        all_articles = []
+
+    # Split into macro (no tickers = broad market) and ticker-tagged
+    macro_articles = [a for a in all_articles if not (a.get("tickers") or [])]
+    ticker_articles = [a for a in all_articles if a.get("tickers")]
 
     sections.append(f"## Macro Headlines ({date_range})")
     if macro_articles:
@@ -172,15 +147,7 @@ def build_world_state(
         sections.append("- (No macro headlines available)")
     sections.append("")
 
-    # --- Sector news (filtered for financial relevance) ---
-    try:
-        all_articles = _filter_articles(
-            tiingo.get_news(start_date=start_date, end_date=end_date, limit=100)
-        )
-    except Exception:
-        logger.warning("Failed to fetch sector news")
-        all_articles = []
-
+    # --- Sector news ---
     by_sector: dict[str, list[dict]] = defaultdict(list)
     for a in all_articles:
         sector = _categorise_article(a)
@@ -202,7 +169,7 @@ def build_world_state(
     if holdings:
         try:
             portfolio_articles = _filter_articles(
-                tiingo.get_ticker_news(
+                news_client.get_ticker_news(
                     tickers=holdings, start_date=start_date, end_date=end_date,
                 )
             )
@@ -212,7 +179,7 @@ def build_world_state(
 
         sections.append("## Portfolio-Relevant News")
         if portfolio_articles:
-            for a in portfolio_articles[:8]:
+            for a in portfolio_articles[:10]:
                 tickers_str = ", ".join(
                     t.upper() for t in (a.get("tickers") or [])
                     if t.upper() in known_tickers
@@ -226,8 +193,8 @@ def build_world_state(
         sections.append("")
 
     # --- Discovery: trending tickers outside our universe ---
-    if all_articles:
-        discoveries = _extract_discovery_tickers(all_articles, known_tickers)
+    if ticker_articles:
+        discoveries = _extract_discovery_tickers(ticker_articles, known_tickers)
         if discoveries:
             sections.append("## Emerging Opportunities (not in current watchlist)")
             sections.append("*Tickers appearing frequently in this week's financial news:*")

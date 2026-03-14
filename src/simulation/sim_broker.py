@@ -19,6 +19,7 @@ class SimPosition:
     take_profit: float
     opened_at: str
     is_short: bool = False
+    current_price: float = 0.0  # Updated daily with market close
 
 
 @dataclass
@@ -43,14 +44,21 @@ class SimBroker:
     def portfolio_value(self) -> float:
         position_value = 0.0
         for p in self.positions.values():
+            price = p.current_price if p.current_price > 0 else p.entry_price
             if p.is_short:
-                # Short liability: we received cash when opening, but owe shares back.
-                # At entry price, the liability exactly offsets the cash received (net zero).
-                # P&L is realized on close when buy-back price differs from entry.
-                position_value -= p.quantity * p.entry_price
+                # Short P&L: profit when price drops below entry
+                # Cash received at open + unrealized gain/loss
+                position_value += p.quantity * (p.entry_price - price)
             else:
-                position_value += p.quantity * p.entry_price
+                position_value += p.quantity * price
         return self.cash + position_value
+
+    def update_prices(self, daily_bars: dict[str, dict]) -> None:
+        """Update current prices for all positions from daily bars."""
+        for ticker, pos in self.positions.items():
+            bar = daily_bars.get(ticker)
+            if bar:
+                pos.current_price = bar["close"]
 
     def place_bracket_order(self, plan: PositionPlan, is_short: bool = False, opened_at: str | None = None) -> OrderResult:
         """Simulates order fill at the plan's entry price."""

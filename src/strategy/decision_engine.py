@@ -22,15 +22,8 @@ class DecisionEngine:
     def __init__(
         self,
         thesis_manager: ThesisManager,
-        themes: list[dict] | None = None,
     ):
         self._tm = thesis_manager
-        self._themes = themes or CONFIG.get("themes", [
-            {"name": "AI/Automation", "description": "Companies building or benefiting from AI, robotics, automation"},
-            {"name": "Climate Transition", "description": "Clean energy, EVs, sustainability, grid infrastructure"},
-            {"name": "Aging Populations", "description": "Healthcare, pharma, medical devices, senior services"},
-            {"name": "Wealth Inequality", "description": "Financial services, fintech, discount retail, luxury"},
-        ])
 
     def run_weekly_review(
         self,
@@ -71,15 +64,27 @@ class DecisionEngine:
         portfolio_value: float,
         cash: float,
     ) -> str:
-        themes_text = "\n".join(
-            f"{i+1}. {t['name']} — {t['description']}"
-            for i, t in enumerate(self._themes)
-        )
+        themes = self._tm.get_all_themes()
+        if themes:
+            themes_text = "\n".join(
+                f"{i+1}. {t['name']} [{t['score']}/5] — {t['description']}"
+                for i, t in enumerate(themes)
+            )
+        else:
+            themes_text = "(No themes set — propose some based on your research)"
 
         holdings = self._tm.get_holdings()
         holdings_count = len(holdings)
         invested_value = sum(h["current_value"] for h in holdings)
         cash_pct = (cash / portfolio_value * 100) if portfolio_value > 0 else 100
+
+        # Build universe text for prompt
+        universe = CONFIG.get("universe", {})
+        universe_lines = []
+        for theme, tickers in universe.items():
+            theme_label = theme.replace("_", " ").title()
+            universe_lines.append(f"  {theme_label}: {', '.join(tickers)}")
+        universe_text = "\n".join(universe_lines) if universe_lines else "(No universe configured)"
 
         return f"""CRITICAL: You are making decisions on {sim_date}.
 You DO NOT know what happens after this date.
@@ -104,8 +109,18 @@ THIS WEEK'S RESEARCH:
 TECHNICAL TIMING DATA:
 {technicals_summary if technicals_summary else "(No technical data available)"}
 
-YOUR THEMES:
+YOUR THEMES (scored 1-5, higher = stronger conviction):
 {themes_text}
+
+Themes are informational — they guide your thinking but don't dictate allocations.
+You can propose new themes or adjust scores during monthly reviews.
+- New themes start at score 3
+- Score range: 2-5 (themes at score 1 are auto-removed)
+- Max {self._tm._max_themes} themes at a time
+
+STOCK UNIVERSE (pre-screened candidates you can trade):
+{universe_text}
+You can also trade stocks outside this universe if you discover them through research.
 
 GOAL: Long-term capital growth. Hold for weeks to quarters.
 We are patient investors who buy quality companies aligned with macro themes.
@@ -138,7 +153,8 @@ TASKS:
 3. Should we open any new positions? Check the Emerging Opportunities section for ideas.
 4. Should we SHORT any companies facing structural headwinds?
 5. Should we close or reduce any positions? (thesis broken?)
-6. Any new lessons learned? Be specific and actionable (include trigger conditions).
+6. Theme check: any themes strengthening or weakening? Any new themes emerging from the news?
+7. Any new lessons learned? Be specific and actionable (include trigger conditions).
 
 Respond with ONLY valid JSON:
 {{
@@ -167,9 +183,18 @@ Respond with ONLY valid JSON:
   "reduce_positions": [
     {{"ticker": "AAPL", "new_allocation_pct": 4, "reason": "China weakness"}}
   ],
+  "theme_updates": [
+    {{"name": "AI/Automation", "delta": 1, "reason": "Strong earnings across AI sector"}},
+    {{"name": "Nuclear Renaissance", "action": "ADD", "description": "Data centers driving nuclear demand", "reason": "Multiple utility deals announced"}}
+  ],
   "lessons": ["New lesson if any"],
   "weekly_summary": "Brief narrative for the quarterly summary"
 }}
+
+Theme update rules:
+- To adjust an existing theme: {{"name": "...", "delta": +1 or -1, "reason": "..."}}
+- To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
+- Only adjust themes when there's clear evidence from the news. Max ±1 per review.
 
 If no changes needed, return empty arrays. Always include world_assessment and weekly_summary."""
 
@@ -258,6 +283,22 @@ If no changes needed, return empty arrays. Always include world_assessment and w
             if ticker:
                 self._tm.update_thesis(ticker, status="CLOSED")
 
+        # Apply theme updates
+        for update in response.get("theme_updates", []):
+            name = update.get("name", "")
+            if not name:
+                continue
+            if update.get("action") == "ADD":
+                desc = update.get("description", "")
+                if desc:
+                    self._tm.add_theme(name, desc, score=3)
+                    logger.info("  Theme added: %s", name)
+            else:
+                delta = update.get("delta", 0)
+                if delta:
+                    self._tm.update_theme_score(name, delta)
+                    logger.info("  Theme %s: %+d", name, delta)
+
         # Append lessons
         for lesson in response.get("lessons", []):
             if lesson and lesson.strip():
@@ -271,6 +312,7 @@ If no changes needed, return empty arrays. Always include world_assessment and w
             "new_positions": [],
             "close_positions": [],
             "reduce_positions": [],
+            "theme_updates": [],
             "lessons": [],
             "weekly_summary": "",
         }

@@ -8,18 +8,18 @@ from src.strategy.thesis_manager import ThesisManager
 @pytest.fixture
 def manager(tmp_path):
     """ThesisManager with all files rooted in tmp_path."""
-    # Override config paths by passing base_dir and patching CONFIG
     mgr = ThesisManager.__new__(ThesisManager)
-    from pathlib import Path
     mgr._paths = {
         "theses": tmp_path / "active_theses.md",
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
+        "themes": tmp_path / "themes.md",
     }
     mgr._max_theses = 15
     mgr._max_summaries = 8
+    mgr._max_themes = 8
     return mgr
 
 
@@ -27,16 +27,17 @@ def manager(tmp_path):
 def small_manager(tmp_path):
     """ThesisManager with low limits for truncation tests."""
     mgr = ThesisManager.__new__(ThesisManager)
-    from pathlib import Path
     mgr._paths = {
         "theses": tmp_path / "active_theses.md",
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
+        "themes": tmp_path / "themes.md",
     }
     mgr._max_theses = 3
     mgr._max_summaries = 2
+    mgr._max_themes = 3
     return mgr
 
 
@@ -290,6 +291,98 @@ class TestDecisionContext:
         assert "Cut losers fast" in ctx
 
 
+class TestThemes:
+    def test_empty(self, manager):
+        assert manager.get_all_themes() == []
+
+    def test_add_theme(self, manager):
+        result = manager.add_theme("AI/Automation", "Companies building AI", score=3)
+        assert result is True
+        themes = manager.get_all_themes()
+        assert len(themes) == 1
+        assert themes[0]["name"] == "AI/Automation"
+        assert themes[0]["score"] == 3
+        assert themes[0]["description"] == "Companies building AI"
+
+    def test_get_theme(self, manager):
+        manager.add_theme("AI/Automation", "Companies building AI")
+        t = manager.get_theme("AI/Automation")
+        assert t is not None
+        assert t["name"] == "AI/Automation"
+
+    def test_get_theme_case_insensitive(self, manager):
+        manager.add_theme("AI/Automation", "Companies building AI")
+        assert manager.get_theme("ai/automation") is not None
+
+    def test_add_multiple(self, manager):
+        manager.add_theme("AI", "Artificial intelligence")
+        manager.add_theme("Climate", "Clean energy transition")
+        manager.add_theme("Healthcare", "Aging populations")
+        assert len(manager.get_all_themes()) == 3
+
+    def test_add_existing_updates(self, manager):
+        manager.add_theme("AI", "Original description", score=3)
+        manager.add_theme("AI", "Updated description", score=4)
+        themes = manager.get_all_themes()
+        assert len(themes) == 1
+        assert themes[0]["description"] == "Updated description"
+        assert themes[0]["score"] == 4
+
+    def test_max_themes_limit(self, small_manager):
+        for i in range(3):
+            small_manager.add_theme(f"Theme {i}", f"Description {i}")
+        assert len(small_manager.get_all_themes()) == 3
+        result = small_manager.add_theme("Theme 3", "Too many")
+        assert result is False
+        assert len(small_manager.get_all_themes()) == 3
+
+    def test_update_score_up(self, manager):
+        manager.add_theme("AI", "Artificial intelligence", score=3)
+        manager.update_theme_score("AI", +1)
+        t = manager.get_theme("AI")
+        assert t["score"] == 4
+
+    def test_update_score_down(self, manager):
+        manager.add_theme("AI", "Artificial intelligence", score=3)
+        manager.update_theme_score("AI", -1)
+        t = manager.get_theme("AI")
+        assert t["score"] == 2
+
+    def test_score_clamped_at_5(self, manager):
+        manager.add_theme("AI", "Artificial intelligence", score=5)
+        manager.update_theme_score("AI", +1)
+        t = manager.get_theme("AI")
+        assert t["score"] == 5
+
+    def test_score_1_auto_removes(self, manager):
+        manager.add_theme("Weak", "Fading theme", score=2)
+        manager.update_theme_score("Weak", -1)
+        # Score hit 1, should be auto-removed
+        assert manager.get_theme("Weak") is None
+        assert len(manager.get_all_themes()) == 0
+
+    def test_update_nonexistent(self, manager):
+        assert manager.update_theme_score("Fake", +1) is False
+
+    def test_remove_theme(self, manager):
+        manager.add_theme("AI", "Artificial intelligence")
+        assert manager.remove_theme("AI") is True
+        assert manager.get_all_themes() == []
+
+    def test_remove_nonexistent(self, manager):
+        assert manager.remove_theme("Fake") is False
+
+    def test_themes_in_decision_context(self, manager):
+        manager.add_theme("AI/Automation", "Companies building AI", score=4)
+        ctx = manager.get_decision_context()
+        assert "AI/Automation" in ctx
+        assert "[4/5]" in ctx
+
+    def test_empty_themes_in_decision_context(self, manager):
+        ctx = manager.get_decision_context()
+        assert "No themes set" in ctx
+
+
 class TestClearAll:
     def test_clear_all(self, manager):
         manager.add_thesis(
@@ -299,10 +392,13 @@ class TestClearAll:
         manager.update_position("AAPL", "LONG", 5, 100.0, 500.0, "2024-01-10")
         manager.append_lesson("test lesson")
         manager.append_sim_run("run_1", "test run")
+        manager.add_theme("AI", "Artificial intelligence", score=4)
 
         manager.clear_all()
 
         assert manager.get_all_theses() == []
         assert manager.get_holdings() == []
         assert manager.get_all_lessons() == []
-        assert manager.get_all_sim_runs() == []
+        # sim_log and themes are preserved across runs
+        assert manager.get_all_sim_runs() != []
+        assert manager.get_all_themes() != []

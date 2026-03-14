@@ -23,6 +23,7 @@ THESIS_HEADER = re.compile(r"^## ([A-Z0-9.]+) — ", re.MULTILINE)
 QUARTERLY_HEADER = re.compile(r"^## Q\d \d{4}", re.MULTILINE)
 LESSON_HEADER = re.compile(r"^## Lesson \d+", re.MULTILINE)
 SIM_RUN_HEADER = re.compile(r"^## Run ", re.MULTILINE)
+THEME_HEADER = re.compile(r"^## (.+?) \[(\d)\]$", re.MULTILINE)
 LEDGER_ROW = re.compile(
     r"^\|\s*([A-Z0-9.]+)\s*\|"
     r"\s*(LONG|SHORT)\s*\|"
@@ -49,9 +50,11 @@ class ThesisManager:
             "summaries": root / _mem_cfg("summaries_path", "data/quarterly_summaries.md"),
             "lessons": root / _mem_cfg("lessons_path", "data/lessons_learned.md"),
             "sim_log": root / _mem_cfg("sim_log_path", "data/simulation_log.md"),
+            "themes": root / _mem_cfg("themes_path", "data/themes.md"),
         }
         self._max_theses = _mem_cfg("max_active_theses", 15)
         self._max_summaries = _mem_cfg("max_quarterly_summaries", 8)
+        self._max_themes = _mem_cfg("max_themes", 8)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -358,6 +361,97 @@ class ThesisManager:
         self._write("lessons", content)
 
     # ------------------------------------------------------------------
+    # Themes (scored 1-5, auto-remove at 1)
+    # ------------------------------------------------------------------
+
+    def get_all_themes(self) -> list[dict]:
+        """Parse themes.md into a list of {name, description, score} dicts."""
+        content = self._read("themes")
+        if not content.strip():
+            return []
+
+        themes = []
+        parts = THEME_HEADER.split(content)
+        # parts: [preamble, name1, score1, body1, name2, score2, body2, ...]
+        for i in range(1, len(parts) - 2, 3):
+            name = parts[i]
+            score = int(parts[i + 1])
+            body = parts[i + 2].strip()
+            # Extract description from body
+            desc = ""
+            for line in body.split("\n"):
+                line = line.strip()
+                if line and not line.startswith("---"):
+                    desc = line
+                    break
+            themes.append({"name": name, "description": desc, "score": score})
+        return themes
+
+    def get_theme(self, name: str) -> dict | None:
+        for t in self.get_all_themes():
+            if t["name"].lower() == name.lower():
+                return t
+        return None
+
+    def add_theme(self, name: str, description: str, score: int = 3) -> bool:
+        """Add a new theme. Returns False if at max capacity or already exists."""
+        existing = self.get_all_themes()
+
+        # Update if already exists
+        for t in existing:
+            if t["name"].lower() == name.lower():
+                t["description"] = description
+                t["score"] = score
+                self._rebuild_themes(existing)
+                return True
+
+        if len(existing) >= self._max_themes:
+            logger.warning("Cannot add theme '%s' — at max capacity (%d)", name, self._max_themes)
+            return False
+
+        score = max(1, min(5, score))
+        existing.append({"name": name, "description": description, "score": score})
+        self._rebuild_themes(existing)
+        logger.debug("Added theme: %s [%d]", name, score)
+        return True
+
+    def update_theme_score(self, name: str, delta: int) -> bool:
+        """Adjust a theme's score by delta (clamped 1-5). Removes if score hits 1."""
+        existing = self.get_all_themes()
+        found = False
+        for t in existing:
+            if t["name"].lower() == name.lower():
+                t["score"] = max(1, min(5, t["score"] + delta))
+                found = True
+                break
+
+        if not found:
+            return False
+
+        # Auto-remove themes at score 1
+        existing = [t for t in existing if t["score"] > 1]
+        self._rebuild_themes(existing)
+        return True
+
+    def remove_theme(self, name: str) -> bool:
+        existing = self.get_all_themes()
+        filtered = [t for t in existing if t["name"].lower() != name.lower()]
+        if len(filtered) == len(existing):
+            return False
+        self._rebuild_themes(filtered)
+        return True
+
+    def _rebuild_themes(self, themes: list[dict]) -> None:
+        lines = ["# Investment Themes\n"]
+        for t in themes:
+            lines.append(f"## {t['name']} [{t['score']}]")
+            lines.append(t["description"])
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        self._write("themes", "\n".join(lines))
+
+    # ------------------------------------------------------------------
     # Simulation Log
     # ------------------------------------------------------------------
 
@@ -391,6 +485,14 @@ class ThesisManager:
         Excludes simulation_log — that's for post-hoc analysis only.
         """
         sections = []
+
+        # Themes
+        themes = self.get_all_themes()
+        if themes:
+            theme_lines = [f"- {t['name']} [{t['score']}/5]: {t['description']}" for t in themes]
+            sections.append("### Investment Themes\n" + "\n".join(theme_lines))
+        else:
+            sections.append("### Investment Themes\n(No themes set)")
 
         # Active theses
         theses_content = self._read("theses")
@@ -427,8 +529,10 @@ class ThesisManager:
     # ------------------------------------------------------------------
 
     def clear_all(self) -> None:
-        """Clear all memory files (used for simulation resets)."""
+        """Clear in-sim memory files. Preserves simulation_log and themes across runs."""
         for key in self._paths:
+            if key in ("sim_log", "themes"):
+                continue
             path = self._paths[key]
             if path.exists():
                 path.unlink()
