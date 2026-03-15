@@ -35,18 +35,21 @@ class DecisionEngine:
         bot_return_pct: float = 0.0,
         spy_return_pct: float = 0.0,
         review_number: int = 0,
+        review_type: str = "weekly",
+        trade_count: int = 0,
     ) -> dict:
         """Run a weekly thesis-driven review via Claude.
 
         Returns parsed decision dict with keys:
             world_assessment, thesis_updates, new_positions,
-            close_positions, reduce_positions, lessons, weekly_summary
+            close_positions, reduce_positions, lessons, weekly_summary,
+            lesson_updates, belief_updates, lessons_to_prune
         """
         memory_context = self._tm.get_decision_context()
         prompt = self._build_prompt(
             sim_date, memory_context, world_state, technicals_summary,
             portfolio_value, cash, bot_return_pct, spy_return_pct,
-            review_number,
+            review_number, review_type, trade_count,
         )
 
         response = self._call_claude(prompt)
@@ -70,6 +73,8 @@ class DecisionEngine:
         bot_return_pct: float = 0.0,
         spy_return_pct: float = 0.0,
         review_number: int = 0,
+        review_type: str = "weekly",
+        trade_count: int = 0,
     ) -> str:
         holdings = self._tm.get_holdings()
         holdings_count = len(holdings)
@@ -87,6 +92,24 @@ class DecisionEngine:
         # Separate discovery pool label if present
         universe_text = universe_text.replace("Discovery Pool:", "Broader Market:")
 
+        # Theme discovery for first review
+        theme_section = self._theme_section_text(review_number)
+
+        # Monthly belief review section
+        monthly_section = self._monthly_review_text(review_type)
+
+        # Anti-churning discipline
+        discipline_section = self._trade_discipline_text(trade_count)
+
+        # Lesson update task + JSON schema additions
+        lesson_update_task = (
+            "8. Review existing lessons — if this week's evidence supports an existing lesson, "
+            "tell us to increment its score rather than writing a new one. If evidence contradicts "
+            "a lesson, tell us to decrement its score."
+        )
+
+        # Build JSON schema
+        json_schema = self._build_json_schema(review_type, review_number)
 
         return f"""CRITICAL: You are making decisions on {sim_date}.
 You DO NOT know what happens after this date.
@@ -114,10 +137,7 @@ THIS WEEK'S RESEARCH:
 TECHNICAL TIMING DATA:
 {technicals_summary if technicals_summary else "(No technical data available)"}
 
-THEMES (see Memory section above — scored 1-5, higher = stronger conviction):
-Themes are informational — they guide your thinking but don't dictate allocations.
-You can propose new themes or adjust scores. New themes start at score 3.
-Score range: 2-5 (themes at score 1 are auto-removed). Max {self._tm._max_themes} themes.
+{theme_section}
 
 STOCK UNIVERSE (pre-screened candidates you can trade):
 {universe_text}
@@ -137,8 +157,10 @@ RULES:
 - Keep at least 20% cash at all times
 - Every position MUST have a thesis with explicit invalidation conditions
 - When a thesis is invalidated, EXIT immediately
-- Wide catastrophic stops (18%) are set automatically — you don't manage them
+- Dynamic catastrophic stops are set automatically based on ATR — you don't manage them
 - Use technicals only for timing hints (e.g. RSI < 40 = good entry)
+
+{discipline_section}
 
 DEPLOYMENT PACING:
 {self._deployment_pacing_text(review_number, holdings_count)}
@@ -164,15 +186,68 @@ TASKS:
 5. Should we close or reduce any positions? (thesis broken?)
 6. Theme check: any themes strengthening or weakening? Any new themes emerging from the news?
 7. Any new lessons learned? Be specific and actionable (include trigger conditions).
+{lesson_update_task}
+{monthly_section}
 
 Respond with ONLY valid JSON:
-{{
+{json_schema}
+
+Theme update rules:
+- To adjust an existing theme: {{"name": "...", "delta": +1 or -1, "reason": "..."}}
+- To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
+- Only adjust themes when there's clear evidence from the news. Max ±1 per review.
+
+If no changes needed, return empty arrays. Always include world_assessment and weekly_summary."""
+
+    def _theme_section_text(self, review_number: int) -> str:
+        """Generate the theme section. First review discovers themes from news."""
+        if review_number == 1:
+            return (
+                "THEME DISCOVERY:\n"
+                "Based on the news and technical data above, identify 3-4 investment themes you want to pursue.\n"
+                "These should reflect the current market environment, not predetermined ideas.\n"
+                "Add them via theme_updates with action \"ADD\"."
+            )
+        return (
+            f"THEMES (see Memory section above — scored 1-5, higher = stronger conviction):\n"
+            f"Themes are informational — they guide your thinking but don't dictate allocations.\n"
+            f"You can propose new themes or adjust scores. New themes start at score 3.\n"
+            f"Score range: 2-5 (themes at score 1 are auto-removed). Max {self._tm._max_themes} themes."
+        )
+
+    @staticmethod
+    def _monthly_review_text(review_type: str) -> str:
+        """Generate monthly belief review section (only for monthly reviews)."""
+        if review_type != "monthly":
+            return ""
+        return """
+MONTHLY BELIEF REVIEW:
+Review all current lessons and their validity scores.
+- Lessons scoring 3+ that share a common principle should be consolidated into a Belief.
+- Max 5 beliefs. If adding a new belief, see if it can be merged into an existing one.
+- If a recent lesson contradicts an existing Belief, explain why — should we invalidate the belief or discard the lesson?
+- Beliefs are rock-solid investment principles. They should have strong conviction behind them.
+- Prune lessons that are no longer relevant or have been absorbed into beliefs."""
+
+    @staticmethod
+    def _trade_discipline_text(trade_count: int) -> str:
+        """Generate anti-churning trade discipline section."""
+        return (
+            f"TRADE DISCIPLINE:\n"
+            f"You have executed {trade_count} trades so far. If this exceeds 5 trades per month of simulation,\n"
+            f"you may be over-trading. Each trade has real costs (stop-loss risk, slippage).\n"
+            f"Prefer holding existing positions over opening new ones unless conviction is significantly higher."
+        )
+
+    def _build_json_schema(self, review_type: str, review_number: int) -> str:
+        """Build the JSON response schema, including monthly additions when applicable."""
+        base = """{
   "world_assessment": "Brief summary of what matters this week",
   "thesis_updates": [
-    {{"ticker": "AVGO", "status": "ACTIVE", "notes": "Q1 confirmed thesis"}}
+    {"ticker": "AVGO", "status": "ACTIVE", "notes": "Q1 confirmed thesis"}
   ],
   "new_positions": [
-    {{
+    {
       "ticker": "CRWD",
       "action": "BUY",
       "allocation_pct": 6,
@@ -184,8 +259,8 @@ Respond with ONLY valid JSON:
       "horizon": "3-6 months",
       "confidence": "high",
       "timing_note": "RSI at 32, good entry point"
-    }},
-    {{
+    },
+    {
       "ticker": "T",
       "action": "SHORT",
       "allocation_pct": 5,
@@ -197,28 +272,43 @@ Respond with ONLY valid JSON:
       "horizon": "3-6 months",
       "confidence": "medium",
       "timing_note": "Breaking below support"
-    }}
+    }
   ],
   "close_positions": [
-    {{"ticker": "TSLA", "reason": "EV margin thesis broken by competition"}}
+    {"ticker": "TSLA", "reason": "EV margin thesis broken by competition"}
   ],
   "reduce_positions": [
-    {{"ticker": "AAPL", "new_allocation_pct": 4, "reason": "China weakness"}}
+    {"ticker": "AAPL", "new_allocation_pct": 4, "reason": "China weakness"}
   ],
   "theme_updates": [
-    {{"name": "AI/Automation", "delta": 1, "reason": "Strong earnings across AI sector"}},
-    {{"name": "Nuclear Renaissance", "action": "ADD", "description": "Data centers driving nuclear demand", "reason": "Multiple utility deals announced"}}
+    {"name": "AI/Automation", "delta": 1, "reason": "Strong earnings across AI sector"},
+    {"name": "Nuclear Renaissance", "action": "ADD", "description": "Data centers driving nuclear demand", "reason": "Multiple utility deals announced"}
   ],
   "lessons": ["New lesson if any"],
+  "lesson_updates": [
+    {"lesson_number": 3, "delta": 1, "reason": "This week confirmed..."},
+    {"lesson_number": 7, "delta": -1, "reason": "Evidence contradicts..."}
+  ],"""
+
+        # Monthly additions
+        if review_type == "monthly":
+            base += """
+  "belief_updates": [
+    {"name": "Never catch falling knives", "action": "ADD", "description": "...", "supporting_lessons": [3, 7]},
+    {"name": "Existing belief", "action": "UPDATE", "description": "refined...", "supporting_lessons": [3, 7, 12]},
+    {"name": "Old belief", "action": "REMOVE", "reason": "Lesson 14 contradicts..."}
+  ],
+  "lessons_to_prune": [3, 7],"""
+
+        # Theme discovery for first review
+        if review_number == 1:
+            # theme_updates already in base schema, no extra needed
+            pass
+
+        base += """
   "weekly_summary": "Brief narrative for the quarterly summary"
-}}
-
-Theme update rules:
-- To adjust an existing theme: {{"name": "...", "delta": +1 or -1, "reason": "..."}}
-- To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
-- Only adjust themes when there's clear evidence from the news. Max ±1 per review.
-
-If no changes needed, return empty arrays. Always include world_assessment and weekly_summary."""
+}"""
+        return base
 
     @staticmethod
     def _deployment_pacing_text(review_number: int, holdings_count: int) -> str:
@@ -350,10 +440,53 @@ If no changes needed, return empty arrays. Always include world_assessment and w
                     self._tm.update_theme_score(name, delta)
                     logger.info("  Theme %s: %+d", name, delta)
 
-        # Append lessons
+        # Append new lessons
         for lesson in response.get("lessons", []):
             if lesson and lesson.strip():
                 self._tm.append_lesson(lesson)
+
+        # Apply lesson score updates
+        for update in response.get("lesson_updates", []):
+            lesson_num = update.get("lesson_number")
+            delta = update.get("delta", 0)
+            if lesson_num is None or delta == 0:
+                continue
+            if delta > 0:
+                self._tm.increment_lesson_score(lesson_num)
+                logger.info("  Lesson %d: score +1 (%s)", lesson_num, update.get("reason", ""))
+            elif delta < 0:
+                self._tm.decrement_lesson_score(lesson_num)
+                logger.info("  Lesson %d: score -1 (%s)", lesson_num, update.get("reason", ""))
+
+        # Apply belief updates (monthly reviews)
+        for update in response.get("belief_updates", []):
+            name = update.get("name", "")
+            action = update.get("action", "").upper()
+            if not name:
+                continue
+            if action == "ADD":
+                self._tm.add_belief(
+                    name,
+                    update.get("description", ""),
+                    update.get("supporting_lessons", []),
+                )
+                logger.info("  Belief added: %s", name)
+            elif action == "UPDATE":
+                self._tm.update_belief(
+                    name,
+                    description=update.get("description"),
+                    supporting_lessons=update.get("supporting_lessons"),
+                )
+                logger.info("  Belief updated: %s", name)
+            elif action == "REMOVE":
+                self._tm.remove_belief(name)
+                logger.info("  Belief removed: %s (%s)", name, update.get("reason", ""))
+
+        # Prune lessons (monthly reviews)
+        for lesson_num in response.get("lessons_to_prune", []):
+            if isinstance(lesson_num, int):
+                self._tm.remove_lesson(lesson_num)
+                logger.info("  Pruned lesson %d", lesson_num)
 
     @staticmethod
     def _empty_response() -> dict:
@@ -365,5 +498,8 @@ If no changes needed, return empty arrays. Always include world_assessment and w
             "reduce_positions": [],
             "theme_updates": [],
             "lessons": [],
+            "lesson_updates": [],
+            "belief_updates": [],
+            "lessons_to_prune": [],
             "weekly_summary": "",
         }

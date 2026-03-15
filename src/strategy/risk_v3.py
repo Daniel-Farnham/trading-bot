@@ -76,6 +76,7 @@ class RiskManagerV3:
         existing_tickers: list[str],
         short_exposure: float = 0.0,
         thesis: str = "",
+        dynamic_stop_pct: float | None = None,
     ) -> V3PositionPlan | V3RiskVeto:
         """Validate and size a new position from Claude's allocation %."""
         side = side.upper()
@@ -122,11 +123,12 @@ class RiskManagerV3:
 
         actual_value = quantity * price
 
-        # Set catastrophic stop
+        # Set catastrophic stop — use dynamic stop if provided, else default
+        stop_pct = dynamic_stop_pct if dynamic_stop_pct is not None else self._catastrophic_stop_pct
         if side == "LONG":
-            stop = round(price * (1 - self._catastrophic_stop_pct), 2)
+            stop = round(price * (1 - stop_pct), 2)
         else:
-            stop = round(price * (1 + self._catastrophic_stop_pct), 2)
+            stop = round(price * (1 + stop_pct), 2)
 
         return V3PositionPlan(
             ticker=ticker,

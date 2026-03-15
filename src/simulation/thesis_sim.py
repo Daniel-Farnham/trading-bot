@@ -1,11 +1,12 @@
 """V3 Thesis-Driven Simulation Engine.
 
 Steps through historical dates week by week, orchestrating the full
-research → decision → execution loop. Memory files persist and evolve
+research -> decision -> execution loop. Memory files persist and evolve
 across sim weeks, giving Claude continuity.
 """
 from __future__ import annotations
 
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -66,6 +67,7 @@ class ThesisSimulation:
             "lessons": self._data_dir / "lessons_learned.md",
             "sim_log": Path("data/simulation_log.md"),
             "themes": self._data_dir / "themes.md",
+            "beliefs": self._data_dir / "beliefs.md",
         }
 
         self.decision_engine = DecisionEngine(thesis_manager=self.thesis_manager)
@@ -87,20 +89,10 @@ class ThesisSimulation:
             f"{self.initial_cash:,.0f}",
         )
 
-        # Clear previous sim memory (preserves themes and sim_log)
+        # Clear previous sim memory (preserves sim_log)
         self.thesis_manager.clear_all()
 
-        # Seed initial themes if none exist
-        if not self.thesis_manager.get_all_themes():
-            default_themes = [
-                ("AI/Automation", "Companies building or benefiting from AI, robotics, automation"),
-                ("Climate Transition", "Clean energy, EVs, sustainability, grid infrastructure"),
-                ("Aging Populations", "Healthcare, pharma, medical devices, senior services"),
-                ("Wealth Inequality", "Financial services, fintech, discount retail, luxury"),
-            ]
-            for name, desc in default_themes:
-                self.thesis_manager.add_theme(name, desc, score=3)
-            logger.info("Seeded %d initial themes", len(default_themes))
+        # No theme seeding — the first review will discover themes from news
 
         # Download historical data for the full curated universe + SPY benchmark
         universe = self._get_universe_tickers()
@@ -121,7 +113,7 @@ class ThesisSimulation:
             daily_bars = self._get_daily_bars(day)
             self.broker.update_prices(daily_bars)
             self._check_catastrophic_stops(daily_bars, day_dt)
-            self._update_ledger_values(daily_bars)
+            self._update_ledger_values(daily_bars, day)
             self._record_snapshot(day)
 
             # Track peak for drawdown
@@ -156,6 +148,10 @@ class ThesisSimulation:
 
         report = self._build_report()
         return report
+
+    def _get_trade_count(self) -> int:
+        """Get total trade count: closed trades + open positions."""
+        return len(self.broker.closed_trades) + len(self.broker.positions)
 
     def _run_review(self, day, day_dt: datetime, review_type: str) -> None:
         """Execute a weekly/monthly thesis review."""
@@ -193,8 +189,9 @@ class ThesisSimulation:
         pv = self.broker.portfolio_value
         bot_return = ((pv / self.initial_cash) - 1) * 100
         spy_return = self._get_spy_return(day)
-        logger.info("  Bot: %+.1f%% | SPY: %+.1f%% | Calling Claude for %s review...",
-                     bot_return, spy_return, review_type)
+        trade_count = self._get_trade_count()
+        logger.info("  Bot: %+.1f%% | SPY: %+.1f%% | Trades: %d | Calling Claude for %s review...",
+                     bot_return, spy_return, trade_count, review_type)
         response = self.decision_engine.run_weekly_review(
             sim_date=str(day),
             world_state=world_state,
@@ -204,7 +201,13 @@ class ThesisSimulation:
             bot_return_pct=bot_return,
             spy_return_pct=spy_return,
             review_number=self._weeks_elapsed + 1,
+            review_type=review_type,
+            trade_count=trade_count,
         )
+
+        # Log monthly review output
+        if review_type == "monthly":
+            self._log_monthly_review(day, response)
 
         # Step 4: Execute decisions
         daily_bars = self._get_daily_bars(day)
@@ -237,6 +240,34 @@ class ThesisSimulation:
             + len(response.get("reduce_positions", []))
         )
         logger.info("  Review complete: %d action(s)", changes)
+
+    def _log_monthly_review(self, day, response: dict) -> None:
+        """Save monthly review response to a file in the data dir."""
+        try:
+            log_path = self._data_dir / f"monthly_review_{day}.json"
+            log_path.write_text(json.dumps(response, indent=2, default=str), encoding="utf-8")
+            logger.info("  Monthly review logged to %s", log_path)
+        except Exception as e:
+            logger.warning("Failed to log monthly review: %s", e)
+
+    def _compute_dynamic_stop(self, ticker: str, day) -> float | None:
+        """Compute dynamic stop % based on 3x ATR%, floored at 8%, capped at 20%.
+
+        Returns the stop as a decimal (e.g. 0.12 for 12%). None if ATR unavailable.
+        """
+        bars = self._all_bars.get(ticker)
+        if bars is None:
+            return None
+        history = self._get_bars_up_to(bars, day)
+        if history.empty or len(history) < 20:
+            return None
+        snap = self.technicals.analyze(ticker, history)
+        if snap.atr_pct is None:
+            return None
+        # 3x ATR%, floored at 8%, capped at 20%
+        stop_pct = snap.atr_pct * 3.0 / 100.0  # Convert from percentage to decimal
+        stop_pct = max(0.08, min(0.20, stop_pct))
+        return stop_pct
 
     def _execute_decisions(self, response: dict, daily_bars: dict, day_dt: datetime) -> None:
         """Translate Claude's decisions into simulated trades."""
@@ -300,9 +331,19 @@ class ThesisSimulation:
                 price = self._get_or_download_price(ticker, day_dt)
                 if not price:
                     logger.warning("    No price data for %s, skipping", ticker)
+                    # Clean up thesis that was added with entry_price=0.0
+                    self.thesis_manager.remove_thesis(ticker)
                     continue
             else:
                 price = bar["close"]
+
+            # Compute dynamic stop based on ATR
+            dynamic_stop = self._compute_dynamic_stop(ticker, day_dt.date())
+            if dynamic_stop is None:
+                dynamic_stop = 0.18  # Fall back to 18%
+                logger.debug("    No ATR for %s, using default 18%% stop", ticker)
+            else:
+                logger.debug("    Dynamic stop for %s: %.1f%%", ticker, dynamic_stop * 100)
 
             plan = self.risk.evaluate_new_position(
                 ticker=ticker,
@@ -315,10 +356,13 @@ class ThesisSimulation:
                 existing_tickers=position_tickers,
                 short_exposure=self.broker.get_short_exposure(),
                 thesis=new_pos.get("thesis", ""),
+                dynamic_stop_pct=dynamic_stop,
             )
 
             if isinstance(plan, V3RiskVeto):
                 logger.info("    VETOED %s: %s", ticker, plan.reason)
+                # Clean up thesis that was added before execution
+                self.thesis_manager.remove_thesis(ticker)
                 continue
 
             # Convert to SimBroker-compatible plan
@@ -359,9 +403,10 @@ class ThesisSimulation:
                 position_tickers.append(ticker)
                 action = "SHORTED" if is_short else "BOUGHT"
                 logger.info(
-                    "    %s %d %s @ $%.2f (%s%% alloc, stop $%.2f)",
+                    "    %s %d %s @ $%.2f (%s%% alloc, stop $%.2f [%.0f%%])",
                     action, plan.quantity, ticker, price,
                     plan.allocation_pct, plan.catastrophic_stop,
+                    dynamic_stop * 100,
                 )
 
     def _check_catastrophic_stops(self, daily_bars: dict, day_dt: datetime) -> None:
@@ -379,11 +424,24 @@ class ThesisSimulation:
             self.thesis_manager.remove_position(ticker)
             self.thesis_manager.update_thesis(ticker, status="STOPPED_OUT")
 
-    def _update_ledger_values(self, daily_bars: dict) -> None:
-        """Update current values in the portfolio ledger."""
+    def _update_ledger_values(self, daily_bars: dict, day=None) -> None:
+        """Update current values in the portfolio ledger.
+
+        Uses daily_bars first; falls back to last known bar for positions
+        missing from today's data to prevent stale prices in the ledger.
+        """
         updates = {}
         for ticker, pos in self.broker.positions.items():
             bar = daily_bars.get(ticker)
+            if not bar and day is not None:
+                # Forward-fill: use the most recent bar up to today
+                bars_df = self._all_bars.get(ticker)
+                if bars_df is not None:
+                    history = self._get_bars_up_to(bars_df, day)
+                    if not history.empty:
+                        bar = {
+                            "close": float(history["close"].iloc[-1]),
+                        }
             if bar:
                 updates[ticker] = bar["close"] * pos.quantity
         if updates:
@@ -426,6 +484,14 @@ class ThesisSimulation:
             parts.append("near lower BB")
         elif s.is_near_upper_band:
             parts.append("near upper BB")
+        if s.hv_20 is not None and s.hv_percentile is not None:
+            parts.append(f"HV={s.hv_20:.0f}% ({s.hv_percentile:.0f}th pctl)")
+        if s.atr_pct is not None:
+            parts.append(f"ATR%={s.atr_pct:.1f}%")
+        if s.adx_14 is not None:
+            parts.append(f"ADX={s.adx_14:.0f}")
+        if s.obv_trend is not None:
+            parts.append(f"OBV {s.obv_trend}")
         return " | ".join(parts)
 
     # ------------------------------------------------------------------
@@ -674,10 +740,15 @@ class ThesisSimulation:
             body += f"\n**Lessons Learned ({len(lessons)} total):**\n"
             # Include last 5 lessons as they're the most refined
             for lesson in lessons[-5:]:
-                # Extract just the content after "## Lesson N\n"
-                lines = lesson.split("\n", 1)
-                content = lines[1].strip() if len(lines) > 1 else lines[0]
+                content = lesson["content"] if isinstance(lesson, dict) else str(lesson)
                 body += f"- {content[:120]}...\n" if len(content) > 120 else f"- {content}\n"
+
+        # Add beliefs
+        beliefs = self.thesis_manager.get_all_beliefs()
+        if beliefs:
+            body += f"\n**Core Beliefs ({len(beliefs)}):**\n"
+            for b in beliefs:
+                body += f"- {b['name']}: {b['description'][:100]}\n"
 
         if notes:
             body += f"\n**Notes:**\n{notes}\n"

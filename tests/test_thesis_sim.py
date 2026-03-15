@@ -25,9 +25,14 @@ def manager(tmp_path):
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
+        "themes": tmp_path / "themes.md",
+        "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
     mgr._max_summaries = 8
+    mgr._max_themes = 8
+    mgr._max_lessons = 15
+    mgr._max_beliefs = 5
     return mgr
 
 
@@ -57,10 +62,17 @@ class TestExecuteDecisions:
             "summaries": tmp_path / "quarterly_summaries.md",
             "lessons": tmp_path / "lessons_learned.md",
             "sim_log": tmp_path / "simulation_log.md",
+            "themes": tmp_path / "themes.md",
+            "beliefs": tmp_path / "beliefs.md",
         }
         sim.thesis_manager._max_theses = 15
         sim.thesis_manager._max_summaries = 8
+        sim.thesis_manager._max_themes = 8
+        sim.thesis_manager._max_lessons = 15
+        sim.thesis_manager._max_beliefs = 5
         sim._all_bars = {}
+        sim.technicals = MagicMock()
+        sim._data_dir = tmp_path
         return sim
 
     def test_buy_new_position(self, tmp_path):

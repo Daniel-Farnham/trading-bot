@@ -1,10 +1,12 @@
 """Thesis-driven memory system — persistent state for V3 investment decisions.
 
-Manages 5 markdown files that give Claude continuity across stateless calls:
+Manages markdown files that give Claude continuity across stateless calls:
 - active_theses.md — current investment theses (max 15)
 - portfolio_ledger.md — what we hold right now
 - quarterly_summaries.md — compressed history (max 8)
-- lessons_learned.md — permanent rules
+- lessons_learned.md — scored short-term rules (max 15, scored 1-5)
+- beliefs.md — long-term principles consolidated from lessons (max 5)
+- themes.md — investment themes (scored 1-5)
 - simulation_log.md — backtest history (excluded from decision context)
 """
 from __future__ import annotations
@@ -21,10 +23,24 @@ logger = logging.getLogger(__name__)
 # --- Parsing patterns ---
 THESIS_HEADER = re.compile(r"^## ([A-Z0-9.]+) — ", re.MULTILINE)
 QUARTERLY_HEADER = re.compile(r"^## Q\d \d{4}", re.MULTILINE)
-LESSON_HEADER = re.compile(r"^## Lesson \d+", re.MULTILINE)
+LESSON_HEADER = re.compile(r"^## Lesson (\d+) \[(\d)\]", re.MULTILINE)
+LESSON_HEADER_OLD = re.compile(r"^## Lesson (\d+)\s*$", re.MULTILINE)
 SIM_RUN_HEADER = re.compile(r"^## Run ", re.MULTILINE)
 THEME_HEADER = re.compile(r"^## (.+?) \[(\d)\]$", re.MULTILINE)
+BELIEF_HEADER = re.compile(r"^## (.+?) \[(\d)\]$", re.MULTILINE)
 LEDGER_ROW = re.compile(
+    r"^\|\s*([A-Z0-9.]+)\s*\|"
+    r"\s*(LONG|SHORT)\s*\|"
+    r"\s*([\d.]+)\s*\|"
+    r"\s*\$([\d.,]+)\s*\|"
+    r"\s*\$([\d.,]+)\s*\|"
+    r"\s*\$([\d.,]+)\s*\|"
+    r"\s*([+-]?[\d.,]+)%\s*\|"
+    r"\s*([\d-]+)\s*\|",
+    re.MULTILINE,
+)
+# Backwards-compatible: match old 6-column ledger rows too
+LEDGER_ROW_V1 = re.compile(
     r"^\|\s*([A-Z0-9.]+)\s*\|"
     r"\s*(LONG|SHORT)\s*\|"
     r"\s*([\d.]+)\s*\|"
@@ -40,7 +56,7 @@ def _mem_cfg(key: str, default):
 
 
 class ThesisManager:
-    """Single manager for all 5 V3 memory files."""
+    """Single manager for all V3 memory files."""
 
     def __init__(self, base_dir: str | Path | None = None):
         root = Path(base_dir) if base_dir else Path(".")
@@ -51,10 +67,13 @@ class ThesisManager:
             "lessons": root / _mem_cfg("lessons_path", "data/lessons_learned.md"),
             "sim_log": root / _mem_cfg("sim_log_path", "data/simulation_log.md"),
             "themes": root / _mem_cfg("themes_path", "data/themes.md"),
+            "beliefs": root / _mem_cfg("beliefs_path", "data/beliefs.md"),
         }
         self._max_theses = _mem_cfg("max_active_theses", 15)
         self._max_summaries = _mem_cfg("max_quarterly_summaries", 8)
         self._max_themes = _mem_cfg("max_themes", 8)
+        self._max_lessons = _mem_cfg("max_lessons", 15)
+        self._max_beliefs = _mem_cfg("max_beliefs", 5)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -230,6 +249,7 @@ class ThesisManager:
         """Parse portfolio_ledger.md into a list of position dicts."""
         content = self._read("ledger")
         holdings = []
+        # Try new 8-column format first
         for m in LEDGER_ROW.finditer(content):
             holdings.append({
                 "ticker": m.group(1),
@@ -237,6 +257,28 @@ class ThesisManager:
                 "qty": float(m.group(3)),
                 "entry_price": float(m.group(4).replace(",", "")),
                 "current_value": float(m.group(5).replace(",", "")),
+                "current_price": float(m.group(6).replace(",", "")),
+                "pnl_pct": float(m.group(7).replace(",", "")),
+                "date_opened": m.group(8),
+            })
+        if holdings:
+            return holdings
+        # Fall back to old 6-column format
+        for m in LEDGER_ROW_V1.finditer(content):
+            entry_price = float(m.group(4).replace(",", ""))
+            qty = float(m.group(3))
+            current_value = float(m.group(5).replace(",", ""))
+            current_price = current_value / qty if qty > 0 else 0.0
+            cost_basis = entry_price * qty
+            pnl_pct = ((current_value - cost_basis) / cost_basis * 100) if cost_basis > 0 else 0.0
+            holdings.append({
+                "ticker": m.group(1),
+                "side": m.group(2),
+                "qty": qty,
+                "entry_price": entry_price,
+                "current_value": current_value,
+                "current_price": current_price,
+                "pnl_pct": pnl_pct,
                 "date_opened": m.group(6),
             })
         return holdings
@@ -276,24 +318,37 @@ class ThesisManager:
         return True
 
     def update_values(self, updates: dict[str, float]) -> None:
-        """Batch update current_value for multiple tickers."""
+        """Batch update current_value and current_price for multiple tickers."""
         holdings = self.get_holdings()
         for h in holdings:
             if h["ticker"] in updates:
                 h["current_value"] = updates[h["ticker"]]
+                qty = h["qty"]
+                if qty > 0:
+                    h["current_price"] = updates[h["ticker"]] / qty
         self._rebuild_ledger(holdings)
 
     def _rebuild_ledger(self, holdings: list[dict]) -> None:
         lines = [
             "# Portfolio Ledger",
             "",
-            "| Ticker | Side | Qty | Entry Price | Current Value | Date Opened |",
-            "|--------|------|-----|-------------|---------------|-------------|",
+            "| Ticker | Side | Qty | Entry Price | Current Value | Current Price | P&L % | Date Opened |",
+            "|--------|------|-----|-------------|---------------|---------------|-------|-------------|",
         ]
         for h in holdings:
+            qty = h["qty"]
+            entry_price = h["entry_price"]
+            current_value = h["current_value"]
+            current_price = h.get("current_price", current_value / qty if qty > 0 else 0.0)
+            cost_basis = entry_price * qty
+            if h["side"] == "SHORT":
+                pnl_pct = ((cost_basis - current_value) / cost_basis * 100) if cost_basis > 0 else 0.0
+            else:
+                pnl_pct = ((current_value - cost_basis) / cost_basis * 100) if cost_basis > 0 else 0.0
             lines.append(
-                f"| {h['ticker']} | {h['side']} | {h['qty']} | "
-                f"${h['entry_price']:,.2f} | ${h['current_value']:,.2f} | {h['date_opened']} |"
+                f"| {h['ticker']} | {h['side']} | {qty} | "
+                f"${entry_price:,.2f} | ${current_value:,.2f} | "
+                f"${current_price:,.2f} | {pnl_pct:+.1f}% | {h['date_opened']} |"
             )
         lines.append("")
         self._write("ledger", "\n".join(lines))
@@ -335,30 +390,219 @@ class ThesisManager:
         logger.debug("Truncated quarterly summaries to %d", self._max_summaries)
 
     # ------------------------------------------------------------------
-    # Lessons Learned
+    # Lessons Learned (scored 1-5, max 15)
     # ------------------------------------------------------------------
 
-    def get_all_lessons(self) -> list[str]:
+    def get_all_lessons(self) -> list[dict]:
+        """Parse lessons_learned.md into a list of lesson dicts.
+
+        Returns list of {"number": int, "score": int, "content": str}.
+        Backward compatible: old format (no score) treated as score 3.
+        """
         content = self._read("lessons")
         if not content.strip():
             return []
-        parts = LESSON_HEADER.split(content)
-        headers = LESSON_HEADER.findall(content)
-        entries = []
-        for i, header in enumerate(headers):
-            body = parts[i + 1] if i + 1 < len(parts) else ""
-            entries.append(f"{header}{body}".strip())
-        return entries
+
+        lessons = []
+
+        # Try new scored format first: ## Lesson N [S]
+        new_matches = list(LESSON_HEADER.finditer(content))
+        if new_matches:
+            for idx, m in enumerate(new_matches):
+                number = int(m.group(1))
+                score = int(m.group(2))
+                start = m.end()
+                end = new_matches[idx + 1].start() if idx + 1 < len(new_matches) else len(content)
+                body = content[start:end].strip()
+                # Remove trailing ---
+                if body.endswith("---"):
+                    body = body[:-3].strip()
+                lessons.append({"number": number, "score": score, "content": body})
+            return lessons
+
+        # Fall back to old format: ## Lesson N (no score) — treat as score 3
+        old_matches = list(LESSON_HEADER_OLD.finditer(content))
+        for idx, m in enumerate(old_matches):
+            number = int(m.group(1))
+            start = m.end()
+            end = old_matches[idx + 1].start() if idx + 1 < len(old_matches) else len(content)
+            body = content[start:end].strip()
+            if body.endswith("---"):
+                body = body[:-3].strip()
+            lessons.append({"number": number, "score": 3, "content": body})
+        return lessons
 
     def append_lesson(self, lesson: str) -> None:
+        """Add a new lesson with score 1. If at max, remove lowest-scored (oldest tie-break)."""
         existing = self.get_all_lessons()
-        number = len(existing) + 1
-        entry = f"## Lesson {number}\n{lesson}\n\n---\n"
-        content = self._read("lessons")
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += entry
-        self._write("lessons", content)
+
+        if len(existing) >= self._max_lessons:
+            # Remove lowest-scored lesson (tie-break: oldest = lowest number)
+            lowest = min(existing, key=lambda l: (l["score"], -l["number"]))
+            existing = [l for l in existing if l["number"] != lowest["number"]]
+            logger.debug("Evicted lesson %d (score %d) to make room", lowest["number"], lowest["score"])
+
+        number = max((l["number"] for l in existing), default=0) + 1
+        existing.append({"number": number, "score": 1, "content": lesson})
+        self._rebuild_lessons(existing)
+
+    def increment_lesson_score(self, lesson_number: int) -> bool:
+        """Bump a lesson's score by 1, capped at 5."""
+        lessons = self.get_all_lessons()
+        for l in lessons:
+            if l["number"] == lesson_number:
+                l["score"] = min(5, l["score"] + 1)
+                self._rebuild_lessons(lessons)
+                return True
+        return False
+
+    def decrement_lesson_score(self, lesson_number: int) -> bool:
+        """Reduce a lesson's score by 1. Auto-remove if score drops below 1."""
+        lessons = self.get_all_lessons()
+        found = False
+        for l in lessons:
+            if l["number"] == lesson_number:
+                l["score"] -= 1
+                found = True
+                break
+        if not found:
+            return False
+
+        # Remove lessons with score < 1
+        lessons = [l for l in lessons if l["score"] >= 1]
+        self._rebuild_lessons(lessons)
+        return True
+
+    def remove_lesson(self, lesson_number: int) -> bool:
+        """Remove a lesson by number and renumber remaining."""
+        lessons = self.get_all_lessons()
+        filtered = [l for l in lessons if l["number"] != lesson_number]
+        if len(filtered) == len(lessons):
+            return False
+        # Renumber
+        for i, l in enumerate(filtered, 1):
+            l["number"] = i
+        self._rebuild_lessons(filtered)
+        return True
+
+    def _rebuild_lessons(self, lessons: list[dict]) -> None:
+        """Rebuild the lessons file from a list of lesson dicts."""
+        lines = ["# Lessons Learned\n"]
+        for l in lessons:
+            lines.append(f"## Lesson {l['number']} [{l['score']}]")
+            lines.append(l["content"])
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        self._write("lessons", "\n".join(lines))
+
+    # ------------------------------------------------------------------
+    # Beliefs (long-term principles, max 5, scored 1-5)
+    # ------------------------------------------------------------------
+
+    def get_all_beliefs(self) -> list[dict]:
+        """Parse beliefs.md into a list of {name, score, description, supporting_lessons} dicts."""
+        content = self._read("beliefs")
+        if not content.strip():
+            return []
+
+        beliefs = []
+        # Use same header pattern as themes: ## Name [score]
+        parts = BELIEF_HEADER.split(content)
+        # parts: [preamble, name1, score1, body1, name2, score2, body2, ...]
+        for i in range(1, len(parts) - 2, 3):
+            name = parts[i]
+            score = int(parts[i + 1])
+            body = parts[i + 2].strip()
+            # Extract description and supporting lessons
+            desc = ""
+            supporting = []
+            for line in body.split("\n"):
+                line = line.strip()
+                if line.startswith("Supported by:"):
+                    # Parse "Supported by: Lessons 3, 7, 12"
+                    refs = line.replace("Supported by:", "").strip()
+                    refs = refs.replace("Lessons", "").replace("Lesson", "").strip()
+                    for ref in refs.split(","):
+                        ref = ref.strip()
+                        if ref.isdigit():
+                            supporting.append(int(ref))
+                elif line and not line.startswith("---"):
+                    if not desc:
+                        desc = line
+            beliefs.append({
+                "name": name,
+                "score": score,
+                "description": desc,
+                "supporting_lessons": supporting,
+            })
+        return beliefs
+
+    def add_belief(self, name: str, description: str, supporting_lessons: list[int] | None = None) -> bool:
+        """Add a new belief. Returns False if at max capacity or already exists."""
+        existing = self.get_all_beliefs()
+
+        # Update if already exists
+        for b in existing:
+            if b["name"].lower() == name.lower():
+                b["description"] = description
+                if supporting_lessons is not None:
+                    b["supporting_lessons"] = supporting_lessons
+                self._rebuild_beliefs(existing)
+                return True
+
+        if len(existing) >= self._max_beliefs:
+            logger.warning("Cannot add belief '%s' — at max capacity (%d)", name, self._max_beliefs)
+            return False
+
+        existing.append({
+            "name": name,
+            "score": 3,
+            "description": description,
+            "supporting_lessons": supporting_lessons or [],
+        })
+        self._rebuild_beliefs(existing)
+        logger.debug("Added belief: %s", name)
+        return True
+
+    def update_belief(self, name: str, description: str | None = None, supporting_lessons: list[int] | None = None) -> bool:
+        """Update an existing belief's description and/or supporting lessons."""
+        existing = self.get_all_beliefs()
+        found = False
+        for b in existing:
+            if b["name"].lower() == name.lower():
+                if description is not None:
+                    b["description"] = description
+                if supporting_lessons is not None:
+                    b["supporting_lessons"] = supporting_lessons
+                found = True
+                break
+        if not found:
+            return False
+        self._rebuild_beliefs(existing)
+        return True
+
+    def remove_belief(self, name: str) -> bool:
+        """Remove a belief by name."""
+        existing = self.get_all_beliefs()
+        filtered = [b for b in existing if b["name"].lower() != name.lower()]
+        if len(filtered) == len(existing):
+            return False
+        self._rebuild_beliefs(filtered)
+        return True
+
+    def _rebuild_beliefs(self, beliefs: list[dict]) -> None:
+        lines = ["# Investment Beliefs\n"]
+        for b in beliefs:
+            lines.append(f"## {b['name']} [{b.get('score', 3)}]")
+            lines.append(b["description"])
+            if b.get("supporting_lessons"):
+                refs = ", ".join(str(n) for n in b["supporting_lessons"])
+                lines.append(f"Supported by: Lessons {refs}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        self._write("beliefs", "\n".join(lines))
 
     # ------------------------------------------------------------------
     # Themes (scored 1-5, auto-remove at 1)
@@ -480,7 +724,7 @@ class ThesisManager:
     # ------------------------------------------------------------------
 
     def get_decision_context(self) -> str:
-        """Return all 4 in-sim memory files formatted for Claude's prompt.
+        """Return all in-sim memory files formatted for Claude's prompt.
 
         Excludes simulation_log — that's for post-hoc analysis only.
         """
@@ -515,10 +759,26 @@ class ThesisManager:
         else:
             sections.append("### Quarterly Summaries\n(No history yet)")
 
+        # Beliefs (above lessons — long-term principles)
+        beliefs = self.get_all_beliefs()
+        if beliefs:
+            belief_lines = []
+            for b in beliefs:
+                refs = ""
+                if b.get("supporting_lessons"):
+                    refs = f" (from lessons {', '.join(str(n) for n in b['supporting_lessons'])})"
+                belief_lines.append(f"- {b['name']} [{b.get('score', 3)}/5]: {b['description']}{refs}")
+            sections.append("### Investment Beliefs (Core Principles)\n" + "\n".join(belief_lines))
+        else:
+            sections.append("### Investment Beliefs (Core Principles)\n(No beliefs established yet)")
+
         # Lessons learned
         lessons = self.get_all_lessons()
         if lessons:
-            sections.append("### Lessons Learned\n" + "\n\n".join(lessons))
+            lesson_lines = []
+            for l in lessons:
+                lesson_lines.append(f"## Lesson {l['number']} [score {l['score']}/5]\n{l['content']}")
+            sections.append("### Lessons Learned\n" + "\n\n".join(lesson_lines))
         else:
             sections.append("### Lessons Learned\n(No lessons yet)")
 

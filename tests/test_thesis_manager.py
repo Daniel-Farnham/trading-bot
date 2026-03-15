@@ -16,10 +16,13 @@ def manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
+        "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
     mgr._max_summaries = 8
     mgr._max_themes = 8
+    mgr._max_lessons = 15
+    mgr._max_beliefs = 5
     return mgr
 
 
@@ -34,10 +37,13 @@ def small_manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
+        "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 3
     mgr._max_summaries = 2
     mgr._max_themes = 3
+    mgr._max_lessons = 3
+    mgr._max_beliefs = 2
     return mgr
 
 
@@ -231,7 +237,9 @@ class TestLessonsLearned:
         manager.append_lesson("Never hold through earnings without a hedge.")
         lessons = manager.get_all_lessons()
         assert len(lessons) == 1
-        assert "earnings" in lessons[0].lower()
+        assert lessons[0]["score"] == 1
+        assert lessons[0]["number"] == 1
+        assert "earnings" in lessons[0]["content"].lower()
 
     def test_multiple_lessons(self, manager):
         manager.append_lesson("Lesson one")
@@ -239,8 +247,147 @@ class TestLessonsLearned:
         manager.append_lesson("Lesson three")
         lessons = manager.get_all_lessons()
         assert len(lessons) == 3
-        assert "Lesson 1" in lessons[0]
-        assert "Lesson 3" in lessons[2]
+        assert lessons[0]["number"] == 1
+        assert lessons[2]["number"] == 3
+
+    def test_lesson_score_starts_at_1(self, manager):
+        manager.append_lesson("Test lesson")
+        lessons = manager.get_all_lessons()
+        assert lessons[0]["score"] == 1
+
+    def test_increment_lesson_score(self, manager):
+        manager.append_lesson("Test lesson")
+        manager.increment_lesson_score(1)
+        lessons = manager.get_all_lessons()
+        assert lessons[0]["score"] == 2
+
+    def test_increment_capped_at_5(self, manager):
+        manager.append_lesson("Test lesson")
+        for _ in range(10):
+            manager.increment_lesson_score(1)
+        lessons = manager.get_all_lessons()
+        assert lessons[0]["score"] == 5
+
+    def test_decrement_lesson_score(self, manager):
+        manager.append_lesson("Test lesson")
+        manager.increment_lesson_score(1)  # score -> 2
+        manager.decrement_lesson_score(1)  # score -> 1
+        lessons = manager.get_all_lessons()
+        assert lessons[0]["score"] == 1
+
+    def test_decrement_removes_at_zero(self, manager):
+        manager.append_lesson("Test lesson")  # score 1
+        manager.decrement_lesson_score(1)  # score -> 0, auto-remove
+        lessons = manager.get_all_lessons()
+        assert len(lessons) == 0
+
+    def test_remove_lesson_renumbers(self, manager):
+        manager.append_lesson("Lesson A")
+        manager.append_lesson("Lesson B")
+        manager.append_lesson("Lesson C")
+        manager.remove_lesson(2)
+        lessons = manager.get_all_lessons()
+        assert len(lessons) == 2
+        assert lessons[0]["number"] == 1
+        assert lessons[1]["number"] == 2
+        assert "Lesson A" in lessons[0]["content"]
+        assert "Lesson C" in lessons[1]["content"]
+
+    def test_max_lessons_evicts_lowest_score(self, small_manager):
+        """When at max, new lesson evicts the lowest-scored one."""
+        small_manager.append_lesson("Lesson A")  # score 1
+        small_manager.append_lesson("Lesson B")  # score 1
+        small_manager.append_lesson("Lesson C")  # score 1
+        # Boost B's score so it survives
+        small_manager.increment_lesson_score(2)  # B -> score 2
+        small_manager.increment_lesson_score(3)  # C -> score 2
+
+        # Add a 4th — should evict the lowest (A at score 1)
+        small_manager.append_lesson("Lesson D")
+        lessons = small_manager.get_all_lessons()
+        assert len(lessons) == 3
+        contents = [l["content"] for l in lessons]
+        assert any("Lesson B" in c for c in contents)
+        assert any("Lesson D" in c for c in contents)
+
+    def test_backward_compat_old_format(self, manager):
+        """Old format (no score bracket) parsed as score 3."""
+        # Write old format directly
+        old_content = "## Lesson 1\nOld lesson content\n\n---\n\n## Lesson 2\nAnother old lesson\n\n---\n"
+        manager._write("lessons", old_content)
+        lessons = manager.get_all_lessons()
+        assert len(lessons) == 2
+        assert lessons[0]["score"] == 3
+        assert lessons[1]["score"] == 3
+        assert "Old lesson content" in lessons[0]["content"]
+
+    def test_increment_nonexistent(self, manager):
+        assert manager.increment_lesson_score(99) is False
+
+    def test_decrement_nonexistent(self, manager):
+        assert manager.decrement_lesson_score(99) is False
+
+    def test_remove_nonexistent(self, manager):
+        assert manager.remove_lesson(99) is False
+
+
+class TestBeliefs:
+    def test_empty(self, manager):
+        assert manager.get_all_beliefs() == []
+
+    def test_add_belief(self, manager):
+        result = manager.add_belief("Never catch falling knives", "Wait for trend reversal before buying dips", [1, 3])
+        assert result is True
+        beliefs = manager.get_all_beliefs()
+        assert len(beliefs) == 1
+        assert beliefs[0]["name"] == "Never catch falling knives"
+        assert beliefs[0]["description"] == "Wait for trend reversal before buying dips"
+        assert beliefs[0]["supporting_lessons"] == [1, 3]
+        assert beliefs[0]["score"] == 3
+
+    def test_add_existing_updates(self, manager):
+        manager.add_belief("Test Belief", "Original", [1])
+        manager.add_belief("Test Belief", "Updated", [1, 2])
+        beliefs = manager.get_all_beliefs()
+        assert len(beliefs) == 1
+        assert beliefs[0]["description"] == "Updated"
+        assert beliefs[0]["supporting_lessons"] == [1, 2]
+
+    def test_max_beliefs_limit(self, small_manager):
+        small_manager.add_belief("Belief 1", "Desc 1")
+        small_manager.add_belief("Belief 2", "Desc 2")
+        result = small_manager.add_belief("Belief 3", "Too many")
+        assert result is False
+        assert len(small_manager.get_all_beliefs()) == 2
+
+    def test_update_belief(self, manager):
+        manager.add_belief("Test", "Original desc", [1])
+        result = manager.update_belief("Test", description="New desc", supporting_lessons=[1, 2, 3])
+        assert result is True
+        beliefs = manager.get_all_beliefs()
+        assert beliefs[0]["description"] == "New desc"
+        assert beliefs[0]["supporting_lessons"] == [1, 2, 3]
+
+    def test_update_nonexistent(self, manager):
+        assert manager.update_belief("Fake", description="test") is False
+
+    def test_remove_belief(self, manager):
+        manager.add_belief("Test", "Desc")
+        assert manager.remove_belief("Test") is True
+        assert manager.get_all_beliefs() == []
+
+    def test_remove_nonexistent(self, manager):
+        assert manager.remove_belief("Fake") is False
+
+    def test_beliefs_in_decision_context(self, manager):
+        manager.add_belief("Trend Following", "Always trade with the trend", [1, 3])
+        ctx = manager.get_decision_context()
+        assert "Trend Following" in ctx
+        assert "Investment Beliefs" in ctx
+
+    def test_empty_beliefs_in_decision_context(self, manager):
+        ctx = manager.get_decision_context()
+        assert "No beliefs established yet" in ctx
 
 
 class TestSimulationLog:
@@ -274,7 +421,7 @@ class TestDecisionContext:
         assert "sim result" not in ctx.lower()
         assert "run_1" not in ctx
 
-    def test_includes_all_four_files(self, manager):
+    def test_includes_all_memory_files(self, manager):
         manager.add_thesis(
             ticker="NVDA", direction="LONG", thesis="AI demand",
             entry_price=800.0, target_price=1000.0, stop_price=700.0,
@@ -282,6 +429,7 @@ class TestDecisionContext:
         manager.update_position("NVDA", "LONG", 10, 800.0, 8500.0, "2024-01-15")
         manager.append_summary("Q1", 2024, "Good quarter")
         manager.append_lesson("Cut losers fast")
+        manager.add_belief("Trend Following", "Always follow the trend", [1])
 
         ctx = manager.get_decision_context()
         assert "NVDA" in ctx
@@ -289,6 +437,15 @@ class TestDecisionContext:
         assert "$800.00" in ctx
         assert "Good quarter" in ctx
         assert "Cut losers fast" in ctx
+        assert "Trend Following" in ctx
+
+    def test_beliefs_appear_above_lessons(self, manager):
+        manager.add_belief("My Belief", "A principle", [1])
+        manager.append_lesson("A lesson")
+        ctx = manager.get_decision_context()
+        belief_pos = ctx.index("Investment Beliefs")
+        lesson_pos = ctx.index("Lessons Learned")
+        assert belief_pos < lesson_pos
 
 
 class TestThemes:
@@ -393,6 +550,7 @@ class TestClearAll:
         manager.append_lesson("test lesson")
         manager.append_sim_run("run_1", "test run")
         manager.add_theme("AI", "Artificial intelligence", score=4)
+        manager.add_belief("Test Belief", "A principle")
 
         manager.clear_all()
 
@@ -400,5 +558,6 @@ class TestClearAll:
         assert manager.get_holdings() == []
         assert manager.get_all_lessons() == []
         assert manager.get_all_themes() == []
+        assert manager.get_all_beliefs() == []
         # sim_log is preserved across runs
         assert manager.get_all_sim_runs() != []

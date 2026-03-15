@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 from ta.momentum import RSIIndicator
-from ta.trend import SMAIndicator, MACD
+from ta.trend import SMAIndicator, MACD, ADXIndicator
 from ta.volatility import AverageTrueRange, BollingerBands
+from ta.volume import OnBalanceVolumeIndicator
 
 
 @dataclass
@@ -28,6 +31,14 @@ class TechnicalSnapshot:
     bb_middle: float | None = None
     bb_lower: float | None = None
     bb_width: float | None = None
+    # Volatility
+    hv_20: float | None = None  # Historical volatility (annualized %)
+    hv_percentile: float | None = None  # HV rank over 1 year (0-100)
+    atr_pct: float | None = None  # ATR as % of price
+    # Trend strength
+    adx_14: float | None = None  # Average Directional Index (0-100)
+    # Volume confirmation
+    obv_trend: str | None = None  # "rising", "falling", or "flat"
 
     @property
     def is_overbought(self) -> bool:
@@ -97,6 +108,36 @@ class TechnicalSnapshot:
         # Width relative to price < 3% is considered a squeeze
         return (self.bb_width / self.current_price) < 0.03
 
+    @property
+    def is_strong_trend(self) -> bool:
+        """ADX > 25 indicates a strong trend (either direction)."""
+        return self.adx_14 is not None and self.adx_14 > 25
+
+    @property
+    def is_weak_trend(self) -> bool:
+        """ADX < 20 indicates a weak/choppy market."""
+        return self.adx_14 is not None and self.adx_14 < 20
+
+    @property
+    def is_low_volatility(self) -> bool:
+        """HV in the bottom quartile — historically calm."""
+        return self.hv_percentile is not None and self.hv_percentile < 25
+
+    @property
+    def is_high_volatility(self) -> bool:
+        """HV in the top quartile — historically volatile."""
+        return self.hv_percentile is not None and self.hv_percentile > 75
+
+    @property
+    def is_obv_confirming_up(self) -> bool:
+        """OBV rising while price is above SMA50 — volume confirms uptrend."""
+        return self.obv_trend == "rising" and self.is_uptrend
+
+    @property
+    def is_obv_diverging(self) -> bool:
+        """OBV falling while price is above SMA50 — bearish divergence."""
+        return self.obv_trend == "falling" and self.is_uptrend
+
 
 class TechnicalAnalyzer:
     """Calculates technical indicators from OHLCV price data."""
@@ -135,6 +176,13 @@ class TechnicalAnalyzer:
         # Bollinger Bands
         bb_upper, bb_middle, bb_lower, bb_width = self._calc_bollinger(close)
 
+        # V4 indicators
+        hv_20 = self._calc_hv(close, window=20)
+        hv_percentile = self._calc_hv_percentile(close, hv_window=20, lookback=252)
+        atr_pct = round(atr_14 / current_price * 100, 2) if atr_14 and current_price else None
+        adx_14 = self._calc_adx(df)
+        obv_trend = self._calc_obv_trend(df)
+
         return TechnicalSnapshot(
             ticker=ticker,
             rsi_14=rsi_14,
@@ -151,6 +199,11 @@ class TechnicalAnalyzer:
             bb_middle=bb_middle,
             bb_lower=bb_lower,
             bb_width=bb_width,
+            hv_20=hv_20,
+            hv_percentile=hv_percentile,
+            atr_pct=atr_pct,
+            adx_14=adx_14,
+            obv_trend=obv_trend,
         )
 
     def _calc_rsi(self, close: pd.Series, window: int = 14) -> float | None:
@@ -213,3 +266,73 @@ class TechnicalAnalyzer:
             float(lower) if pd.notna(lower) else None,
             float(width) if pd.notna(width) else None,
         )
+
+    def _calc_hv(self, close: pd.Series, window: int = 20) -> float | None:
+        """Historical volatility — annualized std of log returns."""
+        if len(close) < window + 1:
+            return None
+        log_returns = np.log(close / close.shift(1)).dropna()
+        if len(log_returns) < window:
+            return None
+        hv = float(log_returns.tail(window).std() * np.sqrt(252) * 100)
+        return round(hv, 1)
+
+    def _calc_hv_percentile(
+        self, close: pd.Series, hv_window: int = 20, lookback: int = 252
+    ) -> float | None:
+        """Where current HV sits relative to the last `lookback` days (0-100)."""
+        min_bars = hv_window + lookback
+        if len(close) < min_bars:
+            return None
+        log_returns = np.log(close / close.shift(1)).dropna()
+        if len(log_returns) < lookback:
+            return None
+        # Rolling HV over the lookback period
+        rolling_hv = log_returns.rolling(window=hv_window).std() * np.sqrt(252)
+        rolling_hv = rolling_hv.dropna()
+        if len(rolling_hv) < 2:
+            return None
+        current_hv = float(rolling_hv.iloc[-1])
+        lookback_hv = rolling_hv.tail(lookback)
+        percentile = float((lookback_hv < current_hv).sum() / len(lookback_hv) * 100)
+        return round(percentile, 0)
+
+    def _calc_adx(self, df: pd.DataFrame, window: int = 14) -> float | None:
+        """Average Directional Index — trend strength (0-100)."""
+        required = {"high", "low", "close"}
+        if not required.issubset(df.columns) or len(df) < window * 2:
+            return None
+        adx = ADXIndicator(
+            high=df["high"], low=df["low"], close=df["close"], window=window
+        ).adx()
+        val = adx.iloc[-1]
+        return round(float(val), 1) if pd.notna(val) else None
+
+    def _calc_obv_trend(self, df: pd.DataFrame, window: int = 20) -> str | None:
+        """OBV trend direction over last `window` days: rising, falling, or flat."""
+        if "close" not in df.columns or "volume" not in df.columns:
+            return None
+        if len(df) < window + 1:
+            return None
+        obv = OnBalanceVolumeIndicator(
+            close=df["close"], volume=df["volume"]
+        ).on_balance_volume()
+        obv_recent = obv.tail(window)
+        if len(obv_recent) < window:
+            return None
+        # Linear regression slope over the window
+        x = np.arange(len(obv_recent), dtype=float)
+        y = obv_recent.values.astype(float)
+        if np.any(np.isnan(y)):
+            return None
+        slope = np.polyfit(x, y, 1)[0]
+        # Normalise slope by average volume to determine significance
+        avg_vol = df["volume"].tail(window).mean()
+        if avg_vol == 0:
+            return "flat"
+        normalised = slope / avg_vol
+        if normalised > 0.05:
+            return "rising"
+        elif normalised < -0.05:
+            return "falling"
+        return "flat"

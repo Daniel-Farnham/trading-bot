@@ -19,10 +19,13 @@ def manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
+        "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
     mgr._max_summaries = 8
     mgr._max_themes = 8
+    mgr._max_lessons = 15
+    mgr._max_beliefs = 5
     return mgr
 
 
@@ -137,7 +140,7 @@ class TestParseResponse:
 
         # Lesson should be added
         lessons = manager.get_all_lessons()
-        assert any("Fed" in l for l in lessons)
+        assert any("Fed" in l["content"] for l in lessons)
 
     @patch("src.strategy.decision_engine.subprocess.run")
     def test_claude_failure_returns_empty(self, mock_run, engine):
