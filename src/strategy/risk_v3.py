@@ -64,6 +64,14 @@ class RiskManagerV3:
         self._max_short_pct = p.get("max_short_exposure_pct", _portfolio_cfg("max_short_exposure_pct", 0.20))
         self._max_drawdown_pct = p.get("max_drawdown_pct", _portfolio_cfg("max_drawdown_pct", 0.25))
 
+    # Max allocation per confidence tier
+    CONFIDENCE_CAPS = {
+        "low": 0.05,
+        "medium": 0.08,
+        "high": 0.10,
+        "highest": 0.15,
+    }
+
     def evaluate_new_position(
         self,
         ticker: str,
@@ -77,6 +85,8 @@ class RiskManagerV3:
         short_exposure: float = 0.0,
         thesis: str = "",
         dynamic_stop_pct: float | None = None,
+        confidence: str = "medium",
+        is_profitable: bool | None = None,
     ) -> V3PositionPlan | V3RiskVeto:
         """Validate and size a new position from Claude's allocation %."""
         side = side.upper()
@@ -89,8 +99,18 @@ class RiskManagerV3:
         if ticker in existing_tickers:
             return V3RiskVeto(ticker, f"Already holding {ticker}")
 
-        # Rule 3: Cap allocation at max single position %
-        alloc = min(allocation_pct / 100.0, self._max_single_pct)
+        # Rule 3: Cap allocation based on confidence tier
+        max_for_confidence = self.CONFIDENCE_CAPS.get(confidence.lower(), 0.08)
+
+        # Rule 3b: Profitability gate — unprofitable companies cannot get "highest"
+        if is_profitable is False and confidence.lower() == "highest":
+            max_for_confidence = self.CONFIDENCE_CAPS["high"]  # Cap at 10%
+            logger.info(
+                "  FUNDAMENTALS GATE: %s is unprofitable, capping confidence from highest to high (max 10%%)",
+                ticker,
+            )
+
+        alloc = min(allocation_pct / 100.0, max_for_confidence)
 
         # Rule 4: Cash reserve (longs only)
         if side == "LONG":

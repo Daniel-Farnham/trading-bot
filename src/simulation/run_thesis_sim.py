@@ -5,7 +5,6 @@ Usage:
 
 Requires:
 - ALPACA_API_KEY and ALPACA_SECRET_KEY in .env (historical price data)
-- TIINGO_API_KEY in .env (news data)
 - Claude Code CLI installed (thesis reviews)
 """
 from __future__ import annotations
@@ -18,6 +17,7 @@ from pathlib import Path
 
 from src.simulation.report import save_equity_curve
 from src.simulation.thesis_sim import ThesisSimulation
+from src.strategy.belief_consolidator import classify_regime, consolidate_beliefs
 
 
 def main():
@@ -29,7 +29,11 @@ def main():
     parser.add_argument("--data-dir", default=None, help="Directory for sim memory files (default: data/v3_sim)")
     parser.add_argument("--output", default=None, help="Save report to JSON file")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
-    parser.add_argument("--notes", default="", help="Notes to append to simulation log")
+    parser.add_argument("--notes", default="", help="Notes for this run (saved in JSON report)")
+    parser.add_argument(
+        "--seed-theme", action="append", default=[], metavar="NAME:DESC",
+        help="Seed a macro theme (score 1). Format: 'Name:Description'. Can be repeated.",
+    )
 
     args = parser.parse_args()
 
@@ -42,9 +46,16 @@ def main():
     )
 
     # Suppress noisy loggers
-    for noisy in ("httpcore", "httpx", "urllib3", "alpaca", "websockets"):
+    for noisy in ("httpcore", "httpx", "urllib3", "alpaca", "websockets", "yfinance", "peewee"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     logging.getLogger("src.simulation.sim_broker").setLevel(logging.WARNING)
+
+    # Parse seed themes from CLI
+    seed_themes = []
+    for theme_str in args.seed_theme:
+        if ":" in theme_str:
+            name, desc = theme_str.split(":", 1)
+            seed_themes.append((name.strip(), desc.strip()))
 
     sim = ThesisSimulation(
         start_date=args.start,
@@ -52,12 +63,18 @@ def main():
         initial_cash=args.cash,
         review_cadence_days=args.review_cadence,
         data_dir=args.data_dir,
+        seed_themes=seed_themes or None,
     )
 
     report = sim.run()
 
-    # Append to simulation log
-    sim.append_to_sim_log(report, notes=args.notes)
+    # Consolidate beliefs from this run into seed beliefs
+    lessons = sim.thesis_manager.get_all_lessons()
+    beliefs = sim.thesis_manager.get_all_beliefs()
+    regime = classify_regime(report)
+    logger = logging.getLogger(__name__)
+    logger.info("Consolidating beliefs (regime: %s)...", regime)
+    consolidate_beliefs(lessons, beliefs, regime, report)
 
     # Save outputs
     if args.output:
@@ -127,9 +144,8 @@ def _generate_text_report(report: dict, sim: ThesisSimulation) -> str:
     if lessons:
         lines.append(f"  LESSONS LEARNED ({len(lessons)} total)")
         for lesson in lessons:
-            lesson_lines = lesson.split("\n", 1)
-            content = lesson_lines[1].strip() if len(lesson_lines) > 1 else lesson_lines[0]
-            lines.append(f"    - {content}")
+            content = lesson["content"] if isinstance(lesson, dict) else str(lesson)
+            lines.append(f"    - [score {lesson.get('score', '?')}/5] {content}")
         lines.append("")
 
     # Active theses at end

@@ -43,14 +43,33 @@ class TestEvaluateNewPosition:
         # Catastrophic stop should be 18% above entry
         assert result.catastrophic_stop == round(200 * 1.18, 2)
 
-    def test_caps_at_max_position(self, risk):
+    def test_caps_at_confidence_tier(self, risk):
+        # Medium confidence caps at 8%
         result = risk.evaluate_new_position(
-            ticker="AAPL", side="LONG", allocation_pct=15,  # Over 10% max
+            ticker="AAPL", side="LONG", allocation_pct=15,
             price=150.0, portfolio_value=100000, cash=80000,
-            open_position_count=0, existing_tickers=[],
+            open_position_count=0, existing_tickers=[], confidence="medium",
         )
         assert isinstance(result, V3PositionPlan)
-        assert result.allocation_pct == 10.0  # Capped
+        assert result.allocation_pct == 8.0  # Capped at medium tier
+
+    def test_highest_confidence_allows_15pct(self, risk):
+        result = risk.evaluate_new_position(
+            ticker="AAPL", side="LONG", allocation_pct=15,
+            price=150.0, portfolio_value=100000, cash=80000,
+            open_position_count=0, existing_tickers=[], confidence="highest",
+        )
+        assert isinstance(result, V3PositionPlan)
+        assert result.allocation_pct == 15.0
+
+    def test_high_confidence_caps_at_10pct(self, risk):
+        result = risk.evaluate_new_position(
+            ticker="AAPL", side="LONG", allocation_pct=12,
+            price=150.0, portfolio_value=100000, cash=80000,
+            open_position_count=0, existing_tickers=[], confidence="high",
+        )
+        assert isinstance(result, V3PositionPlan)
+        assert result.allocation_pct == 10.0
 
     def test_veto_max_positions(self, risk):
         result = risk.evaluate_new_position(

@@ -7,7 +7,7 @@ Manages markdown files that give Claude continuity across stateless calls:
 - lessons_learned.md — scored short-term rules (max 15, scored 1-5)
 - beliefs.md — long-term principles consolidated from lessons (max 5)
 - themes.md — investment themes (scored 1-5)
-- simulation_log.md — backtest history (excluded from decision context)
+- (simulation_log.md removed — replaced by seed_beliefs.md consolidation)
 """
 from __future__ import annotations
 
@@ -65,7 +65,6 @@ class ThesisManager:
             "ledger": root / _mem_cfg("ledger_path", "data/portfolio_ledger.md"),
             "summaries": root / _mem_cfg("summaries_path", "data/quarterly_summaries.md"),
             "lessons": root / _mem_cfg("lessons_path", "data/lessons_learned.md"),
-            "sim_log": root / _mem_cfg("sim_log_path", "data/simulation_log.md"),
             "themes": root / _mem_cfg("themes_path", "data/themes.md"),
             "beliefs": root / _mem_cfg("beliefs_path", "data/beliefs.md"),
         }
@@ -130,6 +129,14 @@ class ThesisManager:
         """Add a new thesis. Returns False if at max capacity."""
         ticker = ticker.upper()
         existing = self.get_all_theses()
+
+        # Purge closed/stopped theses to free capacity
+        active = [t for t in existing if t.get("status", "active").upper() in ("ACTIVE", "WEAKENING", "STRENGTHENING")]
+        inactive = [t for t in existing if t not in active]
+        if inactive:
+            existing = active
+            self._rebuild_theses(existing)
+            logger.debug("Purged %d inactive theses", len(inactive))
 
         # Update if ticker already exists
         for t in existing:
@@ -637,7 +644,7 @@ class ThesisManager:
                 return t
         return None
 
-    def add_theme(self, name: str, description: str, score: int = 3) -> bool:
+    def add_theme(self, name: str, description: str, score: int = 1) -> bool:
         """Add a new theme. Returns False if at max capacity or already exists."""
         existing = self.get_all_themes()
 
@@ -660,20 +667,20 @@ class ThesisManager:
         return True
 
     def update_theme_score(self, name: str, delta: int) -> bool:
-        """Adjust a theme's score by delta (clamped 1-5). Removes if score hits 1."""
+        """Adjust a theme's score by delta (clamped 0-5). Removes if score drops below 1."""
         existing = self.get_all_themes()
         found = False
         for t in existing:
             if t["name"].lower() == name.lower():
-                t["score"] = max(1, min(5, t["score"] + delta))
+                t["score"] = max(0, min(5, t["score"] + delta))
                 found = True
                 break
 
         if not found:
             return False
 
-        # Auto-remove themes at score 1
-        existing = [t for t in existing if t["score"] > 1]
+        # Auto-remove themes that drop below 1 (i.e. score 0)
+        existing = [t for t in existing if t["score"] >= 1]
         self._rebuild_themes(existing)
         return True
 
@@ -694,30 +701,6 @@ class ThesisManager:
             lines.append("---")
             lines.append("")
         self._write("themes", "\n".join(lines))
-
-    # ------------------------------------------------------------------
-    # Simulation Log
-    # ------------------------------------------------------------------
-
-    def get_all_sim_runs(self) -> list[str]:
-        content = self._read("sim_log")
-        if not content.strip():
-            return []
-        parts = SIM_RUN_HEADER.split(content)
-        headers = SIM_RUN_HEADER.findall(content)
-        entries = []
-        for i, header in enumerate(headers):
-            body = parts[i + 1] if i + 1 < len(parts) else ""
-            entries.append(f"{header}{body}".strip())
-        return entries
-
-    def append_sim_run(self, run_id: str, body: str) -> None:
-        entry = f"## Run {run_id}\n{body}\n\n---\n"
-        content = self._read("sim_log")
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += entry
-        self._write("sim_log", content)
 
     # ------------------------------------------------------------------
     # Decision Context (main interface for the decision engine)
@@ -789,10 +772,8 @@ class ThesisManager:
     # ------------------------------------------------------------------
 
     def clear_all(self) -> None:
-        """Clear in-sim memory files. Preserves simulation_log across runs."""
+        """Clear in-sim memory files for a fresh run."""
         for key in self._paths:
-            if key == "sim_log":
-                continue
             path = self._paths[key]
             if path.exists():
                 path.unlink()

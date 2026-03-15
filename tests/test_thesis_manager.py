@@ -14,7 +14,6 @@ def manager(tmp_path):
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
-        "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
     }
@@ -35,7 +34,6 @@ def small_manager(tmp_path):
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
-        "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
     }
@@ -390,22 +388,6 @@ class TestBeliefs:
         assert "No beliefs established yet" in ctx
 
 
-class TestSimulationLog:
-    def test_empty(self, manager):
-        assert manager.get_all_sim_runs() == []
-
-    def test_append_run(self, manager):
-        manager.append_sim_run("2024-01-15_001", "Return: +5.2%, Sharpe: 1.3")
-        runs = manager.get_all_sim_runs()
-        assert len(runs) == 1
-        assert "2024-01-15_001" in runs[0]
-
-    def test_multiple_runs(self, manager):
-        manager.append_sim_run("run_1", "Result 1")
-        manager.append_sim_run("run_2", "Result 2")
-        assert len(manager.get_all_sim_runs()) == 2
-
-
 class TestDecisionContext:
     def test_empty_context(self, manager):
         ctx = manager.get_decision_context()
@@ -414,12 +396,6 @@ class TestDecisionContext:
         assert "Quarterly Summaries" in ctx
         assert "Lessons Learned" in ctx
         assert "No active theses" in ctx
-
-    def test_excludes_sim_log(self, manager):
-        manager.append_sim_run("run_1", "Some sim result")
-        ctx = manager.get_decision_context()
-        assert "sim result" not in ctx.lower()
-        assert "run_1" not in ctx
 
     def test_includes_all_memory_files(self, manager):
         manager.add_thesis(
@@ -511,11 +487,18 @@ class TestThemes:
         t = manager.get_theme("AI")
         assert t["score"] == 5
 
-    def test_score_1_auto_removes(self, manager):
+    def test_score_1_survives(self, manager):
         manager.add_theme("Weak", "Fading theme", score=2)
         manager.update_theme_score("Weak", -1)
-        # Score hit 1, should be auto-removed
-        assert manager.get_theme("Weak") is None
+        # Score hit 1 — should survive (only removed below 1)
+        assert manager.get_theme("Weak") is not None
+        assert manager.get_theme("Weak")["score"] == 1
+
+    def test_score_below_1_auto_removes(self, manager):
+        manager.add_theme("Dying", "Dead theme", score=1)
+        manager.update_theme_score("Dying", -1)
+        # Score dropped to 0 — should be auto-removed
+        assert manager.get_theme("Dying") is None
         assert len(manager.get_all_themes()) == 0
 
     def test_update_nonexistent(self, manager):
@@ -548,7 +531,6 @@ class TestClearAll:
         )
         manager.update_position("AAPL", "LONG", 5, 100.0, 500.0, "2024-01-10")
         manager.append_lesson("test lesson")
-        manager.append_sim_run("run_1", "test run")
         manager.add_theme("AI", "Artificial intelligence", score=4)
         manager.add_belief("Test Belief", "A principle")
 
@@ -559,5 +541,3 @@ class TestClearAll:
         assert manager.get_all_lessons() == []
         assert manager.get_all_themes() == []
         assert manager.get_all_beliefs() == []
-        # sim_log is preserved across runs
-        assert manager.get_all_sim_runs() != []

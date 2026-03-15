@@ -30,6 +30,7 @@ class DecisionEngine:
         sim_date: str,
         world_state: str,
         technicals_summary: str = "",
+        fundamentals_summary: str = "",
         portfolio_value: float = 0.0,
         cash: float = 0.0,
         bot_return_pct: float = 0.0,
@@ -48,8 +49,8 @@ class DecisionEngine:
         memory_context = self._tm.get_decision_context()
         prompt = self._build_prompt(
             sim_date, memory_context, world_state, technicals_summary,
-            portfolio_value, cash, bot_return_pct, spy_return_pct,
-            review_number, review_type, trade_count,
+            fundamentals_summary, portfolio_value, cash, bot_return_pct,
+            spy_return_pct, review_number, review_type, trade_count,
         )
 
         response = self._call_claude(prompt)
@@ -68,6 +69,7 @@ class DecisionEngine:
         memory_context: str,
         world_state: str,
         technicals_summary: str,
+        fundamentals_summary: str,
         portfolio_value: float,
         cash: float,
         bot_return_pct: float = 0.0,
@@ -137,6 +139,11 @@ THIS WEEK'S RESEARCH:
 TECHNICAL TIMING DATA:
 {technicals_summary if technicals_summary else "(No technical data available)"}
 
+FUNDAMENTALS (quarterly financial data — use to validate thesis quality):
+{fundamentals_summary if fundamentals_summary else "(No fundamental data available)"}
+NOTE: Unprofitable companies are CAPPED at "high" confidence (max 10% allocation).
+Only profitable companies can receive "highest" confidence (15%).
+
 {theme_section}
 
 STOCK UNIVERSE (pre-screened candidates you can trade):
@@ -153,12 +160,22 @@ with macro themes. We use pullbacks as entry opportunities. We can go long AND s
 
 RULES:
 - Max 15 positions at any time
-- Default allocation: 5-8% per position (max 10%)
+- Allocation is tiered by confidence:
+    low = max 5%, medium = max 8%, high = max 10%, highest = max 15%
+  Use "highest" sparingly — only when thesis + theme score 4+ + multiple technicals all align
 - Keep at least 20% cash at all times
 - Every position MUST have a thesis with explicit invalidation conditions
 - When a thesis is invalidated, EXIT immediately
-- Dynamic catastrophic stops are set automatically based on ATR — you don't manage them
-- Use technicals only for timing hints (e.g. RSI < 40 = good entry)
+- YOU are responsible for managing exits. A 25% catastrophic stop exists as a safety net only —
+  if a position hits -25%, something has gone badly wrong. You should be exiting well before that.
+- At each review, evaluate every position: is the thesis still valid? Are technicals deteriorating?
+  Is OBV falling (institutional distribution)? If the thesis is broken or technicals confirm
+  a breakdown, close the position. Don't wait for the catastrophic stop.
+- Use technicals for both entry timing AND exit timing. Key exit signals:
+  - Thesis invalidated by news or earnings
+  - Below SMA50 + MACD bearish + OBV falling (triple distribution signal)
+  - Position at a loss with ADX > 30 + OBV falling (strong downtrend with institutional selling)
+- A price dip with OBV rising is NOT an exit signal — institutions are buying the dip
 
 {discipline_section}
 
@@ -211,8 +228,8 @@ If no changes needed, return empty arrays. Always include world_assessment and w
         return (
             f"THEMES (see Memory section above — scored 1-5, higher = stronger conviction):\n"
             f"Themes are informational — they guide your thinking but don't dictate allocations.\n"
-            f"You can propose new themes or adjust scores. New themes start at score 3.\n"
-            f"Score range: 2-5 (themes at score 1 are auto-removed). Max {self._tm._max_themes} themes."
+            f"You can propose new themes or adjust scores. New themes start at score 1 and must prove themselves.\n"
+            f"If a theme is decremented below 1 it is auto-removed. Max {self._tm._max_themes} themes."
         )
 
     @staticmethod
@@ -227,7 +244,12 @@ Review all current lessons and their validity scores.
 - Max 5 beliefs. If adding a new belief, see if it can be merged into an existing one.
 - If a recent lesson contradicts an existing Belief, explain why — should we invalidate the belief or discard the lesson?
 - Beliefs are rock-solid investment principles. They should have strong conviction behind them.
-- Prune lessons that are no longer relevant or have been absorbed into beliefs."""
+- Prune lessons that are no longer relevant or have been absorbed into beliefs.
+
+MONTHLY THEME REVIEW:
+- Are any themes no longer supported by recent evidence? Consider decrementing them.
+- If we are at or near the theme cap, evaluate whether low-scoring themes should be removed to make room for stronger emerging themes.
+- Themes at score 1 that have not been reinforced since last month are candidates for removal."""
 
     @staticmethod
     def _trade_discipline_text(trade_count: int) -> str:
@@ -432,7 +454,7 @@ Review all current lessons and their validity scores.
             if update.get("action") == "ADD":
                 desc = update.get("description", "")
                 if desc:
-                    self._tm.add_theme(name, desc, score=3)
+                    self._tm.add_theme(name, desc)
                     logger.info("  Theme added: %s", name)
             else:
                 delta = update.get("delta", 0)

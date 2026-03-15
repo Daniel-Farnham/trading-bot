@@ -17,7 +17,6 @@ def manager(tmp_path):
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
-        "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
     }
@@ -66,21 +65,21 @@ SAMPLE_RESPONSE = {
 class TestBuildPrompt:
     def test_contains_anti_future_knowledge(self, engine):
         prompt = engine._build_prompt(
-            "2024-03-15", "memory", "world state", "technicals", 100000, 50000,
+            "2024-03-15", "memory", "world state", "technicals", "", 100000, 50000,
         )
         assert "2024-03-15" in prompt
         assert "DO NOT know what happens after" in prompt
 
     def test_contains_portfolio_state(self, engine):
         prompt = engine._build_prompt(
-            "2024-03-15", "memory", "world state", "technicals", 108000, 34000,
+            "2024-03-15", "memory", "world state", "technicals", "", 108000, 34000,
         )
         assert "$108,000" in prompt
         assert "$34,000" in prompt
 
     def test_contains_memory_and_research(self, engine):
         prompt = engine._build_prompt(
-            "2024-03-15", "MEMORY CONTENT", "WORLD STATE", "TECH DATA", 100000, 50000,
+            "2024-03-15", "MEMORY CONTENT", "WORLD STATE", "TECH DATA", "FUNDAMENTALS", 100000, 50000,
         )
         assert "MEMORY CONTENT" in prompt
         assert "WORLD STATE" in prompt

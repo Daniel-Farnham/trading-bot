@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.research.fundamentals import FundamentalsClient
 from src.simulation.sim_broker import SimBroker
 from src.simulation.thesis_sim import ThesisSimulation
 from src.strategy.risk_v3 import RiskManagerV3, V3PositionPlan, V3RiskVeto
@@ -24,7 +25,6 @@ def manager(tmp_path):
         "ledger": tmp_path / "portfolio_ledger.md",
         "summaries": tmp_path / "quarterly_summaries.md",
         "lessons": tmp_path / "lessons_learned.md",
-        "sim_log": tmp_path / "simulation_log.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
     }
@@ -61,7 +61,6 @@ class TestExecuteDecisions:
             "ledger": tmp_path / "portfolio_ledger.md",
             "summaries": tmp_path / "quarterly_summaries.md",
             "lessons": tmp_path / "lessons_learned.md",
-            "sim_log": tmp_path / "simulation_log.md",
             "themes": tmp_path / "themes.md",
             "beliefs": tmp_path / "beliefs.md",
         }
@@ -73,6 +72,7 @@ class TestExecuteDecisions:
         sim._all_bars = {}
         sim.technicals = MagicMock()
         sim._data_dir = tmp_path
+        sim.fundamentals = FundamentalsClient(cache_dir=tmp_path / "fundamentals_cache")
         return sim
 
     def test_buy_new_position(self, tmp_path):
@@ -180,28 +180,3 @@ class TestCatastrophicStops:
         assert sim.thesis_manager.get_holdings() == []
 
 
-class TestAppendSimLog:
-    def test_append(self, tmp_path):
-        sim = TestExecuteDecisions()._make_sim(tmp_path)
-        sim.start_date = datetime(2024, 1, 1)
-        sim.end_date = datetime(2024, 6, 30)
-        sim._weeks_elapsed = 26
-
-        report = {
-            "initial_cash": 100000,
-            "final_value": 112000,
-            "total_return_pct": 12.0,
-            "total_trades": 14,
-            "wins": 10,
-            "losses": 4,
-            "win_rate_pct": 71.4,
-            "max_drawdown_pct": 6.2,
-            "weekly_reviews": 26,
-        }
-
-        sim.append_to_sim_log(report, notes="First V3 test run")
-
-        runs = sim.thesis_manager.get_all_sim_runs()
-        assert len(runs) == 1
-        assert "$112,000" in runs[0]
-        assert "First V3 test run" in runs[0]
