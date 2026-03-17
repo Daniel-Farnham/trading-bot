@@ -151,31 +151,64 @@ STOCK UNIVERSE (pre-screened candidates you can trade):
 You can also trade stocks outside this universe if you discover them through research.
 
 GOALS:
-1. Target 20% annualized return minimum
-2. Beat the S&P 500 — if we're trailing the benchmark, we need to be more aggressive
-   with capital deployment. Sitting in cash during a bull market is underperformance.
+1. Target 30%+ annualized return — we are concentrated, conviction-driven investors
+2. Beat the S&P 500 by 10%+ annually. This requires CONCENTRATED bets, not diversification.
 3. In bear markets, capital preservation matters — shorting and cash are valid strategies.
-Hold for weeks to quarters. We are patient investors who buy quality companies aligned
-with macro themes. We use pullbacks as entry opportunities. We can go long AND short.
+We are Druckenmiller-style macro investors. We identify regime changes, bet big on our
+best ideas, and hold winners for months. We use pullbacks as entry opportunities.
+
+POSITION TIERS:
+You have TWO types of positions:
+
+SCOUT POSITIONS (low/medium confidence, max 5% / 8%):
+  - Testing a thesis. Small, capped bet to see if you're right.
+  - These have MECHANICAL stop losses and targets — the system auto-exits at your stated stop/target price daily.
+  - Use these when: interesting setup but uncertain timing, or exploring a new theme.
+
+CORE POSITIONS (high/highest confidence, YOU decide the size):
+  - Your BEST ideas. The alpha engine. Druckenmiller's "going for the jugular."
+  - NO allocation cap — you decide how much to put on. 10%, 20%, 40% — size to conviction.
+  - The only limit is the 20% minimum cash reserve. Deploy the rest as you see fit.
+  - These have NO mechanical stop and NO mechanical target. Zero. Nothing.
+  - YOU are 100% responsible for exits. The system will not save you.
+  - If the thesis is intact, HOLD — even through a 20% drawdown. That's the Burry trade.
+  - If the thesis breaks, EXIT IMMEDIATELY — don't hope it comes back.
+  - Use "high" when thesis + technicals align strongly.
+  - Use "highest" when you want MAXIMUM sizing. Requirements:
+    * Thesis is crystal clear with an identifiable catalyst (earnings, policy, sector shift)
+    * Technicals confirm: above SMA50, MACD bullish, OBV rising (all three)
+    * Fundamentals support: profitable company, reasonable valuation, healthy balance sheet
+    * Macro regime aligns with the trade direction
+    * You would be genuinely surprised if this trade failed
+  - UPGRADING: You can upgrade a scout to core by re-submitting it in new_positions with
+    higher confidence. The system will automatically widen the stop from mechanical to
+    30% catastrophic. Do this when a scout has confirmed your thesis.
+  - PYRAMIDING (adding to winners): To add to an existing position, re-submit the ticker
+    in new_positions with the TOTAL allocation you want (not the additional amount).
+    Example: if you hold NVDA at ~10% and want to go to 25%, submit allocation_pct: 25.
+    The system calculates how many additional shares to buy at the current price.
+    ONLY pyramid into positions where: thesis is STRENGTHENING, OBV is rising, and you
+    have a clear reason why more capital is warranted (earnings beat, catalyst confirmed).
+    Never pyramid into a losing position — that's averaging down, not pyramiding.
+  - Hold core positions for weeks to months. A 5-10% drawdown on a core position is NORMAL —
+    do NOT exit just because the price dipped. Only exit when the THESIS is broken.
+  - When a core position is working (thesis strengthening, OBV rising), ADD TO IT rather than
+    opening new positions. Your biggest winners should be your biggest positions.
 
 RULES:
-- Max 15 positions at any time
-- Allocation is tiered by confidence:
-    low = max 5%, medium = max 8%, high = max 10%, highest = max 15%
-  Use "highest" sparingly — only when thesis + theme score 4+ + multiple technicals all align
+- Max 8 positions at any time — prefer 5-6 concentrated bets over 10+ small ones
 - Keep at least 20% cash at all times
 - Every position MUST have a thesis with explicit invalidation conditions
-- When a thesis is invalidated, EXIT immediately
-- YOU are responsible for managing exits. A 25% catastrophic stop exists as a safety net only —
-  if a position hits -25%, something has gone badly wrong. You should be exiting well before that.
-- At each review, evaluate every position: is the thesis still valid? Are technicals deteriorating?
-  Is OBV falling (institutional distribution)? If the thesis is broken or technicals confirm
-  a breakdown, close the position. Don't wait for the catastrophic stop.
-- Use technicals for both entry timing AND exit timing. Key exit signals:
-  - Thesis invalidated by news or earnings
-  - Below SMA50 + MACD bearish + OBV falling (triple distribution signal)
-  - Position at a loss with ADX > 30 + OBV falling (strong downtrend with institutional selling)
-- A price dip with OBV rising is NOT an exit signal — institutions are buying the dip
+- When a thesis is invalidated, EXIT immediately regardless of tier
+- At each review, evaluate EVERY core position: is the thesis still valid?
+  A core position that has lost money but whose thesis is INTACT should be HELD.
+  A core position whose thesis is BROKEN should be closed regardless of P&L.
+- Scout positions are auto-managed by stops/targets — focus your review energy on core positions
+- Use technicals for entry timing. Key exit signals for CORE positions:
+  - Thesis invalidated by news, earnings, or policy change
+  - Below SMA50 + MACD bearish + OBV falling (triple distribution signal) — thesis likely broken
+  - HOWEVER: a price dip with OBV rising is NOT a sell signal — institutions are accumulating
+- For scouts: set tight stops (5-10% below entry). You're testing, not committing.
 
 {discipline_section}
 
@@ -184,11 +217,17 @@ DEPLOYMENT PACING:
 
 SHORTING:
 You SHOULD actively consider shorts — especially when we're trailing the S&P or in a
-declining market. Sitting long-only in a bear market is a mistake. Look at the Broader Market
-stocks for natural short candidates: legacy businesses being disrupted, overleveraged companies,
-or sectors in structural decline. Open a SHORT position with direction "SHORT".
-Shorts need the same discipline: explicit thesis, invalidation conditions, and allocation.
-In a bear market, aim for at least 2-3 short positions to hedge long exposure.
+declining market. Shorts can be scout OR core positions:
+- Scout shorts: small (3-5%), mechanical stop, quick thesis test
+- Core shorts: larger (8-12%), no mechanical stop, hold through volatility if thesis intact
+In a bear market, aim for 1-2 core short positions as portfolio hedges.
+
+WATCHING THESES:
+If you see a "Watching" section in your theses, these are positions that were stopped out
+but where the thesis may still be valid. You can re-enter a watched position by including
+it in new_positions — you don't need to rewrite the thesis from scratch, just reference why
+you're re-entering at this price. Watching theses auto-expire after 6 reviews if not re-entered.
+If you believe a watching thesis is truly dead, close it via close_positions to remove it.
 
 DISCOVERY:
 The research section may include "Emerging Opportunities" — tickers getting significant
@@ -249,7 +288,16 @@ Review all current lessons and their validity scores.
 MONTHLY THEME REVIEW:
 - Are any themes no longer supported by recent evidence? Consider decrementing them.
 - If we are at or near the theme cap, evaluate whether low-scoring themes should be removed to make room for stronger emerging themes.
-- Themes at score 1 that have not been reinforced since last month are candidates for removal."""
+- Themes at score 1 that have not been reinforced since last month are candidates for removal.
+
+FORWARD OUTLOOK (12-18 months):
+Write a brief forward outlook in your weekly_summary. Answer:
+- Based on current trends, what will the dominant macro forces be in 12-18 months?
+- Which sectors/companies are best positioned for that world?
+- Are our core positions aligned with where the world is GOING, not just where it IS?
+- What would invalidate this outlook?
+This is the most important part of the monthly review. Core positions should be aligned
+with your 12-18 month view. If they aren't, either adjust positions or update the outlook."""
 
     @staticmethod
     def _trade_discipline_text(trade_count: int) -> str:
@@ -337,28 +385,32 @@ MONTHLY THEME REVIEW:
         """Generate deployment pacing guidance based on how many reviews have occurred."""
         if review_number <= 1:
             return (
-                "This is your FIRST review. You are still learning the market regime.\n"
-                "- Open a MAXIMUM of 3-4 positions this review\n"
-                "- Prioritise highest-conviction ideas only\n"
-                "- Keep at least 60% cash — you will have more reviews to deploy capital\n"
-                "- Focus on understanding the macro environment before committing heavily"
+                "This is your FIRST review. Open 1-2 SCOUT positions to test the regime.\n"
+                "Do NOT open core positions yet — scouts first."
             )
         elif review_number == 2:
             return (
-                "This is your SECOND review. You are still building conviction.\n"
-                "- Open a maximum of 3-4 NEW positions this review\n"
-                "- Keep at least 40% cash — continue scaling in gradually\n"
-                "- Validate that your initial positions are behaving as expected before adding more"
+                "SECOND review. If scouts are confirming, upgrade one to CORE.\n"
+                "You can add new positions. Start deploying capital — don't sit in cash."
             )
         elif review_number == 3:
             return (
-                "This is your THIRD review. You should now have a sense of the market regime.\n"
-                "- You can open up to 4-5 new positions if conviction is high\n"
-                "- Normal cash reserve rules (20%) now apply\n"
-                "- If early positions are stopped out, that's a signal — adjust your approach"
+                "THIRD review. You should have a regime read by now.\n"
+                "Core positions are appropriate. Deploy with conviction."
             )
         else:
-            return "Normal deployment rules apply. Deploy capital based on conviction and opportunity."
+            cash_warning = ""
+            if holdings_count <= 3:
+                cash_warning = (
+                    "\nWARNING: You only have {0} positions. Cash above 40% is underperformance "
+                    "unless you're in a confirmed bear market. If you see opportunities, DEPLOY. "
+                    "Druckenmiller's edge came from sizing big, not from holding cash."
+                ).format(holdings_count)
+            return (
+                "Deploy capital based on conviction. Your best idea deserves 20-40% of the portfolio.\n"
+                "Sitting in cash during a bull market is the biggest risk — you miss the move."
+                + cash_warning
+            )
 
     def _call_claude(self, prompt: str) -> dict | None:
         try:
@@ -424,27 +476,31 @@ MONTHLY THEME REVIEW:
                 notes=update.get("notes", ""),
             )
 
-        # Add new theses for new positions
+        # Add new theses for new positions (or upgrade existing)
         for pos in response.get("new_positions", []):
             ticker = pos.get("ticker", "")
             if not ticker:
                 continue
+            # Preserve original entry price if upgrading an existing thesis
+            existing = self._tm.get_by_ticker(ticker)
+            entry_price = existing.get("entry_price", 0.0) if existing else 0.0
             self._tm.add_thesis(
                 ticker=ticker,
                 direction=pos.get("direction", "LONG"),
                 thesis=pos.get("thesis", ""),
-                entry_price=0.0,  # Filled after execution
+                entry_price=entry_price,
                 target_price=pos.get("target_price", 0.0),
                 stop_price=pos.get("stop_price", 0.0),
                 timeframe=pos.get("horizon", ""),
                 confidence=pos.get("confidence", "medium"),
             )
 
-        # Remove theses for closed positions
+        # Remove theses for closed positions (Claude chose to close = thesis invalidated)
         for close in response.get("close_positions", []):
             ticker = close.get("ticker", "")
             if ticker:
-                self._tm.update_thesis(ticker, status="CLOSED")
+                self._tm.remove_thesis(ticker)
+                self._tm.remove_watching(ticker)  # Also remove from watching if present
 
         # Apply theme updates
         for update in response.get("theme_updates", []):

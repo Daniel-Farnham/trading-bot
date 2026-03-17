@@ -1,0 +1,120 @@
+============================================================
+  V3 THESIS SIMULATION REPORT
+============================================================
+
+  Period:              2021-11-01 to 2022-02-28
+  Trading Days:        81
+  Weekly Reviews:      16
+
+  PERFORMANCE
+  Initial Capital:     $100,000.00
+  Final Value:         $95,048.67
+  Total Return:        -4.95%
+  Annualized Return:   -14.61%
+  Max Drawdown:        -22.86%
+
+  TRADES
+  Total Trades:        16 (1W / 15L)
+  Win Rate:            6.2%
+  Total P&L:           $-11,253.91
+  Avg P&L/Trade:       $-703.37
+  Open Positions:      12
+
+  PER-TICKER PERFORMANCE
+    CMCSA     $   +135.34  (1 trades)
+    T         $   -143.52  (1 trades)
+    COST      $   -331.44  (1 trades)
+    META      $   -437.07  (1 trades)
+    AMZN      $   -634.53  (1 trades)
+    DIS       $   -702.56  (2 trades)
+    MU        $   -884.34  (1 trades)
+    NVO       $   -895.84  (1 trades)
+    HD        $ -1,021.16  (1 trades)
+    ISRG      $ -1,022.24  (1 trades)
+    NEE       $ -1,081.20  (1 trades)
+    MSFT      $ -1,090.62  (1 trades)
+    SNOW      $ -1,200.03  (1 trades)
+    ENPH      $ -1,944.70  (2 trades)
+
+  LESSONS LEARNED (22 total)
+    - First review rule: When most tech names show RSI > 77, resist the urge to chase the leaders — instead find the quality laggards with RSI 60-70 (e.g. GOOGL at 63 vs NVDA at 88). The best entry is rarely the stock everyone is already buying.
+
+---
+    - ADX > 40 combined with MACD bullish and rising OBV is the highest-conviction technical setup — prioritize these over raw RSI readings when trend strength is confirmed.
+
+---
+    - RSI=22 with ADX>60 and MACD bullish is the rarest and highest-conviction entry setup in the universe — it signals a violent but temporary pullback within a dominant structural trend. When this combination appears in a quality compounder (not a speculative stock), it is a mandatory entry signal regardless of news flow.
+
+---
+    - Thin news weeks with no macro headlines are not a reason to pause capital deployment. When existing theses are intact and technical setups are compelling, act on the technicals. Waiting for 'better news' during a bull market is a form of cash drag that compounds underperformance versus the benchmark.
+
+---
+    - Fundamental analyst confirmation (e.g. Goldman naming AMZN top pick) during thin news weeks serves as a reinforcing signal for existing technical-led theses — it validates the entry without providing new information that should change position sizing. Use it as confidence-building, not as an action trigger.
+
+---
+    - When trailing the benchmark by >1% with >60% cash, the primary risk is underdeployment not overexposure. In a confirmed bull market regime (established by 3 weeks of uptrending quality stocks), failing to deploy into ADX>40 setups is the higher-risk choice. The benchmark compounds while we hold cash.
+
+---
+    - Legacy telecom (T, VZ) with ADX>25 in a confirmed downtrend, MACD bearish, and OBV falling is the natural short complement to long AI/tech exposure — provides hedge without being a speculative short, as the structural headwinds (cord-cutting, debt, streaming competition) are multi-year in duration.
+
+---
+    - Omicron Variant Rule: When a macro risk event (new COVID variant, geopolitical shock) causes broad MACD-to-bearish flips across the portfolio in a single week, treat it as noise against 3-6 month theses unless it directly invalidates the fundamental driver of a specific position. Check: does this event change the revenue trajectory of the business in the next 6 months? If no, hold. The Omicron week produced MACD bearish across 9 of 11 positions simultaneously — a mechanical market selloff, not 9 separate thesis breaks.
+
+---
+    - Lesson 9 — The OBV Divergence Signal: When a stock shows OBV RISING during a broad market selloff (where most names show OBV falling), it signals institutional accumulation against the panic. This divergence is especially powerful when combined with ADX>40, as it indicates smart money is buying the dip in an established trend. In the Omicron selloff week, COST and AVGO both showed rising OBV while the market distributed — these divergences should be treated as high-priority entry signals even when MACD is bearish. Trigger: OBV rising + ADX>35 + broad market OBV falling = institutional conviction buy signal.
+
+---
+    - Lesson 10 — The Mirror Pattern Rule: When a new setup shows ADX>40 + OBV rising + MACD temporarily bearish in the same Consumer/Quality compounder category as a recently successful entry (e.g. COST), treat it as a replication of the proven pattern rather than a new thesis requiring fresh justification. The technical fingerprint is the signal — not the specific sector. COST and HD both showed ADX>40, OBV rising, MACD bearish during Omicron uncertainty and both represent the highest-conviction technical entry pattern in the playbook. When you see the same fingerprint in a new name, replicate the trade.
+
+---
+    - Lesson 11 — Counter-Trend MACD on Short Positions: When a SHORT position's underlying stock shows MACD turning bullish, treat this as a temporary counter-trend squeeze rather than thesis invalidation — PROVIDED: (a) OBV remains falling, (b) ADX>25 confirms the structural downtrend is intact, and (c) the fundamental structural headwinds are unchanged. The MACD flip signals a bounce, not a reversal. Escalation trigger: if RSI climbs above 60 AND OBV turns positive on a short position, then reassess immediately as those two signals together indicate the trend has genuinely shifted.
+
+---
+    - Lesson 12 — Holiday Week OBV as a High-Conviction Filter: During thin holiday trading weeks, OBV rising represents a stronger institutional signal than during normal volume sessions. When institutions accumulate during low-volume holiday windows, they are making deliberate portfolio-building decisions, not reacting to news flow or liquidity-driven flows. Trigger: OBV rising + ADX>40 during a thin trading week (last week of December, major holiday weeks) = upgrade conviction, not downgrade. Conversely, OBV falling in holiday thin trading is ambiguous — it may reflect mechanical tax-loss selling or year-end rebalancing rather than thesis abandonment — and should not trigger exits on otherwise intact positions.
+
+---
+    - Lesson 13 — Dual Counter-Signal Exit on Shorts: When a SHORT position shows MACD turning bullish AND OBV turning positive simultaneously in the same week, treat this dual-signal as a mandatory early exit trigger — do not wait for RSI to reach 60. Two simultaneous counter-trend signals represent a stronger momentum shift warning than either signal alone. The Lesson 11 RSI>60 AND OBV positive threshold was designed for sequential signals; when MACD and OBV both flip against a short in a single review period, the combined signal overrides the individual thresholds. Trigger: MACD bullish flip + OBV turning positive on a short in the same week = EXIT at next open, take the gain.
+
+---
+    - Lesson 14 — Rate Regime Rotation Recognition: When 8+ portfolio positions show MACD bearish and below SMA50 simultaneously in the same week (without company-specific negative news), the cause is almost certainly a macro regime shift (rate hike expectations, inflation repricing) rather than broad thesis invalidation. The correct response is: (1) Hold positions with ADX>30 and intact fundamentals — the 3-6 month thesis outlasts the rate noise; (2) Flag positions where ADX has collapsed below 15 as trend-less and watch them closely; (3) Rotate freed capital (from closed positions) into value/cyclical names with ADX>35 that benefit from the rate environment — energy, financials, consumer staples, and EV incumbents. Trigger: 8+ simultaneous MACD bearish flips in a single week without company-specific catalysts = macro rotation, hold quality, rotate new capital to rate-beneficiaries.
+
+---
+    - Lesson 15 — Cash Floor Priority in Rate Rotation: When portfolio cash drops below the 20% minimum floor during a macro selloff, restoring the cash floor takes absolute precedence over pursuing new opportunities — even compelling ones. The correct sequence is: (1) Identify and close the weakest positions first (lowest ADX, trend-less), which BOTH fixes the cash floor AND removes the most vulnerable longs simultaneously; (2) THEN, only after cash is restored above 20%, evaluate new deployments into rate-rotation beneficiaries. The temptation to simultaneously close one name and immediately open another (rotating) is dangerous when the floor is breached — it locks in the constraint rather than resolving it. Trigger: Cash < 20% in a rate-rotation selloff = close first, rotate second.
+
+---
+    - Lesson 16 — Earnings Beats as Rate-Noise Override: When a core portfolio holding delivers a major earnings beat (revenue acceleration, raised guidance) during a rate-rotation selloff, the fundamental validation overrides the bearish technical picture. MSFT at RSI=36 with Azure $22.1B revenue and raised Q3 guidance is a higher-quality signal than RSI=36 with no news — the selloff is macro-driven, not company-specific, and the earnings beat sets up a recovery once macro noise subsides. Trigger: Stock at RSI<40 in broad rate selloff + earnings beat with raised guidance = HOLD with highest conviction, not reduce.
+
+---
+    - Lesson 17 — Rate Rotation Energy Signal: When 90%+ of the universe shows MACD bearish and OBV falling simultaneously (rate-rotation selloff), the handful of names with MACD bullish + OBV rising + ADX>30 are receiving explicit institutional rotation flows. In a Fed tightening cycle, energy and commodity names absorbing this rotation can maintain momentum for months even at elevated RSI (70+). Trigger: Broad market MACD bearish across 8+ sectors + energy/commodity names showing MACD bullish + OBV rising + ADX>30 = deploy into energy even at RSI 70-75, as RSI reset requires trend consolidation at higher base, not immediate reversal.
+
+---
+    - Lesson 18 — Stock Split as Multi-Month Catalyst in Quality Compounders: When a quality growth compounder at a reasonable RSI (below 70) announces a large stock split (10:1 or greater) alongside a significant earnings beat (greater than 5% above estimate), treat this as a confirmed multi-month bullish catalyst — not a one-day event. The split (1) expands the retail investor base by reducing the per-share price barrier; (2) signals management conviction in continued future appreciation; (3) creates index inclusion optionality for high-priced stocks previously excluded from the DJIA. GOOGL's 20:1 split reduces the price from ~$3000 to ~$150 post-split, opening ownership to millions of new retail investors. Trigger: Stock split of 10:1 or greater + earnings beat above 5% estimate + RSI below 70 = upgrade position conviction and hold through near-term macro noise. This catalyst operates on a 3-6 month horizon as the new buyer pool expands post-split record date.
+
+---
+    - Lesson 19 — Borderline ADX Override Zone (35-39): When MACD turns bearish but ADX is 35-39 (approaching but not yet at the Lesson 2 threshold of 40) with OBV rising, treat as a borderline HOLD — not a full override and not an exit signal. ADX must confirm above 40 in the following week to maintain the MACD-bearish override. Practical protocol: hold the week of the signal, then the following week check (a) did ADX cross above 40? If yes, Lesson 2 override applies fully; (b) is OBV still rising? If both (a) and (b) fail, the MACD bearish flip is now actionable. Trigger: MACD bearish + ADX 35-39 + OBV rising = hold one week and watch; MACD bearish + ADX stays below 40 + OBV turns flat/negative = reduce or exit.
+
+---
+    - Lesson 20 — Post-Earnings Re-entry on Stopped-Out Names: When a previously stopped-out position reports a strong earnings beat that drives a meaningful price recovery, treat this as a valid fresh entry — not revenge trading or chasing. Key distinctions: (1) the earnings beat provides fundamental validation that the original thesis was directionally correct even though the technical stop was correctly triggered; (2) the re-entry price is substantially better than the original entry (improving risk/reward); (3) MACD must be bullish and ADX must be building at re-entry. The stop-out was the correct mechanical decision; the re-entry is a new trade with a new catalyst. Trigger: Previous stop-out + strong earnings beat with positive price reaction + MACD bullish + ADX > 25 at re-entry = valid new long. Distinguish from chasing: if re-entry price is above original entry price, require ADX > 35 to justify.
+
+---
+    - Lesson 21 — Corporate Narrative Pivot Accelerates Short Exit: When a SHORT position company announces a significant strategic initiative that directly addresses the core bear thesis (DIS appointing a Metaverse Chief in response to streaming concerns; removing park restrictions to accelerate recovery narrative), treat this as a thesis-weakening catalyst that ACCELERATES the application of Lesson 11 and 13 exit triggers — do not wait for additional technical confirmation. The original short thesis was predicated on structural decline WITHOUT a credible corporate response. When management demonstrates active strategic response, the timeline of structural decline extends and the risk/reward of the short deteriorates. Trigger: Meaningful corporate narrative pivot toward addressing the short thesis + any single Lesson 11 counter-signal (MACD bullish OR OBV rising OR RSI>55 on a short) = initiate exit review immediately, do not wait for the full dual-signal Lesson 13 threshold.
+
+---
+    - Lesson 22 — Geopolitical Supply Shock Override: When a full-scale invasion of a major commodity-producing nation occurs, act on the directional commodity implications immediately and hold existing commodity exposure even when short-term technicals (MACD, OBV) look temporarily weak. Russia's invasion of Ukraine has clear, durable, multi-year implications for energy and commodity prices that override a MACD bearish reading on XOM or OBV flat on CVX. The geopolitical catalyst IS the primary signal; the technical picture will realign within 1-2 weeks as institutional flows respond to the new supply reality. For new entries into commodity beneficiaries (e.g. LNG): justified even at elevated RSI 70-75 when the supply shock is structural and multi-year — per Lesson 17 extended to geopolitical events. Trigger: Full-scale invasion of major commodity producer + existing long exposure = hold with maximum conviction regardless of current MACD. New entries into direct beneficiaries at RSI 70-75 are valid when the supply disruption is multi-year in duration.
+
+---
+
+  ACTIVE THESES (11)
+    GOOGL (LONG): Alphabet is the foundational infrastructure play for AI/Automation. Search domin
+    UNH (LONG): UnitedHealth is the premier play on the Aging Populations theme. As Baby Boomers
+    AVGO (LONG): Broadcom is the hidden AI infrastructure champion. While NVDA gets the headlines
+    CMCSA (SHORT): Comcast is the legacy cable bundle in a confirmed structural decline — same shor
+    ABBV (LONG): AbbVie is a best-in-class pharmaceutical compounder perfectly aligned with the A
+    VRTX (LONG): Vertex Pharmaceuticals holds a near-monopoly in cystic fibrosis treatment with i
+    XOM (LONG): ExxonMobil is the clearest rate-rotation and inflation hedge available in the cu
+    CVX (LONG): Chevron is the natural complement to our XOM position within the Inflation/Commo
+    OXY (LONG): Occidental Petroleum is the highest-beta U.S. oil producer and the natural exten
+    CRWD (LONG): CrowdStrike is the AI-native endpoint security leader and the Microsoft-Mandiant
+    LNG (LONG): Cheniere Energy is the single most direct US beneficiary of Russia's invasion of
+
+============================================================

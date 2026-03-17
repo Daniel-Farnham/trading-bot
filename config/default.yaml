@@ -90,14 +90,16 @@ universe:
     - DE      # Deere — agriculture/industrials
 
 trading:
-  max_position_pct: 0.10
-  max_open_positions: 20
+  max_position_pct: 1.0
+  max_open_positions: 8
   max_daily_loss_pct: 0.03
-  max_drawdown_pct: 0.25
+  max_drawdown_pct: 0.30
   min_cash_reserve_pct: 0.20
   enable_short_selling: true
   max_short_exposure_pct: 0.30
-  max_short_position_pct: 0.10
+  max_short_position_pct: 0.15
+  # Core positions (high/highest) use 30% catastrophic safety net only
+  catastrophic_stop_pct: 0.30
 
 scheduler:
   loop_interval_minutes: 30
@@ -108,13 +110,22 @@ scheduler:
 database:
   path: "data/trading.db"
 
+fundamentals:
+  cache_dir: "data/fundamentals_cache"
+  # Profitability gate: unprofitable companies capped at "high" confidence (10%)
+  profitability_gate: true
+
 memory:
   theses_path: "data/active_theses.md"
   ledger_path: "data/portfolio_ledger.md"
   summaries_path: "data/quarterly_summaries.md"
   lessons_path: "data/lessons_learned.md"
-  sim_log_path: "data/simulation_log.md"
   themes_path: "data/themes.md"
-  max_active_theses: 25
+  max_active_theses: 15
+  max_watching_theses: 5
+  watching_expiry_reviews: 6
   max_quarterly_summaries: 8
   max_themes: 8
+  beliefs_path: "data/beliefs.md"
+  max_lessons: 15
+  max_beliefs: 5

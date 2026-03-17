@@ -21,6 +21,9 @@ def manager(tmp_path):
         "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
+    mgr._max_watching = 5
+    mgr._watching_expiry_reviews = 6
+    mgr._watching = []
     mgr._max_summaries = 8
     mgr._max_themes = 8
     mgr._max_lessons = 15
@@ -133,9 +136,9 @@ class TestParseResponse:
         assert crwd is not None
         assert crwd["thesis"] == "Cybersecurity demand growing"
 
-        # TSLA should be marked closed
+        # TSLA should be removed (Claude closed = thesis invalidated)
         tsla = manager.get_by_ticker("TSLA")
-        assert tsla["status"] == "CLOSED"
+        assert tsla is None
 
         # Lesson should be added
         lessons = manager.get_all_lessons()

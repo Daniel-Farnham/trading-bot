@@ -1,0 +1,79 @@
+============================================================
+  V3 THESIS SIMULATION REPORT
+============================================================
+
+  Period:              2025-01-01 to 2025-03-31
+  Trading Days:        59
+  Weekly Reviews:      29
+
+  PERFORMANCE
+  Initial Capital:     $100,000.00
+  Final Value:         $112,414.19
+  Total Return:        +12.41%
+  Annualized Return:   +64.84%
+  Max Drawdown:        -21.46%
+
+  TRADES
+  Total Trades:        31 (7W / 24L)
+  Win Rate:            22.6%
+  Total P&L:           $-4,376.35
+  Avg P&L/Trade:       $-141.17
+  Open Positions:      11
+
+  PER-TICKER PERFORMANCE
+    CEG       $ +2,827.13  (3 trades)
+    VST       $ +1,283.04  (1 trades)
+    SO        $ +1,121.28  (1 trades)
+    FSLR      $ +1,081.59  (1 trades)
+    JPM       $   +668.46  (2 trades)
+    CMCSA     $   +387.64  (2 trades)
+    LNG       $    -33.95  (1 trades)
+    GS        $    -54.89  (1 trades)
+    PG        $   -209.96  (1 trades)
+    UNH       $   -230.40  (1 trades)
+    HD        $   -272.16  (1 trades)
+    LLY       $   -317.66  (1 trades)
+    SCHW      $   -345.00  (1 trades)
+    AMT       $   -374.10  (1 trades)
+    ABBV      $   -398.19  (1 trades)
+    MA        $   -504.40  (1 trades)
+    NEE       $   -508.95  (1 trades)
+    NFLX      $   -686.55  (1 trades)
+    OXY       $   -695.80  (1 trades)
+    GOOGL     $   -724.78  (1 trades)
+    NVO       $   -763.86  (1 trades)
+    META      $   -769.90  (1 trades)
+    PLTR      $ -1,395.48  (1 trades)
+    ARM       $ -1,573.56  (2 trades)
+    AVGO      $ -1,885.90  (2 trades)
+
+  LESSONS LEARNED (14 total)
+    - [score 5/5] Structural catalysts (supply shocks, policy shifts) that affect entire industries are more reliable thesis drivers than single-company narratives — size up when the macro tailwind is clear (LNG/Russian gas example)
+    - [score 5/5] In a new market regime change (new administration), deploy capital early into regime beneficiaries before consensus catches up — the Treasury ETF dump signals the market is already repositioning
+    - [score 3/5] On first deployment, prioritize names where BOTH the fundamental thesis AND technicals align clearly — do not stretch for marginal ideas; wait for better setups in subsequent reviews
+    - [score 3/5] When a major institutional fund ($50B+) makes a high-profile sector rotation that directly validates your thesis — treat it as a conviction signal to hold firm and consider adding, not a reason to take profits. Institutional confirmation lags retail by design; their rotation means the thesis has more runway, not less.
+    - [score 5/5] When a major regulatory risk headline drops for a core holding (e.g., China AI chip export ban), immediately check OBV — if OBV is rising during the selldown, institutions are buying the fear, not selling the thesis. The OBV direction is more informative than the news headline itself for deciding whether to hold or fold.
+    - [score 3/5] When a short position experiences a complete technical reversal within weeks of entry — RSI crossing above 55, MACD flipping bullish, price moving from lower BB to upper BB — the market is directly rejecting the short thesis in real time. Exit proactively when all three signals flip against the position rather than waiting for the stop. A short with RSI>55 + bullish MACD + near upper BB has the full technical structure working against you and the stop-to-current-price buffer becomes dangerously thin.
+    - [score 3/5] When a major AI efficiency breakthrough hits the market (e.g., DeepSeek), immediately cross-check OBV of all infrastructure-dependent positions: rising OBV means institutions are buying the Jevons paradox narrative and the dip is an opportunity; falling OBV means the infrastructure thesis is being genuinely repriced lower, not just headline panic. The OBV divergence from price action during the initial shock is the single most important signal for deciding hold vs. exit.
+    - [score 1/5] When a short position has generated significant gains (10%+) and the company then reports strong fundamental results that directly contradict the short thesis (earnings beat + dividend raise + buyback), cover immediately and take profits — do not hold for more downside. The combination of thesis invalidation events and extreme oversold conditions (RSI<30) creates asymmetric risk of violent short squeeze. Thesis invalidation in shorts requires the same urgency as thesis invalidation in longs.
+    - [score 5/5] For SHORT positions, OBV turning from flat/falling to rising is a standalone exit signal — independent of RSI or MACD. A short thesis predicated on 'no institutional buying' is directly invalidated the moment OBV turns positive. Institutions accumulating a stock you're short creates a structural buyer backstop that removes the short's edge and creates asymmetric squeeze risk. Do not wait for RSI>55 or MACD flip — the OBV change IS the signal. Exit at the first weekly close confirming the OBV reversal.
+    - [score 2/5] When a long position shows OBV falling + MACD turning bearish simultaneously while trading near the upper Bollinger Band at significant gains — even with positive fundamental news that week — consider it a 'sell the news' institutional signal. Institutions use good news as liquidity to distribute. The correct response is to tighten the mental stop and prepare to exit on the next deterioration rather than adding on the positive thesis validation. Good news + falling OBV is more dangerous than bad news + falling OBV because it gives false confidence to hold through distribution.
+    - [score 3/5] When a long position triggers the triple distribution signal (below SMA50 + MACD bearish + OBV falling simultaneously), exit regardless of whether the fundamental thesis appears intact. Technicals lead fundamentals — institutions exit positions before the narrative changes. 'Thesis still valid' and 'safe to hold through technical distribution' are not the same thing. The triple signal is a standalone exit trigger for longs, the same way a single OBV flip is a standalone exit trigger for shorts (Lesson 9).
+    - [score 1/5] When a court or regulatory ruling eliminates compounded or generic competition for a branded drug (e.g., FDA enforcement forcing cessation of compounded tirzepatide), treat it as a standalone fundamental catalyst equivalent in force to a patent extension. It directly restores pricing power, removes a competitive supply overhang, and is structurally durable — not a temporary reprieve. The market typically underprices this because the impact accrues gradually through improved mix and pricing, not in a single earnings quarter.
+    - [score 4/5] In a broad market distribution event (majority of tracked stocks below SMA50 + OBV falling), the highest-conviction long opportunities are the exceptions — names showing OBV rising WHILE the market sells off are experiencing active institutional rotation into them. This 'swimming upstream' signal (OBV rising against a declining market) is a stronger conviction indicator than any individual technical reading in a bull market, because it identifies exactly where institutional money is rotating rather than just where momentum exists. Screen for this pattern specifically during bear market phases.
+    - [score 2/5] When a position is entered specifically on the 'swimming upstream' signal (OBV rising while the market sells off), treat OBV reversal — even without full triple distribution — as an entry-thesis invalidation exit trigger. The swimming upstream entry thesis is predicated on institutional accumulation being active and ongoing. The moment OBV reverses to falling, the specific rationale for that entry no longer exists, and holding requires a new thesis to justify it. This is especially true when ADX remains elevated (>30) with falling OBV, which per rules is itself an independent exit signal for losing positions.
+
+  ACTIVE THESES (11)
+    V (LONG): Visa carries the highest ADX reading (46) in the entire tracked universe this we
+    JNJ (LONG): Johnson & Johnson is showing one of the strongest technical setups in the univer
+    SBUX (SHORT): Starbucks presents one of the strongest structural short setups in the consumer 
+    SO (LONG): Re-entering the Southern Company watching thesis at improved price. SO shows one
+    T (LONG): AT&T is demonstrating the 'swimming upstream' pattern: RSI=52, above SMA50, ADX=
+    AMT (LONG): Adding to existing AMT position to bring total allocation to ~7%. AMT is the str
+    GOOGL (SHORT): Google faces a rare and structural convergence of headwinds that make it a compe
+    AMZN (SHORT): Amazon presents an identical triple distribution setup to our existing GOOGL sho
+    VRTX (LONG): Vertex Pharmaceuticals is the dominant force in cystic fibrosis treatment with T
+    CVX (LONG): Chevron is the cleanest technical expression of the Trump Deregulation/Energy Po
+    CEG (LONG): Constellation Energy is the highest-conviction expression of the Power Demand/Nu
+
+============================================================

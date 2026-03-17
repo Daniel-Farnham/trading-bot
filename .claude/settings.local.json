@@ -30,7 +30,16 @@
       "Bash(.venv/bin/pytest tests/ -q 2>&1)",
       "Bash(/Users/daniel/Desktop/Development/trading-bot/.venv/bin/python -c \"\nfrom alpaca.trading.requests import OrderRequest\nimport inspect\nsig = inspect.signature\\(OrderRequest\\)\nfor name, param in sig.parameters.items\\(\\):\n    print\\(f'{name}: {param.annotation} = {param.default}'\\)\n\" 2>&1)",
       "Bash(/Users/daniel/Desktop/Development/trading-bot/.venv/bin/python -c \"\nfrom alpaca.trading.requests import MarketOrderRequest\nprint\\([f for f in MarketOrderRequest.model_fields.keys\\(\\)]\\)\n\" 2>&1)",
-      "Bash(/Users/daniel/Desktop/Development/trading-bot/.venv/bin/python -c \"\nfrom alpaca.trading.enums import OrderClass\nprint\\('OrderClass:', OrderClass.__members__\\)\n\" 2>&1)"
+      "Bash(/Users/daniel/Desktop/Development/trading-bot/.venv/bin/python -c \"\nfrom alpaca.trading.enums import OrderClass\nprint\\('OrderClass:', OrderClass.__members__\\)\n\" 2>&1)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python3)",
+      "WebFetch(domain:intelligence.financialmodelingprep.com)",
+      "Bash(.venv/bin/python -m pytest tests/test_fundamentals.py -v 2>&1)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/python -m pytest tests/ -v 2>&1 | tail -20)",
+      "Bash(.venv/bin/python -m pytest tests/ -v 2>&1 | tail -10)"
     ]
   }
 }

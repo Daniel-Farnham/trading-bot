@@ -106,6 +106,52 @@ class SimBroker:
             filled_price=plan.entry_price,
         )
 
+    def add_to_position(self, ticker: str, quantity: int, price: float) -> OrderResult:
+        """Add shares to an existing position at a new price (pyramiding).
+
+        Calculates new weighted average entry price.
+        """
+        pos = self.positions.get(ticker)
+        if not pos:
+            return OrderResult(success=False, error=f"No existing position for {ticker}")
+
+        cost = quantity * price
+        if not pos.is_short and cost > self.cash:
+            return OrderResult(success=False, error="Insufficient cash for pyramid")
+
+        # Calculate weighted average entry price
+        old_cost = pos.quantity * pos.entry_price
+        new_cost = quantity * price
+        new_qty = pos.quantity + quantity
+        avg_price = (old_cost + new_cost) / new_qty
+
+        if pos.is_short:
+            self.cash += cost  # Receive cash from shorting more
+        else:
+            self.cash -= cost
+
+        pos.quantity = new_qty
+        pos.entry_price = round(avg_price, 2)
+
+        logger.debug(
+            "SIM: Added %d %s @ $%.2f (avg entry now $%.2f, total %d shares)",
+            quantity, ticker, price, avg_price, new_qty,
+        )
+        return OrderResult(
+            success=True,
+            order_id=f"sim_add_{ticker}_{datetime.utcnow().timestamp():.0f}",
+            filled_price=price,
+        )
+
+    def update_stops(self, ticker: str, stop_loss: float, take_profit: float) -> bool:
+        """Update stop/target on an existing position (e.g., scout → core upgrade)."""
+        pos = self.positions.get(ticker)
+        if not pos:
+            return False
+        pos.stop_loss = stop_loss
+        pos.take_profit = take_profit
+        return True
+
     def close_position(self, ticker: str, price: float | None = None) -> OrderResult:
         """Closes a position at the given price (or entry price if not provided)."""
         if ticker not in self.positions:

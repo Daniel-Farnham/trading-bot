@@ -1,0 +1,113 @@
+{
+  "world_assessment": "Mega-cap tech earnings dominated this week: MSFT beat Q3 estimates with Azure revenue +50% YoY, and GOOGL delivered a massive revenue/earnings beat with a $50B buyback and committed to 'investing aggressively and opportunistically.' Both are direct thesis confirmations for our AI/cloud infrastructure positions. Vaccine rollout is accelerating (Publix adding J&J), keeping the reopening trade intact. The macro backdrop is constructive across all our themes. However, a critical internal signal has emerged: several portfolio positions show severe ADX collapse from entry \u2014 MU (54\u219214), XOM (41\u219213), CAT (35\u219212). The market is rewarding quality earnings beats while letting momentum fade in commodity/reflation plays. At -4.5% vs S&P 500, the path to closing the gap is concentrating into confirmed institutional trends and exiting technical breakdowns \u2014 not holding dead capital waiting for delayed catalysts.",
+  "thesis_updates": [
+    {
+      "ticker": "MSFT",
+      "status": "ACTIVE",
+      "notes": "Thesis fully and emphatically validated. Azure revenue +50% YoY in Q3, EPS beat. This is the definitive confirmation that enterprise cloud adoption is not slowing \u2014 it's accelerating. ADX=32, OBV rising, above SMA50. MACD bearish is a minor consolidation signal within a strong confirmed trend. Halftime Report coverage signals broad institutional awareness. Hold at full allocation."
+    },
+    {
+      "ticker": "GOOGL",
+      "status": "ACTIVE",
+      "notes": "Thesis fully validated. Q1 revenue and earnings beat, $50B share buyback, management explicitly committed to aggressive opportunistic investment. This signals Google Cloud and AI infrastructure capex will accelerate \u2014 a direct multi-year tailwind. ADX=37, OBV rising, MACD bullish, RSI=72 near upper BB. The post-earnings setup is strong but entry here at RSI=72 is elevated \u2014 hold existing position. Best performer this week on a thesis-confirmation basis."
+    },
+    {
+      "ticker": "ISRG",
+      "status": "ACTIVE",
+      "notes": "ADX=42 \u2014 one of the strongest trends in the portfolio. MACD bullish, OBV rising, RSI=68, +10.6% gain. Robotic surgery is the technology-enabled expression of Healthcare Aging. Deferred procedures returning as vaccine rollout accelerates. Thesis pristine."
+    },
+    {
+      "ticker": "UNH",
+      "status": "ACTIVE",
+      "notes": "Best technical setup in the portfolio alongside ISRG. ADX=45, MACD bullish, OBV rising, RSI=67. Healthcare Aging thesis intact \u2014 vaccine acceleration (Publix offering J&J) directly drives elective procedure recovery that benefits OptumHealth. Hold at full allocation."
+    },
+    {
+      "ticker": "NUE",
+      "status": "ACTIVE",
+      "notes": "Best absolute performer at +18.4%. ADX=26 holding, OBV rising, near upper BB. MACD bearish is a consolidation signal \u2014 not a trend break. Infrastructure thesis intact. Biden infrastructure bill still pending. Hold."
+    },
+    {
+      "ticker": "MU",
+      "status": "ACTIVE",
+      "notes": "CLOSING. Fundamental thesis intact (structural DRAM/NAND shortage) but technicals have completely broken down. ADX collapsed from 54 at entry to 14 \u2014 a 40-point decline, the most severe momentum evaporation in the portfolio. OBV falling, below SMA50, MACD bearish. Price is +6.6% from entry but more than $19 below the $105 target with zero momentum catalyst visible. This is dead capital. The semiconductor shortage thesis will eventually play out, but the timing has extended well beyond our entry setup. Taking the gain and preserving capital for re-entry when ADX reestablishes above 30 with OBV turning up."
+    },
+    {
+      "ticker": "GS",
+      "status": "ACTIVE",
+      "notes": "ADX=15 is low (down from 38 at entry), but MACD bullish, OBV rising, +11.6% gain. Near upper BB. The financial re-rating thesis is delivering returns even as momentum has slowed. Investment banking supercycle and rate environment remain intact. Hold \u2014 not a technical breakdown since OBV is rising."
+    },
+    {
+      "ticker": "JPM",
+      "status": "ACTIVE",
+      "notes": "ADX=16, MACD bearish, +0.3%. Essentially flat since entry. OBV rising is the saving grace \u2014 institutions are still accumulating. Financial re-rating thesis intact (rising rates, reserve releases, M&A cycle). Hold. JPM's thesis is a 3-6 month play and we're only 7 weeks in."
+    },
+    {
+      "ticker": "XOM",
+      "status": "ACTIVE",
+      "notes": "ADX=13, OBV falling, -3.0%. The technicals are deteriorating significantly. XOM is above SMA50 and MACD bullish, but ADX=13 and OBV falling mirrors early MU deterioration. National Oilwell Q1 miss signals some weakness in oilfield services. Watching closely \u2014 if OBV doesn't turn up in the next review, this becomes a close candidate. Stop is at $49, current $58.11. Not stopped out yet."
+    },
+    {
+      "ticker": "CAT",
+      "status": "ACTIVE",
+      "notes": "ADX=12 very low (from 35 at entry), MACD bearish. OBV rising is the only positive technical. +7.1% gain. Infrastructure thesis requires infrastructure bill passage \u2014 that's a multi-month legislative process. Low ADX is expected for a policy-driven thesis waiting on a legislative catalyst. Hold while OBV remains positive."
+    },
+    {
+      "ticker": "META",
+      "status": "ACTIVE",
+      "notes": "OBV falling, MACD bearish, ADX=29 declining. +6.6% gain. No meaningful news catalyst this week (the 'Stock Market For Beginners' group story is irrelevant to thesis). META doesn't fit cleanly into our core macro themes. MACD+OBV deterioration warrants monitoring. Will close at next review if technicals don't stabilize."
+    },
+    {
+      "ticker": "VZ",
+      "status": "ACTIVE",
+      "notes": "Short working (+1.7%). RSI=39, MACD bearish, below SMA50 all confirm structural decline. OBV rising is a mild concern \u2014 could reflect dividend chasers accumulating. ADX=16 means no strong trend in either direction. Thesis intact (cord-cutting, T-Mobile competition, spectrum capex burden, rising rate debt pressure). Hold short."
+    },
+    {
+      "ticker": "F",
+      "status": "ACTIVE",
+      "notes": "MACD bullish, OBV rising, +10.1%. ADX=14 low but trend direction is positive. EV thesis intact \u2014 F-150 Lightning is the highest-volume EV catalyst in history. Jim Cramer commenting on Elon Musk/Tesla is background noise. Hold."
+    },
+    {
+      "ticker": "NVDA",
+      "status": "ACTIVE",
+      "notes": "MACD bearish, ADX=24 (from 61 RSI at entry \u2014 technicals have moderated), OBV rising. +8.0% gain. Semiconductor thesis remains 5/5 conviction. MSFT Azure +50% and GOOGL aggressive AI investment directly confirm the GPU demand thesis. OBV rising means institutions are still accumulating despite MACD softness. Hold."
+    },
+    {
+      "ticker": "BLK",
+      "status": "ACTIVE",
+      "notes": "ADX=28, MACD bearish, OBV flat, +0.6%. Only opened last week. Financial Re-rating thesis intact. AUM growth and ETF dominance story needs more time. Hold \u2014 too early to judge a one-week-old position."
+    }
+  ],
+  "new_positions": [],
+  "close_positions": [
+    {
+      "ticker": "MU",
+      "reason": "Technical breakdown: ADX collapsed from 54 at entry to 14 now \u2014 a 40-point decline indicating institutional momentum has completely evaporated. OBV falling, below SMA50, MACD bearish. Price is +6.6% from entry ($86.03 vs $80.72) but the $105 target is >20% away with no technical momentum to get there. The fundamental thesis (structural DRAM/NAND shortage) remains intact but the entry's technical basis (ADX=54, OBV rising) has been entirely invalidated. This is dead capital. Capturing the +6.6% gain and raising cash to ~29% while we wait for a cleaner re-entry signal on MU (ADX reestablishing above 30 with OBV turning up) or a better opportunity elsewhere."
+    }
+  ],
+  "reduce_positions": [],
+  "theme_updates": [
+    {
+      "name": "Semiconductor Infrastructure",
+      "delta": 0,
+      "reason": "Remains at 5/5. MU closure is a technical/timing decision, not a thesis change. MSFT Azure +50% and GOOGL aggressive AI investment plans directly confirm that GPU and chip infrastructure demand is sustained and accelerating. NVDA and the broader semiconductor theme remain highest conviction."
+    },
+    {
+      "name": "Healthcare Aging",
+      "delta": 0,
+      "reason": "Remains at 5/5. Vaccine acceleration (Publix offering J&J) is directly driving elective procedure volume recovery. UNH (ADX=45) and ISRG (ADX=42) have the two strongest technical setups in the portfolio \u2014 the market is confirming this theme's strength."
+    }
+  ],
+  "lessons": [
+    "When ADX collapses more than 30 points from a strong entry level (>40) and falls below 18, AND OBV is simultaneously falling, the institutional momentum that justified the position has dissipated \u2014 exit even if the fundamental thesis remains intact and price has not hit target. The thesis may still be correct but the timing has extended indefinitely; capital earns better returns in positions where institutional trend is confirmed. Trigger: ADX decline >30 points from entry + ADX now below 18 + OBV falling + price more than 15% below target. This is distinct from Lesson 6 (price at target + ADX decline = take profits) \u2014 it applies specifically to pre-target exits on momentum evaporation."
+  ],
+  "lesson_updates": [
+    {
+      "lesson_number": 6,
+      "delta": 1,
+      "reason": "MU situation provides a complementary data point: even before hitting the price target, severe ADX collapse (54\u219214) combined with OBV turning negative is a valid exit signal. Lesson 6 should be understood broadly as 'when the technical trend that justified entry has been invalidated \u2014 whether at target or before it \u2014 exit and redeploy.' The new lesson above formalizes the pre-target case specifically."
+    }
+  ],
+  "belief_updates": [],
+  "lessons_to_prune": [],
+  "weekly_summary": "Week of April 28, 2021: MSFT (Azure +50%, Q3 beat) and GOOGL (revenue/earnings beat, $50B buyback) delivered blockbuster earnings validating our AI/cloud infrastructure thesis. Closed MU on severe technical breakdown \u2014 ADX collapsed from 54 to 14 with OBV falling, capturing +6.6% gain while exiting dead capital. Cash raised to ~29%. Portfolio leaders: NUE (+18.4%), GS (+11.6%), ISRG (+10.6%), F (+10.1%). UNH and ISRG have cleanest ongoing technical setups (ADX 45 and 42 respectively). XOM and META both showing technical deterioration \u2014 watching for potential closes next review. Still trailing S&P by -4.5%; the path to closing the gap runs through our confirmed earnings winners (GOOGL, MSFT, UNH, ISRG) as macro themes continue to validate."
+}

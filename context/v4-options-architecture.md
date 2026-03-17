@@ -111,6 +111,62 @@ The `new_positions` schema adds an `instrument` field:
 - Both: thesis-driven exits remain the primary exit mechanism
 - Options-specific: close or roll at 21 DTE remaining
 
+## New Technicals for V4
+
+V3 technicals (RSI, MACD, SMA50, Bollinger Bands) are good for directional calls but miss the **volatility dimension** that drives option pricing and improves share trading decisions. These additions help both instruments.
+
+### Add to `src/analysis/technical.py`
+
+#### 1. Historical Volatility (HV20)
+- Annualized standard deviation of daily log returns over 20 days
+- **Options:** tells you if the stock has been volatile — high HV = expensive options, low HV = cheap options
+- **Shares:** high HV stocks warrant smaller position sizes; low HV before a catalyst = potential breakout setup
+- Calculation: `std(log_returns, 20) * sqrt(252) * 100`
+
+#### 2. HV Percentile (HV rank over 1 year)
+- Where is current HV relative to the last 252 trading days? Expressed as 0-100
+- **Options:** HV in 20th percentile = options are historically cheap = good time to buy calls/puts. HV in 80th percentile = expensive, prefer shares
+- **Shares:** HV at extremes signals regime change — very low HV often precedes big moves (calm before the storm), very high HV signals peak fear (potential capitulation entry)
+- This is the single most important metric for the shares-vs-options instrument decision
+
+#### 3. ATR% (ATR as percentage of price)
+- Already have ATR — just express it as `(ATR / price) * 100`
+- **Options:** helps estimate expected move over the option's life — a 5% ATR stock needs ATM strikes, a 1% ATR stock can go slightly OTM
+- **Shares:** enables dynamic stop placement instead of the fixed 18% catastrophic stop. A low-volatility stock (ATR% = 1.5%) doesn't need an 18% stop; a high-volatility stock (ATR% = 5%) might need wider. Rule of thumb: catastrophic stop = 3-4x ATR%
+- Makes stops comparable across the universe — $5 ATR on a $50 stock (10%) is very different from $5 on a $500 stock (1%)
+
+#### 4. ADX (Average Directional Index)
+- Measures trend **strength** (0-100), not direction. ADX > 25 = strong trend, ADX < 20 = weak/choppy
+- **Options:** strong trend (ADX > 30) + directional bet = options amplify the move. Weak trend (ADX < 15) = time decay eats you alive waiting for the move
+- **Shares:** directly addresses the falling knife problem from bull-to-bear sims. "RSI=35 with ADX=40" means strong downtrend — don't catch it. "RSI=35 with ADX=12" means choppy, oversold, good contrarian entry. Claude learned this the hard way in Lesson 21 (META falling knife) — ADX would have flagged it
+
+#### 5. OBV Trend (On-Balance Volume direction)
+- Cumulative volume indicator — OBV rises on up days, falls on down days. Track the 20-day slope direction (rising/falling/flat)
+- **Options:** OBV divergence from price (price up, OBV flat/down) signals a move that lacks conviction — don't pay premium for it
+- **Shares:** confirms whether moves are real. A breakout on declining OBV is suspect. A selloff on low OBV is less concerning. Particularly useful for the bot's re-entry decisions after stop-outs — was the selloff high-volume capitulation (good re-entry) or low-volume drift (more downside likely)?
+
+### How Claude sees these in the prompt
+
+Current format:
+```
+NVDA: $240.50 | RSI=35 | below SMA50 | MACD bearish | near lower BB
+```
+
+V4 format:
+```
+NVDA: $240.50 | RSI=35 | below SMA50 | MACD bearish | near lower BB | HV=42% (25th pctl) | ATR%=3.2% | ADX=38 | OBV falling
+```
+
+The HV percentile is the key signal for instrument selection:
+- `HV 25th pctl` → "options are cheap" → Claude considers OPTIONS if conviction is high
+- `HV 75th pctl` → "options are expensive" → Claude defaults to SHARES
+
+### What NOT to add to technical.py (get from Alpaca live data instead)
+
+- **Implied Volatility (IV)** — can't calculate from historical prices. Comes from the option chain via `OptionHistoricalDataClient` at execution time. Belongs in the options broker, not technical.py.
+- **Greeks (delta, gamma, theta, vega)** — same, live data from option chain API.
+- **IV Rank / IV Percentile** — requires historical IV data that Alpaca may not provide. HV Percentile is the backtestable proxy.
+
 ## Alpaca SDK Support
 
 The `alpaca-py` SDK (v0.43.2, already installed) fully supports options:

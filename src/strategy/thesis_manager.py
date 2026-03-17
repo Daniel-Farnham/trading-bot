@@ -69,10 +69,14 @@ class ThesisManager:
             "beliefs": root / _mem_cfg("beliefs_path", "data/beliefs.md"),
         }
         self._max_theses = _mem_cfg("max_active_theses", 15)
+        self._max_watching = _mem_cfg("max_watching_theses", 5)
+        self._watching_expiry_reviews = _mem_cfg("watching_expiry_reviews", 6)
         self._max_summaries = _mem_cfg("max_quarterly_summaries", 8)
         self._max_themes = _mem_cfg("max_themes", 8)
         self._max_lessons = _mem_cfg("max_lessons", 15)
         self._max_beliefs = _mem_cfg("max_beliefs", 5)
+        # In-memory watching list (persisted via theses file with WATCHING status)
+        self._watching: list[dict] = []
 
     # ------------------------------------------------------------------
     # Helpers
@@ -94,10 +98,14 @@ class ThesisManager:
     # ------------------------------------------------------------------
 
     def get_all_theses(self) -> list[dict]:
-        """Parse active_theses.md into a list of thesis dicts."""
+        """Parse active_theses.md into a list of thesis dicts (excludes watching)."""
         content = self._read("theses")
         if not content.strip():
             return []
+
+        # Strip watching section before parsing active theses
+        if "# Watching" in content:
+            content = content.split("# Watching")[0]
 
         parts = THESIS_HEADER.split(content)
         # parts: [preamble, ticker1, body1, ticker2, body2, ...]
@@ -151,16 +159,19 @@ class ThesisManager:
             logger.warning("Cannot add thesis for %s — at max capacity (%d)", ticker, self._max_theses)
             return False
 
-        entry = self._format_thesis(
-            ticker, direction, thesis, entry_price,
-            target_price, stop_price, timeframe, confidence,
-            date_added=datetime.utcnow().strftime("%Y-%m-%d"),
-        )
-        content = self._read("theses")
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += entry
-        self._write("theses", content)
+        existing.append({
+            "ticker": ticker,
+            "direction": direction,
+            "thesis": thesis,
+            "entry_price": entry_price,
+            "target_price": target_price,
+            "stop_price": stop_price,
+            "timeframe": timeframe,
+            "confidence": confidence,
+            "date_added": datetime.utcnow().strftime("%Y-%m-%d"),
+            "status": "active",
+        })
+        self._rebuild_theses(existing)
         logger.debug("Added thesis for %s", ticker)
         return True
 
@@ -171,15 +182,185 @@ class ThesisManager:
         return self._update_thesis_in_list(existing, ticker, **updates)
 
     def remove_thesis(self, ticker: str) -> bool:
-        """Remove a thesis by ticker."""
+        """Remove a thesis by ticker (used when Claude invalidates a thesis)."""
         ticker = ticker.upper()
         existing = self.get_all_theses()
         filtered = [t for t in existing if t["ticker"] != ticker]
         if len(filtered) == len(existing):
             return False
         self._rebuild_theses(filtered)
+        # Also remove from watching if present
+        self._watching = [w for w in self._watching if w["ticker"] != ticker]
+        self._write_watching()
         logger.debug("Removed thesis for %s", ticker)
         return True
+
+    # ------------------------------------------------------------------
+    # Watching Theses (stopped out but thesis may still be valid)
+    # ------------------------------------------------------------------
+
+    def move_to_watching(
+        self, ticker: str, exit_price: float, reason: str = "stopped_out",
+    ) -> bool:
+        """Move a stopped-out thesis to WATCHING status.
+
+        Preserves the thesis in compressed form so Claude can re-enter
+        without rewriting. Auto-expires after N reviews.
+        """
+        ticker = ticker.upper()
+        thesis = self.get_by_ticker(ticker)
+        if not thesis:
+            return False
+
+        # Build watching entry
+        watching_entry = {
+            "ticker": ticker,
+            "direction": thesis.get("direction", "LONG"),
+            "thesis_summary": thesis.get("thesis", "")[:150],
+            "entry_price": thesis.get("entry_price", 0),
+            "exit_price": exit_price,
+            "stop_price": thesis.get("stop_price", 0),
+            "confidence": thesis.get("confidence", "medium"),
+            "reviews_remaining": self._watching_expiry_reviews,
+        }
+
+        # Remove from active theses
+        existing = self.get_all_theses()
+        filtered = [t for t in existing if t["ticker"] != ticker]
+        self._rebuild_theses(filtered)
+
+        # Add to watching (replace if already watching this ticker)
+        self._watching = [w for w in self._watching if w["ticker"] != ticker]
+        self._watching.append(watching_entry)
+
+        # Enforce max watching cap — drop oldest
+        if len(self._watching) > self._max_watching:
+            self._watching = self._watching[-self._max_watching:]
+
+        self._write_watching()
+        logger.info(
+            "Moved %s to WATCHING (exited $%.2f, %d reviews to expiry)",
+            ticker, exit_price, self._watching_expiry_reviews,
+        )
+        return True
+
+    def tick_watching(self) -> list[str]:
+        """Decrement reviews_remaining on all watching theses. Remove expired.
+
+        Call this once per review. Returns list of expired tickers.
+        """
+        expired = []
+        still_watching = []
+        for w in self._watching:
+            w["reviews_remaining"] -= 1
+            if w["reviews_remaining"] <= 0:
+                expired.append(w["ticker"])
+                logger.info("Watching thesis expired: %s", w["ticker"])
+            else:
+                still_watching.append(w)
+        self._watching = still_watching
+        if expired:
+            self._write_watching()
+        return expired
+
+    def reactivate_watching(self, ticker: str) -> dict | None:
+        """Remove a ticker from watching and return its data for re-entry.
+
+        Claude should call this when re-entering a watched position.
+        """
+        ticker = ticker.upper()
+        entry = None
+        remaining = []
+        for w in self._watching:
+            if w["ticker"] == ticker:
+                entry = w
+            else:
+                remaining.append(w)
+        if entry:
+            self._watching = remaining
+            self._write_watching()
+            logger.info("Reactivated watching thesis: %s", ticker)
+        return entry
+
+    def get_watching_theses(self) -> list[dict]:
+        """Return all watching theses."""
+        if not self._watching:
+            self._load_watching_from_file()
+        return list(self._watching)
+
+    def remove_watching(self, ticker: str) -> bool:
+        """Explicitly remove a thesis from watching (Claude decides it's dead)."""
+        ticker = ticker.upper()
+        before = len(self._watching)
+        self._watching = [w for w in self._watching if w["ticker"] != ticker]
+        if len(self._watching) < before:
+            self._write_watching()
+            logger.info("Removed %s from watching (thesis invalidated)", ticker)
+            return True
+        return False
+
+    def _write_watching(self) -> None:
+        """Persist watching theses to the theses file as a separate section."""
+        # Re-read and rebuild theses file with watching section appended
+        theses = self.get_all_theses()
+        self._rebuild_theses_with_watching(theses)
+
+    def _rebuild_theses_with_watching(self, theses: list[dict]) -> None:
+        """Rebuild the theses file including the watching section."""
+        parts = ["# Active Theses\n"]
+        for t in theses:
+            parts.append(self._format_thesis(
+                t["ticker"], t.get("direction", "LONG"), t.get("thesis", ""),
+                t.get("entry_price", 0), t.get("target_price", 0),
+                t.get("stop_price", 0), t.get("timeframe", ""),
+                t.get("confidence", "medium"), t.get("date_added", ""),
+                t.get("status", "active"),
+            ))
+
+        if self._watching:
+            parts.append("\n---\n")
+            parts.append("# Watching (stopped out — thesis may still be valid)\n")
+            for w in self._watching:
+                direction = w.get("direction", "LONG")
+                entry = w.get("entry_price", 0)
+                exit_p = w.get("exit_price", 0)
+                summary = w.get("thesis_summary", "")
+                reviews = w.get("reviews_remaining", 0)
+                parts.append(
+                    f"- **{w['ticker']}** ({direction}) | "
+                    f"Entry: ${entry:.2f} → Stopped: ${exit_p:.2f} | "
+                    f"{reviews} reviews left | {summary}"
+                )
+
+        self._write("theses", "\n".join(parts))
+
+    def _load_watching_from_file(self) -> None:
+        """Parse watching entries from the theses file on init/clear."""
+        content = self._read("theses")
+        self._watching = []
+        if "# Watching" not in content:
+            return
+        watching_section = content.split("# Watching")[1] if "# Watching" in content else ""
+        for line in watching_section.split("\n"):
+            line = line.strip()
+            if not line.startswith("- **"):
+                continue
+            m = re.match(
+                r"- \*\*([A-Z0-9.]+)\*\* \((\w+)\) \| "
+                r"Entry: \$([\d.,]+) → Stopped: \$([\d.,]+) \| "
+                r"(\d+) reviews left \| (.+)",
+                line,
+            )
+            if m:
+                self._watching.append({
+                    "ticker": m.group(1),
+                    "direction": m.group(2),
+                    "entry_price": float(m.group(3).replace(",", "")),
+                    "exit_price": float(m.group(4).replace(",", "")),
+                    "thesis_summary": m.group(6).strip(),
+                    "reviews_remaining": int(m.group(5)),
+                    "confidence": "medium",
+                })
 
     def _update_thesis_in_list(self, theses: list[dict], ticker: str, **updates) -> bool:
         found = False
@@ -194,16 +375,7 @@ class ThesisManager:
         return True
 
     def _rebuild_theses(self, theses: list[dict]) -> None:
-        parts = ["# Active Theses\n"]
-        for t in theses:
-            parts.append(self._format_thesis(
-                t["ticker"], t.get("direction", "LONG"), t.get("thesis", ""),
-                t.get("entry_price", 0), t.get("target_price", 0),
-                t.get("stop_price", 0), t.get("timeframe", ""),
-                t.get("confidence", "medium"), t.get("date_added", ""),
-                t.get("status", "active"),
-            ))
-        self._write("theses", "\n".join(parts))
+        self._rebuild_theses_with_watching(theses)
 
     @staticmethod
     def _format_thesis(
@@ -214,7 +386,7 @@ class ThesisManager:
         lines = [
             f"## {ticker} — {direction.upper()}",
             f"**Thesis:** {thesis}",
-            f"**Entry:** ${entry_price:.2f} | **Target:** ${target_price:.2f} | **Stop:** ${stop_price:.2f}",
+            f"**Entry:** ${entry_price or 0:.2f} | **Target:** ${target_price or 0:.2f} | **Stop:** ${stop_price or 0:.2f}",
             f"**Timeframe:** {timeframe} | **Confidence:** {confidence}",
             f"**Status:** {status} | **Added:** {date_added}",
             "",

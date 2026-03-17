@@ -34,6 +34,10 @@ def main():
         "--seed-theme", action="append", default=[], metavar="NAME:DESC",
         help="Seed a macro theme (score 1). Format: 'Name:Description'. Can be repeated.",
     )
+    parser.add_argument(
+        "--seed-beliefs", default=None, metavar="PATH",
+        help="Path to a beliefs file to pre-load (e.g. data/seed_beliefs.md). Copied into sim memory as beliefs.md.",
+    )
 
     args = parser.parse_args()
 
@@ -64,6 +68,7 @@ def main():
         review_cadence_days=args.review_cadence,
         data_dir=args.data_dir,
         seed_themes=seed_themes or None,
+        seed_beliefs_path=args.seed_beliefs,
     )
 
     report = sim.run()

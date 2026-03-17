@@ -1,0 +1,6 @@
+## Q1 2021
+**Performance:** +1.9% ($101,939)
+**Positions:** 14
+**Summary:** Week of April 14, 2021: Portfolio enters earnings season at $101,938 (+1.9%) vs S&P +9.6% benchmark gap of -7.7%. Key event: JPM and GS earnings this week will validate or challenge the Blue Wave Reflation thesis — the results will determine whether our largest thematic allocation deserves to grow or trim. Institutional validation of Digital Finance Revolution arrived as JPM, UBS, and MA co-invested $65M in Ethereum infrastructure (ConsenSys), prompting a score increment on that theme. FSLR is the portfolio's weakest position technically (below SMA50, MACD bearish) and Lesson 7 (rates punish long-duration clean energy) is actively playing out — on stop-loss watch below $74. NUE ledger shows price discrepancy vs live technical data ($39.53 ledger vs $79.06 live); using live data which shows NUE +27.9% and well above stop. No new positions opened due to cash constraint (~$4K deployable, below 5% minimum allocation threshold) and over-trading concern (24 trades over 3.5 months exceeds 5/month guideline). Conviction remains high in the Blue Wave Reflation core — CAT +19.5%, DE +27.9%, JPM +11.2%, GS +18.5%, MU +12.3% are all working.
+
+---

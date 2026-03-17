@@ -1,0 +1,99 @@
+{
+  "world_assessment": "A quiet macro week dominated by crypto regulatory pressure \u2014 Chinese exchanges suspending services, a former Ripple exec liquidating $255M in XRP, and regulatory uncertainty clouding the digital asset space. No major infrastructure or fiscal policy developments. Portfolio-relevant highlights: MU receives a KeyBanc confirmation of strong demand/pricing fundamentals but flags supply constraints limiting the out quarter (exactly the expected supercycle pattern); UNH's Optum division announces a strategic healthcare network partnership (thesis execution); NUE receives favorable Cramer commentary; F and energy names flagged in unusual options activity. Broader market shows mixed technicals across our positions \u2014 widespread MACD bearish signals suggest normal consolidation, not thesis deterioration. We remain -8.4% behind the S&P with 28.6% cash, which is too conservative given the bull market environment. One notable ledger discrepancy: NUE ledger shows $33.28 (-46.2%) but current technical data prices it at $100.85 \u2014 the technical data is authoritative and NUE is likely one of our strongest performers at ~+63%.",
+  "thesis_updates": [
+    {
+      "ticker": "JPM",
+      "status": "ACTIVE",
+      "notes": "Blue Wave reflation thesis intact and delivering at +19%. RSI=58 healthy, above SMA50, but MACD bearish and OBV falling signals momentum is cooling. ADX=17 weak trend. Normal consolidation after a strong run. No action required."
+    },
+    {
+      "ticker": "MU",
+      "status": "ACTIVE",
+      "notes": "KeyBanc note this week is net positive: confirms strong demand/pricing driving a positive pre-announcement but flags supply constraints limiting out quarter. This is the textbook supercycle dynamic \u2014 demand exceeds supply, prices rise, but capacity can't be added overnight. Below SMA50 (RSI=48) is a technical caution, but MACD is turning bullish. OBV falling is the key risk indicator to watch. Thesis intact."
+    },
+    {
+      "ticker": "CAT",
+      "status": "ACTIVE",
+      "notes": "Featured in 'Quality Eventually Rises' piece \u2014 institutional recognition of fundamentals. Technical picture is stalling: ADX=9 (very weak trend), MACD bearish, OBV flat. Infrastructure thesis unchanged. At +22.1% profit, no reason to exit but the momentum has faded. Holding for the infrastructure bill catalyst."
+    },
+    {
+      "ticker": "DE",
+      "status": "ACTIVE",
+      "notes": "Technically deteriorating: RSI=39, below SMA50, MACD bearish, OBV falling across all indicators. Agriculture and infrastructure thesis remains fundamentally valid, but the chart is weak. Stop at $255 is well below current $357.74 \u2014 no stop trigger, but elevated technical risk. Watching for stabilization."
+    },
+    {
+      "ticker": "GS",
+      "status": "ACTIVE",
+      "notes": "Portfolio's top performer at +29.8%. RSI=60 above SMA50, though MACD bearish and OBV flat. Capital markets boom thesis delivering. No action."
+    },
+    {
+      "ticker": "F",
+      "status": "ACTIVE",
+      "notes": "RSI=69 near upper Bollinger Band with MACD bullish and OBV rising \u2014 technically the hottest chart in the portfolio. Unusual options activity flagged this week. At +28.3%. Approaching Lesson 8 trigger zone (RSI > 75 near upper BB). Not there yet \u2014 HOLD, but prepared to trim 30-40% of position if RSI crosses 75 with price near upper BB."
+    },
+    {
+      "ticker": "NUE",
+      "status": "ACTIVE",
+      "notes": "LEDGER DISCREPANCY FLAGGED: Ledger records $33.28 and -46.2% P&L, but current technical data shows $100.85. Entry was $61.81. At $100.85, position is approximately +63% \u2014 likely the portfolio's best performer. Technical data is authoritative. RSI=62, OBV rising, ADX=39 confirms strong institutional trend. Cramer commentary positive this week. Steel/infrastructure thesis performing exceptionally."
+    },
+    {
+      "ticker": "XOM",
+      "status": "ACTIVE",
+      "notes": "Unusual options activity in energy names (OXY, XOM) this week \u2014 potential institutional positioning. RSI=50 at midpoint, above SMA50, MACD bearish, OBV flat. Neutral technical picture. Inflation hedge and energy recovery thesis intact at +5.1%."
+    },
+    {
+      "ticker": "SCHW",
+      "status": "ACTIVE",
+      "notes": "ADX=12 (very weak institutional trend), MACD bearish, OBV flat. The stock is consolidating after a strong run. Rising rates / retail investor growth thesis intact. At +12.2%. No action."
+    },
+    {
+      "ticker": "MA",
+      "status": "ACTIVE",
+      "notes": "Red flags across all technical indicators: RSI=43, below SMA50, MACD bearish, OBV falling. At -5.2% with stop at $340 and current price $362.65 \u2014 only $22 of buffer remaining. Digital payments thesis is structurally sound but is not yet expressing in price. On close watch \u2014 stop will be hit on any meaningful deterioration."
+    },
+    {
+      "ticker": "FCX",
+      "status": "ACTIVE",
+      "notes": "RSI=53, above SMA50, MACD bearish, OBV flat. Copper/EV transition thesis intact \u2014 Ford EV sales still accelerating. Essentially flat at -0.5%. No action."
+    },
+    {
+      "ticker": "UNH",
+      "status": "ACTIVE",
+      "notes": "Optum-Bassett Healthcare Network strategic partnership announced this week \u2014 direct execution of the managed care integration and services flywheel thesis. RSI=63, OBV rising, ADX=42 (institutional trend strongly confirmed). This is exactly what we bought. Healthcare aging thesis delivering."
+    },
+    {
+      "ticker": "LLY",
+      "status": "ACTIVE",
+      "notes": "Clean technical chart: RSI=66, MACD bullish, OBV rising. Healthcare aging thesis intact. Early days at +2.3% but momentum is building in the right direction."
+    }
+  ],
+  "new_positions": [
+    {
+      "ticker": "NVO",
+      "action": "BUY",
+      "allocation_pct": 5,
+      "direction": "LONG",
+      "thesis": "Novo Nordisk is the world-dominant GLP-1 franchise (semaglutide \u2014 Ozempic for type 2 diabetes, Wegovy for obesity) and represents the most structurally compelling pharmaceutical innovation of the decade within our Healthcare Aging theme. The obesity epidemic affects over 40% of US adults, and until GLP-1 agonists, no pharmacological solution achieved meaningful sustained weight loss \u2014 Wegovy's trials showed 15%+ body weight reduction, previously only achievable through bariatric surgery. This is not a niche indication: it is a paradigm shift in treating the most prevalent and costly chronic disease cluster (diabetes, obesity, cardiovascular risk). NVO operates as a near-monopoly in the highest-growth segment of pharmaceuticals with strong patent protection into the 2030s and unmatched clinical evidence. Expanding cardiovascular outcomes data (SUSTAIN/PIONEER trials) is broadening payer coverage and label utility. This position is distinct from and complementary to our existing healthcare allocation: UNH (managed care/services), LLY (competing GLP-1 + broader pipeline) \u2014 NVO is the originator and market leader of the GLP-1 class. Technically exceptional and matching our best historical entry patterns: RSI=68, above SMA50, MACD bullish, OBV rising, ADX=39 \u2014 the same institutional accumulation signature we saw in UNH at entry. ADX=39 is a confirmed, established institutional trend, not a speculative breakout.",
+      "invalidation": "Exit if price drops below SMA50 with OBV turning negative, signaling institutional distribution. Exit on any FDA safety hold or black box warning on semaglutide. Exit if a competitor drug (LLY's tirzepatide or other) receives approval showing materially superior efficacy that would erode NVO's market share premium.",
+      "target_price": 100.0,
+      "stop_price": 68.0,
+      "horizon": "6-12 months",
+      "confidence": "high",
+      "timing_note": "RSI=68 slightly elevated but ADX=39 and OBV rising confirm this is an established trend entry, not a top-chase. Pattern matches UNH/LLY entry conditions. ATR%=1.3% (low volatility) supports a 15% stop buffer."
+    }
+  ],
+  "close_positions": [],
+  "reduce_positions": [],
+  "theme_updates": [
+    {
+      "name": "Digital Finance Revolution",
+      "delta": -1,
+      "reason": "Crypto regulatory pressure intensifying materially this week: Chinese crypto exchanges continuing to suspend services amid regulatory crackdown, a former Ripple executive liquidating $255M in XRP (insider distribution signal), and retail survey data showing Dogecoin has more name recognition than Ethereum (speculative froth indicator). These are not single-event noise \u2014 Chinese regulatory action has historically been a meaningful headwind for the asset class. Secular digital payments and fintech adoption thesis remains intact (MA, SCHW, SQ), but the crypto-specific component of this theme faces a genuine near-term headwind."
+    }
+  ],
+  "lessons": [],
+  "lesson_updates": [],
+  "belief_updates": [],
+  "lessons_to_prune": [],
+  "weekly_summary": "Week of May 26, 2021: Portfolio at $103,273 (+3.3%) vs S&P +11.7% (-8.4% gap). Quiet macro week. Key action: opened NVO (Novo Nordisk) at 5% \u2014 GLP-1 diabetes/obesity franchise is the most compelling healthcare innovation in our universe with ADX=39/OBV rising confirming institutional accumulation. Cash moves to ~23% post-entry. Digital Finance Revolution theme decremented to 4/5 on Chinese regulatory crypto crackdown and insider XRP distribution. Important ledger discrepancy flagged: NUE likely +63% not -46% as ledger shows \u2014 technical data at $100.85 vs ledger's $33.28. Notable thesis confirmations: MU demand/pricing strength validated by KeyBanc; UNH Optum partnership executing the managed care integration thesis. Risk flags: MA is within $22 of its stop ($340); DE and MA both below SMA50 with bearish MACD bearing watching. F at RSI=69 near upper BB approaching Lesson 8 partial-trim territory. Portfolio remains significantly behind benchmark \u2014 needs infrastructure bill passage and semicon catalysts to close gap."
+}

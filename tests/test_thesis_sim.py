@@ -29,6 +29,9 @@ def manager(tmp_path):
         "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
+    mgr._max_watching = 5
+    mgr._watching_expiry_reviews = 6
+    mgr._watching = []
     mgr._max_summaries = 8
     mgr._max_themes = 8
     mgr._max_lessons = 15
@@ -65,6 +68,9 @@ class TestExecuteDecisions:
             "beliefs": tmp_path / "beliefs.md",
         }
         sim.thesis_manager._max_theses = 15
+        sim.thesis_manager._max_watching = 5
+        sim.thesis_manager._watching_expiry_reviews = 6
+        sim.thesis_manager._watching = []
         sim.thesis_manager._max_summaries = 8
         sim.thesis_manager._max_themes = 8
         sim.thesis_manager._max_lessons = 15

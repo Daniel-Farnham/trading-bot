@@ -53,23 +53,23 @@ class TestEvaluateNewPosition:
         assert isinstance(result, V3PositionPlan)
         assert result.allocation_pct == 8.0  # Capped at medium tier
 
-    def test_highest_confidence_allows_15pct(self, risk):
+    def test_highest_confidence_uncapped(self, risk):
         result = risk.evaluate_new_position(
-            ticker="AAPL", side="LONG", allocation_pct=15,
+            ticker="AAPL", side="LONG", allocation_pct=40,
             price=150.0, portfolio_value=100000, cash=80000,
             open_position_count=0, existing_tickers=[], confidence="highest",
         )
         assert isinstance(result, V3PositionPlan)
-        assert result.allocation_pct == 15.0
+        assert result.allocation_pct == 40.0
 
-    def test_high_confidence_caps_at_10pct(self, risk):
+    def test_high_confidence_uncapped(self, risk):
         result = risk.evaluate_new_position(
-            ticker="AAPL", side="LONG", allocation_pct=12,
+            ticker="AAPL", side="LONG", allocation_pct=30,
             price=150.0, portfolio_value=100000, cash=80000,
             open_position_count=0, existing_tickers=[], confidence="high",
         )
         assert isinstance(result, V3PositionPlan)
-        assert result.allocation_pct == 10.0
+        assert result.allocation_pct == 30.0
 
     def test_veto_max_positions(self, risk):
         result = risk.evaluate_new_position(

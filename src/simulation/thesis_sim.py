@@ -44,6 +44,7 @@ class ThesisSimulation:
         monthly_review_cadence_days: int = 21,
         data_dir: str | Path | None = None,
         seed_themes: list[tuple[str, str]] | None = None,
+        seed_beliefs_path: str | Path | None = None,
     ):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -51,6 +52,7 @@ class ThesisSimulation:
         self.review_cadence = review_cadence_days
         self.monthly_cadence = monthly_review_cadence_days
         self._seed_themes = seed_themes or []
+        self._seed_beliefs_path = Path(seed_beliefs_path) if seed_beliefs_path else None
 
         # Data directory for memory files
         self._data_dir = Path(data_dir) if data_dir else Path("data/v3_sim")
@@ -99,8 +101,15 @@ class ThesisSimulation:
             f"{self.initial_cash:,.0f}",
         )
 
-        # Clear previous sim memory (preserves sim_log)
+        # Clear previous sim memory
         self.thesis_manager.clear_all()
+
+        # Seed beliefs if provided (pre-load cross-regime principles)
+        if self._seed_beliefs_path and self._seed_beliefs_path.exists():
+            import shutil
+            dest = self.thesis_manager._paths["beliefs"]
+            shutil.copy2(self._seed_beliefs_path, dest)
+            logger.info("Seeded beliefs from %s", self._seed_beliefs_path)
 
         # Seed macro themes if provided (start at score 1, must prove themselves)
         if self._seed_themes:
@@ -183,6 +192,11 @@ class ThesisSimulation:
             len(self.broker.positions),
         )
         logger.info("=" * 60)
+
+        # Tick watching thesis expiry
+        expired = self.thesis_manager.tick_watching()
+        if expired:
+            logger.info("  Watching theses expired: %s", ", ".join(expired))
 
         # Step 1: Research — build world state from Alpaca News
         week_start = day_dt - timedelta(days=self.review_cadence)
@@ -332,10 +346,72 @@ class ThesisSimulation:
                 self.broker.place_bracket_order(reopen_plan, is_short=pos.is_short, opened_at=day_dt.isoformat())
                 logger.info("    REDUCED %s by %d shares @ $%.2f", ticker, shares_to_sell, price)
 
-        # New positions
+        # New positions (and tier upgrades)
         for new_pos in response.get("new_positions", []):
             ticker = new_pos.get("ticker", "")
-            if not ticker or ticker in position_tickers:
+            if not ticker:
+                continue
+
+            # Check if this is a pyramid/upgrade on an existing position
+            if ticker in position_tickers:
+                existing_pos = self.broker.positions.get(ticker)
+                if not existing_pos:
+                    continue
+
+                new_confidence = new_pos.get("confidence", "medium")
+                is_now_core = self.risk.is_core_position(new_confidence)
+
+                # Upgrade scout → core: widen stops
+                was_scout = not self.risk.is_core_position(
+                    # Guess old confidence from stop width — if stop is tight, was scout
+                    "medium"  # Default assumption
+                )
+                if is_now_core:
+                    old_stop = existing_pos.stop_loss
+                    if existing_pos.is_short:
+                        new_stop = existing_pos.entry_price * 100.0
+                        new_target = existing_pos.entry_price * 0.01
+                    else:
+                        new_stop = 0.01
+                        new_target = existing_pos.entry_price * 100.0
+                    self.broker.update_stops(ticker, new_stop, new_target)
+                    logger.info(
+                        "    UPGRADED %s → CORE (%s) | mechanical stops REMOVED (thesis-based exits only)",
+                        ticker, new_confidence,
+                    )
+
+                # Pyramid: add shares if Claude requested a larger allocation
+                target_alloc = new_pos.get("allocation_pct", 0) / 100.0
+                current_value = existing_pos.quantity * (existing_pos.current_price or existing_pos.entry_price)
+                current_alloc = current_value / self.broker.portfolio_value if self.broker.portfolio_value > 0 else 0
+                additional_alloc = target_alloc - current_alloc
+
+                if additional_alloc > 0.02:  # Only pyramid if adding >2% allocation
+                    bar = daily_bars.get(ticker)
+                    price = bar["close"] if bar else existing_pos.current_price
+                    if price and price > 0:
+                        additional_value = self.broker.portfolio_value * additional_alloc
+                        # Respect cash reserve
+                        min_cash = self.broker.portfolio_value * self.risk._min_cash_pct
+                        available = self.broker.cash - min_cash
+                        additional_value = min(additional_value, max(0, available))
+
+                        import math
+                        add_qty = math.floor(additional_value / price)
+                        if add_qty > 0:
+                            result = self.broker.add_to_position(ticker, add_qty, price)
+                            if result.success:
+                                self.thesis_manager.update_position(
+                                    ticker=ticker, side=existing_pos.is_short and "SHORT" or "LONG",
+                                    qty=existing_pos.quantity, entry_price=existing_pos.entry_price,
+                                    current_value=existing_pos.quantity * price,
+                                    date_opened=existing_pos.opened_at[:10],
+                                )
+                                logger.info(
+                                    "    PYRAMIDED %s: +%d shares @ $%.2f (now %d shares, avg $%.2f, ~%.0f%% alloc)",
+                                    ticker, add_qty, price, existing_pos.quantity,
+                                    existing_pos.entry_price, target_alloc * 100,
+                                )
                 continue
 
             bar = daily_bars.get(ticker)
@@ -388,17 +464,44 @@ class ThesisSimulation:
             # Convert to SimBroker-compatible plan
             from src.strategy.risk_v3 import PositionPlan
             is_short = plan.side == "SHORT"
-            if is_short:
-                # Short take-profit is BELOW entry (we profit when price drops)
-                take_profit = plan.entry_price * 0.5
+            confidence = new_pos.get("confidence", "medium")
+            is_core = self.risk.is_core_position(confidence)
+
+            if is_core:
+                # Core positions: NO mechanical stop or target. Thesis is the only exit.
+                # Claude manages all exits via thesis reviews.
+                if is_short:
+                    stop_loss = plan.entry_price * 100.0   # Unreachable
+                    take_profit = plan.entry_price * 0.01  # Unreachable
+                else:
+                    stop_loss = 0.01                        # Unreachable
+                    take_profit = plan.entry_price * 100.0  # Unreachable
+                logger.info(
+                    "    CORE POSITION %s (%s confidence) — thesis-based exits ONLY, no mechanical stops",
+                    ticker, confidence,
+                )
             else:
-                # Long take-profit is ABOVE entry (we profit when price rises)
-                take_profit = plan.entry_price * 2
+                # Scout positions: mechanical stop + target
+                claude_stop = new_pos.get("stop_price")
+                if claude_stop and claude_stop > 0:
+                    stop_loss = float(claude_stop)
+                    logger.info(
+                        "    SCOUT stop for %s: $%.2f (vs catastrophic $%.2f)",
+                        ticker, stop_loss, plan.catastrophic_stop,
+                    )
+                else:
+                    stop_loss = plan.catastrophic_stop
+
+                if is_short:
+                    take_profit = new_pos.get("target_price", plan.entry_price * 0.5)
+                else:
+                    take_profit = new_pos.get("target_price", plan.entry_price * 2)
+
             sim_plan = PositionPlan(
                 ticker=plan.ticker,
                 quantity=plan.quantity,
                 entry_price=plan.entry_price,
-                stop_loss=plan.catastrophic_stop,
+                stop_loss=stop_loss,
                 take_profit=take_profit,
                 risk_amount=0,
                 position_value=plan.position_value,
@@ -422,27 +525,31 @@ class ThesisSimulation:
                 )
                 position_tickers.append(ticker)
                 action = "SHORTED" if is_short else "BOUGHT"
+                tier = "CORE" if is_core else "SCOUT"
+                stop_pct = abs(stop_loss - price) / price * 100
                 logger.info(
-                    "    %s %d %s @ $%.2f (%s%% alloc, stop $%.2f [%.0f%%])",
+                    "    %s %d %s @ $%.2f (%s%% alloc, %s, stop $%.2f [%.1f%%])",
                     action, plan.quantity, ticker, price,
-                    plan.allocation_pct, plan.catastrophic_stop,
-                    dynamic_stop * 100,
+                    plan.allocation_pct, tier, stop_loss, stop_pct,
                 )
 
     def _check_catastrophic_stops(self, daily_bars: dict, day_dt: datetime) -> None:
-        """Check wide catastrophic stops against daily bars."""
+        """Check stops against daily bars."""
         triggered = self.broker.check_stops_and_targets(daily_bars)
         for t in triggered:
             ticker = t.get("ticker", "")
             pnl = t.get("pnl", 0)
+            exit_price = t.get("exit_price", 0)
             reason = t.get("exit_reason", "stopped_out")
             logger.info(
                 "  STOP HIT: %s @ $%.2f (P&L: $%+.2f) — %s",
-                ticker, t.get("exit_price", 0), pnl, reason,
+                ticker, exit_price, pnl, reason,
             )
-            # Update memory
+            # Update memory — move to watching (thesis may still be valid)
             self.thesis_manager.remove_position(ticker)
-            self.thesis_manager.update_thesis(ticker, status="STOPPED_OUT")
+            self.thesis_manager.move_to_watching(
+                ticker, exit_price=exit_price, reason=reason,
+            )
 
     def _update_ledger_values(self, daily_bars: dict, day=None) -> None:
         """Update current values in the portfolio ledger.

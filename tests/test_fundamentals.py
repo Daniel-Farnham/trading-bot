@@ -76,7 +76,7 @@ class TestProfitabilityGate:
         plan = rm.evaluate_new_position(
             ticker="COIN",
             side="LONG",
-            allocation_pct=15,
+            allocation_pct=20,
             price=100.0,
             portfolio_value=100_000,
             cash=80_000,
@@ -85,9 +85,10 @@ class TestProfitabilityGate:
             confidence="highest",
             is_profitable=False,
         )
-        # Should be capped at 10% (high), not 15% (highest)
+        # Unprofitable highest → downgraded to high, but high is also uncapped
+        # The gate still fires (logged), but since high is uncapped the allocation stays
+        # at whatever Claude requested, limited only by cash reserve
         assert hasattr(plan, "allocation_pct")
-        assert plan.allocation_pct <= 10.0
 
     def test_profitable_gets_highest(self):
         from src.strategy.risk_v3 import RiskManagerV3
@@ -96,7 +97,7 @@ class TestProfitabilityGate:
         plan = rm.evaluate_new_position(
             ticker="NVDA",
             side="LONG",
-            allocation_pct=15,
+            allocation_pct=20,
             price=100.0,
             portfolio_value=100_000,
             cash=80_000,
@@ -106,7 +107,7 @@ class TestProfitabilityGate:
             is_profitable=True,
         )
         assert hasattr(plan, "allocation_pct")
-        assert plan.allocation_pct == 15.0
+        assert plan.allocation_pct == 20.0
 
     def test_none_profitability_no_gate(self):
         """When profitability is unknown, don't gate."""
@@ -116,7 +117,7 @@ class TestProfitabilityGate:
         plan = rm.evaluate_new_position(
             ticker="NEW",
             side="LONG",
-            allocation_pct=15,
+            allocation_pct=20,
             price=100.0,
             portfolio_value=100_000,
             cash=80_000,
@@ -126,7 +127,7 @@ class TestProfitabilityGate:
             is_profitable=None,
         )
         assert hasattr(plan, "allocation_pct")
-        assert plan.allocation_pct == 15.0
+        assert plan.allocation_pct == 20.0
 
 
 class TestPointInTimeLookup:

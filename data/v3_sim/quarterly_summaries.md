@@ -1,6 +1,6 @@
 ## Q1 2022
-**Performance:** -3.0% ($97,042)
-**Positions:** 15
-**Summary:** Thin news week with no macro headlines, but technicals broadly stabilized. Deployed remaining two position slots: SQ re-entry at 31% below prior stop (Wealth Inequality/fintech theme, Afterpay integration catalyst) and NEE re-entry at 10% below prior stop (Climate Transition, Enphase sector validation). T short continues working as expected ($24.50 vs $27.28 entry). AMZN telehealth nationwide launch and Citi NVDA bullishness are positive thesis confirmations. TSM MACD turn bearish is the one technical flag requiring monitoring. META avoided despite RSI=28 extreme — confirmed fundamental deterioration (first DAU decline) distinguishes this from macro-panic oversold setups. Portfolio now fully allocated at 15 positions with approximately 29% cash. Climate Transition theme upgraded to 3/5 on Enphase earnings beat.
+**Performance:** +0.2% ($100,180)
+**Positions:** 13
+**Summary:** Week of Nov 7, 2022: Portfolio +0.2% YTD vs S&P -7.1%, outperforming benchmark by +7.3%. Broad market technical recovery in progress — most holdings above SMA50 with bullish MACD after weeks of deterioration, likely driven by pre-midterm election positioning. Key positive catalysts: LLY Jardiance kidney data (28% reduction in disease progression — Aging Populations theme strengthened, score raised to 5/5); LNG demand surge (30+ tankers off Europe, Mizuho PT raised to $208); JPM senator accumulation. Key watch items: elevated RSIs on GS (76), JPM (73), XOM (72) suggest near-term pullback risk; ENPH below SMA50 warrants close monitoring; LNG MACD turned bearish despite strongest-ever fundamental news — holding on thesis. Cash at 22.7% with only ~2.7% deployable above 20% floor — no new positions opened. All 13 active positions held. US-Russia de-escalation communication noted but does not alter structural energy thesis. 2 position slots remain available pending cash deployment opportunities.
 
 ---

@@ -18,6 +18,9 @@ def manager(tmp_path):
         "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 15
+    mgr._max_watching = 5
+    mgr._watching_expiry_reviews = 6
+    mgr._watching = []
     mgr._max_summaries = 8
     mgr._max_themes = 8
     mgr._max_lessons = 15
@@ -38,6 +41,9 @@ def small_manager(tmp_path):
         "beliefs": tmp_path / "beliefs.md",
     }
     mgr._max_theses = 3
+    mgr._max_watching = 2
+    mgr._watching_expiry_reviews = 6
+    mgr._watching = []
     mgr._max_summaries = 2
     mgr._max_themes = 3
     mgr._max_lessons = 3

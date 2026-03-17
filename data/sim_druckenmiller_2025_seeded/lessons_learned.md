@@ -1,0 +1,56 @@
+# Lessons Learned
+
+## Lesson 1 [4]
+On first entry into a new simulation period, open scouts only (1-2 positions, 5% each) to test the regime before deploying core capital. Avoid conviction sizing until the first 2-3 weeks of price action confirm which theses the market is rewarding.
+
+---
+
+## Lesson 2 [4]
+AI efficiency breakthroughs (DeepSeek-type events) can rapidly reprice the hardware supply chain even if the long-term demand thesis survives. When a competing AI model demonstrates 10x+ cost efficiency: (1) immediately review hardware exposure (NVDA, AVGO, AMD, SMCI) for short opportunities, (2) assess whether demand-side positions (META, MSFT, GOOGL) are actually helped by lower inference costs, (3) treat OBV as the arbiter — if institutions are still buying the dip in hardware names, the Jevons Paradox is winning; if OBV falls, the repricing has legs.
+
+---
+
+## Lesson 3 [5]
+Triple distribution exit discipline: When a core position shows all three distribution signals simultaneously (below SMA50 + MACD bearish + OBV falling), exit at the current review unless a specific news catalyst explicitly explains the selling as temporary and OBV contradicts (i.e., OBV rising into the dip). Three positions this week (VST -20.3%, PLTR -20.1%, AVGO -15.2%) all displayed this pattern. Waiting for 'one more week' on a triple distribution signal costs real capital with low probability of reversal.
+
+---
+
+## Lesson 4 [3]
+Tariff regime escalation triggers a definitive rotation playbook: SELL globally-exposed supply chains (NVDA, TSM, ARM, SMCI), BUY domestic-revenue defensives (healthcare, utilities, consumer staples, telecom). Execute the rotation when: (1) tariff policy escalation is structural and politically motivated, not a one-off negotiating tactic, (2) OBV is simultaneously falling on tech supply chain names, (3) OBV is rising on domestic defensives in the same week. The window to enter defensives cheaply is narrow — these names get crowded quickly once the 'rotation' narrative takes hold in financial media.
+
+---
+
+## Lesson 5 [5]
+Macro Recession Fear vs Company-Specific Triple Distribution: When macro recession fears hit critical mass, quality companies with intact theses can show triple distribution — these are NOT equivalent exit signals. The key triage question is: 'Does a recession break this specific thesis?' If YES (financials: NIM/credit quality/deal flow all hurt; cyclicals: volume declines; global supply chains: tariff pass-through), exit on triple distribution per Lesson 3. If NO (domestic revenue, pricing power, non-cyclical demand — healthcare, consumer staples, telecom), hold through triple distribution because the selling is macro-driven not thesis-driven, and RSI extremes (sub-35) typically mark capitulation. Applied this week: closed JPM (macro-sensitive), held META (macro-immune). This distinction prevents both over-selling quality into fear and under-selling macro-vulnerable positions.
+
+---
+
+## Lesson 6 [5]
+OBV Rising Divergence During Macro Selloffs Is The Primary Accumulation Signal: When a high-conviction thesis stock shows OBV RISING while price declines during a broad market selloff, this is the most reliable institutional buy signal available and a primary reason to ADD, not hold flat. The price-OBV divergence means institutions are absorbing retail panic selling — they see the same thesis but a better price. This pattern is most actionable in: (1) domestic-revenue healthcare with non-cyclical demand, (2) consumer staples with brand pricing power, (3) any business where you have pre-existing fundamental conviction. Trigger conditions: (a) broad market is in distribution (>50% of stocks below SMA50), (b) stock price is down 5%+ on macro fear, (c) OBV is rising. Operationally: add 2-4% additional allocation to the position at the OBV divergence entry. LLY this week is the archetype: -7.8% price, OBV rising = accumulate. Never confuse macro-driven price weakness with thesis weakness when OBV confirms buying.
+
+---
+
+## Lesson 7 [2]
+Pharma Pricing Power Has Political Risk Beyond Import Tariffs: When a pharmaceutical thesis relies on pricing power and domestic revenue as 'tariff immunity,' the residual political risk is government drug price intervention — executive orders, mandatory price negotiations, or 'pharma tariffs' used as leverage for domestic price controls. This risk is uncorrelated with the supply chain/import tariff regime affecting tech hardware. Trigger conditions to act: (1) President announces imminent pharma-sector policy action with drug pricing implications, (2) The thesis explicitly relied on pricing power being unchallenged by policy. Action: treat as a conditional thesis-break event. Apply OBV test immediately — if institutions are already selling before the announcement lands, exit without waiting for policy text. The OBV flip IS the announcement signal.
+
+---
+
+## Lesson 8 [1]
+Liberation Day Regime Triage: When a historic tariff/policy shock causes SPX -4.5%+ in a single session, execute thesis-by-thesis triage rather than broad de-risking. Three questions for each position: (1) Does this tariff regime directly impair this business's revenue or cost structure? (2) Is OBV rising (institutions accumulating) or falling (institutions fleeing)? (3) Is the selling macro-driven or company-specific? Positions answering: NO / RISING / MACRO should be HELD or ADDED TO at depressed prices. Positions answering YES to question 1 require immediate thesis review regardless of prior conviction.
+
+---
+
+## Lesson 9 [5]
+OBV Reversal Invalidates Pyramid Entry Rationale: When a pyramid entry was made explicitly citing OBV rising as the primary accumulation signal (Lesson 6), and OBV subsequently reverses to falling in a subsequent review, the entry rationale is invalidated even if the underlying fundamental thesis remains intact. The correct response is to reduce the position back toward the original pre-pyramid core sizing. Do not conflate 'the business is still good fundamentally' with 'the reason we added capital at this specific price still applies.' Trigger: (a) position was pyramided citing OBV rising as primary timing rationale, (b) OBV flips to falling within 1-2 reviews, (c) price has not recovered. Action: reduce the pyramid increment to restore the pre-pyramid allocation while retaining core exposure if the fundamental thesis is intact. This is NOT averaging down — it is disciplined sizing to match the current evidence.
+
+---
+
+## Lesson 10 [2]
+Export Control Regimes Create Permanent Revenue Impairment — Not Tariff-Recoverable: When the US government issues an indefinite export license requirement for a specific chip architecture (as with H20), this is categorically different from tariffs. Tariffs are negotiating tools that can be reversed; export controls targeting specific silicon architectures are driven by national security imperatives and are structurally durable. Semiconductor companies cannot design their way out of this — even a chip purpose-built to comply (H20 was specifically designed to comply with prior H100/A100 restrictions) can be retroactively banned. Trigger conditions to act: (1) Export control targets a specific product line by specification (memory bandwidth, interconnect), not just by name; (2) The rationale is AI/military capability, not trade leverage; (3) OBV is already falling on the announcement. Action: treat as permanent revenue loss for the affected architecture, not a negotiable tariff. Assign a structural impairment to the AI hardware supply chain theme. Do NOT re-enter hardware longs citing 'China recovery' as a catalyst — this revenue is structurally gone.
+
+---
+
+## Lesson 11 [4]
+Platform Distribution Concentration Is A Hidden Thesis Risk For 'Domestic Revenue' Businesses: When a company's 'domestic revenue' thesis rests on a single major distribution partner controlling access to that revenue (e.g., Apple providing 50%+ of Google's search queries via iOS Safari default), a partner switching decision can be as structurally damaging as tariff regimes or regulatory actions — yet is invisible to standard tariff-triage analysis. This risk does not appear in geographic revenue breakdowns or supply chain analysis. Trigger conditions to act: (1) Major distribution partner publicly announces exploration of alternatives backed by commercially viable technology; (2) The replacement technology has a named beneficiary that is already operating; (3) OBV begins declining on or following the news. Action: Treat as conditional thesis-break event — apply OBV test immediately. If OBV flips to falling, exit without waiting for official partner confirmation. Do not conflate 'domestically-earned revenue' with 'structurally protected revenue.'
+
+---

@@ -57,20 +57,29 @@ class RiskManagerV3:
 
     def __init__(self, params: dict | None = None):
         p = params or {}
-        self._max_positions = p.get("max_positions", _portfolio_cfg("max_positions", 15))
-        self._max_single_pct = p.get("max_single_position_pct", _portfolio_cfg("max_single_position_pct", 0.10))
+        self._max_positions = p.get("max_positions", _portfolio_cfg("max_positions", 8))
+        self._max_single_pct = p.get("max_single_position_pct", _portfolio_cfg("max_single_position_pct", 0.20))
         self._min_cash_pct = p.get("min_cash_reserve_pct", _portfolio_cfg("min_cash_reserve_pct", 0.20))
-        self._catastrophic_stop_pct = p.get("catastrophic_stop_pct", _portfolio_cfg("catastrophic_stop_pct", 0.18))
-        self._max_short_pct = p.get("max_short_exposure_pct", _portfolio_cfg("max_short_exposure_pct", 0.20))
-        self._max_drawdown_pct = p.get("max_drawdown_pct", _portfolio_cfg("max_drawdown_pct", 0.25))
+        self._catastrophic_stop_pct = p.get("catastrophic_stop_pct", _portfolio_cfg("catastrophic_stop_pct", 0.30))
+        self._max_short_pct = p.get("max_short_exposure_pct", _portfolio_cfg("max_short_exposure_pct", 0.30))
+        self._max_drawdown_pct = p.get("max_drawdown_pct", _portfolio_cfg("max_drawdown_pct", 0.30))
 
-    # Max allocation per confidence tier
+    # Scout positions (low/medium) have caps. Core positions (high/highest) are uncapped —
+    # Claude decides sizing within cash constraints.
     CONFIDENCE_CAPS = {
         "low": 0.05,
         "medium": 0.08,
-        "high": 0.10,
-        "highest": 0.15,
+        "high": 1.0,
+        "highest": 1.0,
     }
+
+    # Core positions (high/highest) get thesis-based exits, not mechanical stops
+    CORE_CONFIDENCE = {"high", "highest"}
+
+    @staticmethod
+    def is_core_position(confidence: str) -> bool:
+        """Returns True if this confidence tier is a core (conviction) position."""
+        return confidence.lower() in RiskManagerV3.CORE_CONFIDENCE
 
     def evaluate_new_position(
         self,
