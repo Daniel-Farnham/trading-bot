@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+from alpaca.data.enums import Adjustment
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestBarRequest
 from alpaca.data.timeframe import TimeFrame
@@ -76,7 +77,12 @@ class MarketData:
         end: datetime | None = None,
         limit: int = 100,
     ) -> pd.DataFrame:
-        params = {"symbol_or_symbols": ticker, "timeframe": timeframe, "limit": limit}
+        params = {
+            "symbol_or_symbols": ticker,
+            "timeframe": timeframe,
+            "limit": limit,
+            "adjustment": Adjustment.SPLIT,
+        }
         if start:
             params["start"] = start
         if end:

@@ -25,7 +25,7 @@ def main():
     parser.add_argument("--start", required=True, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", required=True, help="End date (YYYY-MM-DD)")
     parser.add_argument("--cash", type=float, default=100_000.0, help="Initial cash")
-    parser.add_argument("--review-cadence", type=int, default=5, help="Days between reviews (default: 5 = weekly)")
+    parser.add_argument("--review-cadence", type=int, default=21, help="Days between reviews (default: 21 = monthly)")
     parser.add_argument("--data-dir", default=None, help="Directory for sim memory files (default: data/v3_sim)")
     parser.add_argument("--output", default=None, help="Save report to JSON file")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
@@ -37,6 +37,22 @@ def main():
     parser.add_argument(
         "--seed-beliefs", default=None, metavar="PATH",
         help="Path to a beliefs file to pre-load (e.g. data/seed_beliefs.md). Copied into sim memory as beliefs.md.",
+    )
+    parser.add_argument(
+        "--volatility-cooldown", type=int, default=0,
+        help="Minimum days between volatility-triggered reviews (default: 0 = no cooldown)",
+    )
+    parser.add_argument(
+        "--no-news", action="store_true",
+        help="Disable news feed — Claude decides based on technicals + fundamentals only",
+    )
+    parser.add_argument(
+        "--model", default="sonnet", choices=["sonnet", "opus", "haiku"],
+        help="Claude model to use (default: sonnet, use opus for deeper reasoning)",
+    )
+    parser.add_argument(
+        "--thinking", action="store_true",
+        help="Enable extended thinking (recommended with opus for complex decisions)",
     )
 
     args = parser.parse_args()
@@ -69,6 +85,10 @@ def main():
         data_dir=args.data_dir,
         seed_themes=seed_themes or None,
         seed_beliefs_path=args.seed_beliefs,
+        volatility_cooldown_days=args.volatility_cooldown,
+        disable_news=args.no_news,
+        model=args.model,
+        use_extended_thinking=args.thinking,
     )
 
     report = sim.run()

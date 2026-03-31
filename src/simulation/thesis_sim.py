@@ -40,17 +40,23 @@ class ThesisSimulation:
         start_date: str,
         end_date: str,
         initial_cash: float = 100_000.0,
-        review_cadence_days: int = 5,
-        monthly_review_cadence_days: int = 21,
+        review_cadence_days: int = 21,
+        monthly_review_cadence_days: int = 63,
         data_dir: str | Path | None = None,
         seed_themes: list[tuple[str, str]] | None = None,
         seed_beliefs_path: str | Path | None = None,
+        volatility_cooldown_days: int = 7,
+        disable_news: bool = False,
+        model: str = "sonnet",
+        use_extended_thinking: bool = False,
     ):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
         self.initial_cash = initial_cash
         self.review_cadence = review_cadence_days
         self.monthly_cadence = monthly_review_cadence_days
+        self._volatility_cooldown = volatility_cooldown_days
+        self._disable_news = disable_news
         self._seed_themes = seed_themes or []
         self._seed_beliefs_path = Path(seed_beliefs_path) if seed_beliefs_path else None
 
@@ -75,9 +81,15 @@ class ThesisSimulation:
             "lessons": self._data_dir / "lessons_learned.md",
             "themes": self._data_dir / "themes.md",
             "beliefs": self._data_dir / "beliefs.md",
+            "world_view": self._data_dir / "world_view.md",
+            "journal": self._data_dir / "decision_journal.md",
         }
 
-        self.decision_engine = DecisionEngine(thesis_manager=self.thesis_manager)
+        self.decision_engine = DecisionEngine(
+            thesis_manager=self.thesis_manager,
+            model=model,
+            use_extended_thinking=use_extended_thinking,
+        )
 
         # Fundamentals client
         self.fundamentals = FundamentalsClient(
@@ -91,6 +103,9 @@ class ThesisSimulation:
         self._trading_days: list = []
         self._review_decisions: list[dict] = []
         self._weeks_elapsed = 0
+        self._max_new_per_review = CONFIG.get("memory", {}).get("max_new_positions_per_review", 3)
+        self._spy_snapshot = None  # Cached SPY technicals for relative strength
+        self._atr_cache: dict[str, float] = {}  # ticker -> ATR% for shock detection
 
     def run(self) -> dict:
         """Run the full thesis-driven simulation."""
@@ -129,6 +144,11 @@ class ThesisSimulation:
         logger.info("Prefetching fundamentals for %d tickers...", len(universe))
         self.fundamentals.prefetch_universe(universe)
 
+        # Pre-research phase: gather 3 months of news before sim starts
+        # to give Claude context on prevailing trends and emerging themes
+        # (always runs — even with news disabled, the world view matters)
+        self._run_pre_research(universe)
+
         # Main simulation loop — step day by day, review every N days
         days_since_review = 0  # Observe one cycle before first review
         days_since_monthly = 0
@@ -138,10 +158,28 @@ class ThesisSimulation:
 
             # Daily: update prices, check catastrophic stops
             daily_bars = self._get_daily_bars(day)
+
+            # Snapshot previous prices BEFORE update (for shock detection)
+            prev_prices = {
+                ticker: pos.current_price
+                for ticker, pos in self.broker.positions.items()
+                if pos.current_price
+            }
+
             self.broker.update_prices(daily_bars)
             self._check_catastrophic_stops(daily_bars, day_dt)
             self._update_ledger_values(daily_bars, day)
             self._record_snapshot(day)
+
+            # Update ATR cache for held positions (used by volatility trigger)
+            for ticker in self.broker.positions:
+                bars_df = self._all_bars.get(ticker)
+                if bars_df is not None:
+                    history = self._get_bars_up_to(bars_df, day)
+                    if not history.empty and len(history) >= 20:
+                        snap = self.technicals.analyze(ticker, history)
+                        if snap.atr_pct is not None:
+                            self._atr_cache[ticker] = snap.atr_pct
 
             # Track peak for drawdown
             pv = self.broker.portfolio_value
@@ -151,13 +189,26 @@ class ThesisSimulation:
             days_since_review += 1
             days_since_monthly += 1
 
-            # Weekly review
-            if days_since_review >= self.review_cadence:
+            # Check for volatility trigger (consolidates shock + drift detection)
+            # Cooldown prevents over-trading on inherently volatile stocks
+            volatility_triggered = False
+            if days_since_review >= self._volatility_cooldown and self.broker.positions:
+                shock = self._check_intraday_shock(daily_bars, prev_prices)
+                drift = self._check_volatility_trigger(days_since_review)
+                volatility_triggered = shock or drift
+
+            # Scheduled review OR volatility-triggered reassessment
+            if days_since_review >= self.review_cadence or volatility_triggered:
                 if not self.risk.check_drawdown(pv, self._peak_value):
                     dd = (self._peak_value - pv) / self._peak_value * 100
                     logger.warning("  Drawdown %.1f%% — skipping review, stops still active", dd)
                 else:
-                    review_type = "monthly" if days_since_monthly >= self.monthly_cadence else "weekly"
+                    if volatility_triggered and days_since_review < self.review_cadence:
+                        review_type = "volatility"
+                        logger.info("")
+                        logger.info("  !!! VOLATILITY DETECTED — triggering reassessment review")
+                    else:
+                        review_type = "monthly" if days_since_monthly >= self.monthly_cadence else "weekly"
                     self._run_review(day, day_dt, review_type)
                     if review_type == "monthly":
                         days_since_monthly = 0
@@ -175,6 +226,183 @@ class ThesisSimulation:
 
         report = self._build_report()
         return report
+
+    def _run_pre_research(self, universe: list[str]) -> None:
+        """Gather 3 months of news before sim starts and ask Claude to synthesize.
+
+        This gives Claude context on prevailing trends, emerging themes, and
+        macro regime before it makes its first trade — like a fund manager
+        reading 3 months of research reports on day one.
+        """
+        pre_start = self.start_date - timedelta(days=90)
+        pre_end = self.start_date - timedelta(days=1)
+
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info("  PRE-RESEARCH PHASE: %s to %s", pre_start.strftime("%Y-%m-%d"), pre_end.strftime("%Y-%m-%d"))
+        logger.info("  Gathering 3 months of news to establish macro context...")
+        logger.info("=" * 60)
+
+        # Build world state from 3 months of news in chunks (API limits)
+        all_news = []
+        chunk_days = 14
+        cursor = pre_start
+        while cursor < pre_end:
+            chunk_end = min(cursor + timedelta(days=chunk_days), pre_end)
+            try:
+                chunk = build_world_state(
+                    start_date=cursor.strftime("%Y-%m-%d"),
+                    end_date=chunk_end.strftime("%Y-%m-%d"),
+                    holdings=None,
+                    watchlist=universe[:30],  # Top 30 tickers to keep API calls reasonable
+                    client=self.news_client,
+                )
+                if chunk and chunk.strip() and "unavailable" not in chunk.lower():
+                    all_news.append(f"--- {cursor.strftime('%b %d')} to {chunk_end.strftime('%b %d')} ---\n{chunk}")
+            except Exception as e:
+                logger.warning("Pre-research chunk failed (%s to %s): %s", cursor, chunk_end, e)
+            cursor = chunk_end + timedelta(days=1)
+
+        if not all_news:
+            logger.warning("No pre-research news gathered — starting cold")
+            return
+
+        combined_news = "\n\n".join(all_news)
+        # Truncate if too long (keep most recent)
+        if len(combined_news) > 30000:
+            combined_news = combined_news[-30000:]
+
+        # Ask Claude to synthesize into a world view
+        prompt = f"""You are a macro investment researcher preparing a briefing for a new fund manager
+who is about to start trading on {self.start_date.strftime('%Y-%m-%d')}.
+
+Below is 3 months of market news from {pre_start.strftime('%Y-%m-%d')} to {pre_end.strftime('%Y-%m-%d')}.
+Synthesize this into a concise world view briefing.
+
+NEWS:
+{combined_news}
+
+Write a briefing with these sections (respond with ONLY valid JSON):
+{{
+  "world_view": "Current macro regime assessment + 12-18 month forward outlook + key risks. Max 300 words.",
+  "themes": [
+    {{"name": "Theme Name", "description": "What this theme is about and which stocks benefit", "conviction": "high/medium/low"}}
+  ],
+  "top_opportunities": [
+    {{"ticker": "SYMBOL", "reasoning": "Why this stock is well-positioned based on the last 3 months of trends"}}
+  ],
+  "key_risks": ["Risk 1", "Risk 2"]
+}}
+
+Identify 3-5 investment themes and 5-8 top opportunities. Focus on structural trends,
+not short-term noise. Which sectors are seeing institutional accumulation? Which policy
+changes are creating structural winners/losers? What's the dominant macro narrative?"""
+
+        response = self.decision_engine._call_claude(prompt)
+        if not response:
+            logger.warning("Pre-research Claude call failed — starting cold")
+            return
+
+        # Seed the world view
+        world_view = response.get("world_view", "")
+        if world_view:
+            self.thesis_manager.update_world_view(world_view)
+            logger.info("  Pre-research world view seeded")
+
+        # Seed themes from pre-research (score 2 — above default but must prove themselves)
+        themes = response.get("themes", [])
+        for t in themes:
+            name = t.get("name", "")
+            desc = t.get("description", "")
+            if name and desc:
+                conviction = t.get("conviction", "medium")
+                score = 3 if conviction == "high" else 2 if conviction == "medium" else 1
+                self.thesis_manager.add_theme(name, desc, score=score)
+                logger.info("  Theme discovered: %s [%d]", name, score)
+
+        # Log top opportunities for visibility
+        opportunities = response.get("top_opportunities", [])
+        if opportunities:
+            logger.info("  Top opportunities identified:")
+            for opp in opportunities[:8]:
+                logger.info("    %s: %s", opp.get("ticker", "?"), opp.get("reasoning", "")[:100])
+
+        key_risks = response.get("key_risks", [])
+        if key_risks:
+            logger.info("  Key risks: %s", "; ".join(key_risks[:5]))
+
+        logger.info("  Pre-research phase complete")
+        logger.info("")
+
+    def _due_diligence_check(
+        self, ticker: str, direction: str, thesis: str,
+        day_dt: datetime, lookback_days: int = 30,
+    ) -> bool:
+        """Fetch recent headlines for a ticker and ask Claude to confirm the trade.
+
+        Shows ALL headlines (positive and negative) — no filtering bias.
+        Claude sees its own thesis alongside recent news and decides whether
+        to proceed or cancel.
+
+        Returns True if Claude confirms, False to cancel.
+        """
+        start = day_dt - timedelta(days=lookback_days)
+        try:
+            articles = self.news_client.get_ticker_news(
+                tickers=[ticker],
+                start_date=start.strftime("%Y-%m-%d"),
+                end_date=day_dt.strftime("%Y-%m-%d"),
+            )
+        except Exception:
+            return True  # No news = proceed
+
+        if not articles:
+            return True  # No news = proceed
+
+        headlines = [a.get("title", "") for a in articles if a.get("title")][:10]
+        if not headlines:
+            return True
+
+        headlines_text = "\n".join(f"  - {h}" for h in headlines)
+        logger.info("    DUE DILIGENCE %s: reviewing %d recent headlines", ticker, len(headlines))
+
+        prompt = f"""CRITICAL: You are making a decision on {day_dt.strftime('%Y-%m-%d')}.
+You DO NOT know what happens after this date.
+
+You proposed {direction} {ticker} with this thesis:
+"{thesis[:300]}"
+
+Here are the most recent headlines about {ticker}:
+{headlines_text}
+
+IMPORTANT: Negative sentiment alone is NOT a reason to cancel. Analyst downgrades,
+bearish opinion pieces, and "overvalued" commentary are just opinions — they do not
+change a company's fundamentals. Most negative articles are noise.
+
+Only cancel if the headlines reveal STRUCTURAL headwinds that directly break your thesis:
+- Government/regulatory action (Congressional investigation, antitrust lawsuit, sanctions)
+- Material business deterioration (major customer loss, fraud, accounting issues)
+- Structural competitive shift (key product obsoleted, market share collapse)
+
+If the news is just sentiment, opinions, or general market commentary — PROCEED.
+
+Respond with ONLY valid JSON:
+{{
+  "proceed": true or false,
+  "reasoning": "One sentence explaining your decision"
+}}"""
+
+        response = self.decision_engine._call_claude(prompt)
+        if not response:
+            return True  # Claude failed to respond — proceed
+
+        proceed = response.get("proceed", True)
+        reasoning = response.get("reasoning", "")
+        if proceed:
+            logger.info("    DUE DILIGENCE CONFIRMED %s: %s", ticker, reasoning[:100])
+        else:
+            logger.info("    DUE DILIGENCE REJECTED %s: %s", ticker, reasoning[:100])
+        return proceed
 
     def _get_trade_count(self) -> int:
         """Get total trade count: closed trades + open positions."""
@@ -199,20 +427,24 @@ class ThesisSimulation:
             logger.info("  Watching theses expired: %s", ", ".join(expired))
 
         # Step 1: Research — build world state from Alpaca News
-        week_start = day_dt - timedelta(days=self.review_cadence)
-        try:
-            holdings_tickers = [h["ticker"] for h in self.thesis_manager.get_holdings()]
-            universe_tickers = self._get_universe_tickers()
-            world_state = build_world_state(
-                start_date=week_start.strftime("%Y-%m-%d"),
-                end_date=day_dt.strftime("%Y-%m-%d"),
-                holdings=holdings_tickers or None,
-                watchlist=universe_tickers,
-                client=self.news_client,
-            )
-        except Exception as e:
-            logger.warning("Failed to build world state: %s", e)
-            world_state = "(News unavailable this week)"
+        holdings_tickers = [h["ticker"] for h in self.thesis_manager.get_holdings()]
+        universe_tickers = self._get_universe_tickers()
+
+        if self._disable_news:
+            world_state = "(News feed disabled — decide based on technicals and fundamentals only)"
+        else:
+            week_start = day_dt - timedelta(days=self.review_cadence)
+            try:
+                world_state = build_world_state(
+                    start_date=week_start.strftime("%Y-%m-%d"),
+                    end_date=day_dt.strftime("%Y-%m-%d"),
+                    holdings=holdings_tickers or None,
+                    watchlist=universe_tickers,
+                    client=self.news_client,
+                )
+            except Exception as e:
+                logger.warning("Failed to build world state: %s", e)
+                world_state = "(News unavailable this week)"
 
         # Step 2: Technicals for current holdings + watchlist sample
         technicals_summary = self._build_technicals_summary(day)
@@ -278,6 +510,25 @@ class ThesisSimulation:
         )
         logger.info("  Review complete: %d action(s)", changes)
 
+        # Consistency check: ensure every open position has an active thesis
+        for ticker in list(self.broker.positions.keys()):
+            thesis = self.thesis_manager.get_by_ticker(ticker)
+            if not thesis:
+                logger.warning(
+                    "  ORPHAN POSITION: %s in portfolio but has no active thesis — re-adding thesis stub",
+                    ticker,
+                )
+                pos = self.broker.positions[ticker]
+                self.thesis_manager.add_thesis(
+                    ticker=ticker,
+                    direction="SHORT" if pos.is_short else "LONG",
+                    thesis="(Thesis orphaned — position exists without thesis record)",
+                    entry_price=pos.entry_price,
+                    target_price=0.0,
+                    stop_price=pos.stop_loss,
+                    confidence="medium",
+                )
+
     def _compute_dynamic_stop(self, ticker: str, day) -> float | None:
         """Compute dynamic stop % based on 3x ATR%, floored at 8%, capped at 20%.
 
@@ -301,7 +552,7 @@ class ThesisSimulation:
         positions = self.broker.get_positions_list()
         position_tickers = [p["ticker"] for p in positions]
 
-        # Close positions
+        # Close positions — move thesis to watching ONLY after broker confirms close
         for close in response.get("close_positions", []):
             ticker = close.get("ticker", "")
             if ticker not in position_tickers:
@@ -312,7 +563,15 @@ class ThesisSimulation:
                 result = self.broker.close_position(ticker, price)
                 if result.success:
                     self.thesis_manager.remove_position(ticker)
-                    logger.info("    SOLD %s @ $%.2f — %s", ticker, price, close.get("reason", ""))
+                    reason = close.get("reason", "thesis invalidated")
+                    reentry_price = close.get("reentry_price", None)
+                    if reentry_price == 0:
+                        reentry_price = None
+                    self.thesis_manager.move_to_watching(
+                        ticker, exit_price=price, reason=reason,
+                        reentry_price=reentry_price,
+                    )
+                    logger.info("    SOLD %s @ $%.2f → WATCHING — %s", ticker, price, reason[:80])
 
         # Reduce positions
         for reduce in response.get("reduce_positions", []):
@@ -346,7 +605,8 @@ class ThesisSimulation:
                 self.broker.place_bracket_order(reopen_plan, is_short=pos.is_short, opened_at=day_dt.isoformat())
                 logger.info("    REDUCED %s by %d shares @ $%.2f", ticker, shares_to_sell, price)
 
-        # New positions (and tier upgrades)
+        # New positions (and tier upgrades) — enforce max new positions per review
+        new_position_count = 0
         for new_pos in response.get("new_positions", []):
             ticker = new_pos.get("ticker", "")
             if not ticker:
@@ -414,6 +674,25 @@ class ThesisSimulation:
                                 )
                 continue
 
+            # Enforce max new positions per review (pyramids/upgrades don't count)
+            if new_position_count >= self._max_new_per_review:
+                logger.info("    CAPPED %s: max %d new positions per review reached", ticker, self._max_new_per_review)
+                self.thesis_manager.remove_thesis(ticker)
+                continue
+            new_position_count += 1
+
+            # Due diligence — fetch recent headlines and let Claude review
+            # (skipped when news is disabled — Claude decides on technicals + fundamentals)
+            if not self._disable_news:
+                direction = new_pos.get("direction", "LONG").upper()
+                dd_result = self._due_diligence_check(
+                    ticker, direction, new_pos.get("thesis", ""), day_dt,
+                )
+                if not dd_result:
+                    logger.info("    DUE DILIGENCE REJECTED %s — Claude reconsidered after reviewing recent news", ticker)
+                    self.thesis_manager.remove_thesis(ticker)
+                    continue
+
             bar = daily_bars.get(ticker)
             if not bar:
                 # On-demand: download bars for a newly discovered ticker
@@ -435,9 +714,17 @@ class ThesisSimulation:
                 logger.debug("    Dynamic stop for %s: %.1f%%", ticker, dynamic_stop * 100)
 
             # Check profitability for fundamentals gate
+            # Large-cap companies ($100B+) bypass the gate — data lag shouldn't
+            # prevent sizing into AMZN, GOOGL, META etc.
             ticker_profitable = self.fundamentals.is_profitable(
                 ticker, as_of=day_dt,
             )
+            if ticker_profitable is False and self.fundamentals.is_large_cap(ticker):
+                ticker_profitable = True
+                logger.info(
+                    "    LARGE-CAP BYPASS: %s is large-cap ($100B+), bypassing profitability gate",
+                    ticker,
+                )
 
             plan = self.risk.evaluate_new_position(
                 ticker=ticker,
@@ -533,14 +820,230 @@ class ThesisSimulation:
                     plan.allocation_pct, tier, stop_loss, stop_pct,
                 )
 
+    def _check_intraday_shock(
+        self, daily_bars: dict,
+        prev_prices: dict[str, float] | None = None,
+        atr_multiple: float = 3.0,
+        portfolio_threshold: float = -0.05,
+    ) -> bool:
+        """Check for intraday shocks that warrant a reassessment review.
+
+        Two triggers:
+        1. Any single position drops more than 3x its ATR in a day (adaptive
+           to each stock's normal volatility — PLTR at 5% ATR needs a 15% drop,
+           COST at 1.4% ATR triggers at 4.2%)
+        2. Total portfolio drops 5%+ in a day (market-wide crash)
+
+        Uses prev_prices (yesterday's close) for close-to-close comparison
+        that catches gap-down opens.
+        """
+        if not self.broker.positions:
+            return False
+
+        prev_prices = prev_prices or {}
+
+        # Check individual positions using ATR-scaled thresholds
+        for ticker, pos in self.broker.positions.items():
+            bar = daily_bars.get(ticker)
+            if not bar:
+                continue
+            day_close = bar["close"]
+            prev_close = prev_prices.get(ticker)
+            if not prev_close or prev_close <= 0:
+                continue
+            day_return = (day_close - prev_close) / prev_close
+            if pos.is_short:
+                day_return = -day_return
+
+            # ATR-based threshold: 3x ATR% = "exceptionally unusual move"
+            threshold = -0.10  # Fallback if no ATR
+            atr_pct = self._atr_cache.get(ticker)
+            if atr_pct is not None:
+                threshold = -(atr_pct / 100.0) * atr_multiple
+
+            if day_return <= threshold:
+                logger.info(
+                    "  VOLATILITY: %s dropped %.1f%% ($%.2f → $%.2f) — exceeds %.1fx ATR (threshold %.1f%%)",
+                    ticker, day_return * 100, prev_close, day_close,
+                    atr_multiple, threshold * 100,
+                )
+                return True
+
+        # Check portfolio-level (all positions moving against us together)
+        if len(self.daily_snapshots) >= 2:
+            prev_value = self.daily_snapshots[-2]["portfolio_value"]
+            curr_value = self.broker.portfolio_value
+            if prev_value > 0:
+                portfolio_return = (curr_value - prev_value) / prev_value
+                if portfolio_return <= portfolio_threshold:
+                    logger.info(
+                        "  VOLATILITY: Portfolio dropped %.1f%% in one day ($%s → $%s)",
+                        portfolio_return * 100,
+                        f"{prev_value:,.0f}",
+                        f"{curr_value:,.0f}",
+                    )
+                    return True
+
+        return False
+
+    def _check_volatility_trigger(
+        self, days_since_review: int, threshold: float = 0.05,
+    ) -> bool:
+        """Check if portfolio has swung 5%+ since the last review.
+
+        Catches sustained high-volatility periods where the world may have
+        changed — triggers a calm reassessment, not a panic response.
+        Only fires if at least 5 days have passed since last review.
+        """
+        if len(self.daily_snapshots) <= days_since_review:
+            return False
+
+        # Portfolio value at last review
+        review_value = self.daily_snapshots[-(days_since_review + 1)]["portfolio_value"]
+        current_value = self.broker.portfolio_value
+        if review_value <= 0:
+            return False
+
+        swing = abs(current_value - review_value) / review_value
+        if swing >= threshold:
+            direction = "up" if current_value > review_value else "down"
+            logger.info(
+                "  VOLATILITY: Portfolio swung %.1f%% %s since last review ($%s → $%s)",
+                swing * 100, direction,
+                f"{review_value:,.0f}", f"{current_value:,.0f}",
+            )
+            return True
+        return False
+
     def _check_catastrophic_stops(self, daily_bars: dict, day_dt: datetime) -> None:
-        """Check stops against daily bars."""
+        """Check stops against daily bars.
+
+        For scout positions (mechanical stops), auto-exit and move to watching.
+        For core positions (catastrophic 30% stop), trigger an emergency Claude
+        review instead of auto-selling — Claude decides EXIT, HOLD, or ADD.
+        """
         triggered = self.broker.check_stops_and_targets(daily_bars)
         for t in triggered:
             ticker = t.get("ticker", "")
             pnl = t.get("pnl", 0)
             exit_price = t.get("exit_price", 0)
             reason = t.get("exit_reason", "stopped_out")
+
+            # Determine if this was a scout (mechanical stop) or core (catastrophic)
+            pos = self.broker.positions.get(ticker)
+            thesis = self.thesis_manager.get_by_ticker(ticker)
+            confidence = thesis.get("confidence", "medium") if thesis else "medium"
+            is_core = self.risk.is_core_position(confidence)
+
+            if is_core and reason == "stopped_out":
+                # Core position hit catastrophic stop — trigger emergency review
+                logger.info("")
+                logger.info("  !!! CATASTROPHIC STOP HIT: %s @ $%.2f (P&L: $%+.2f)", ticker, exit_price, pnl)
+                logger.info("  !!! Triggering emergency Claude review...")
+
+                # Build context for emergency review
+                position_data = {
+                    "entry_price": pos.entry_price if pos else 0,
+                    "current_price": exit_price,
+                    "direction": thesis.get("direction", "LONG") if thesis else "LONG",
+                }
+
+                # Get technicals for this ticker
+                tech_summary = ""
+                bars = self._all_bars.get(ticker)
+                if bars is not None:
+                    history = self._get_bars_up_to(bars, day_dt.date())
+                    if not history.empty and len(history) >= 20:
+                        snap = self.technicals.analyze(ticker, history)
+                        tech_summary = self._format_snapshot(snap)
+
+                # Get recent news
+                try:
+                    week_start = day_dt - timedelta(days=7)
+                    from src.research.world_state import build_world_state
+                    world_state = build_world_state(
+                        start_date=week_start.strftime("%Y-%m-%d"),
+                        end_date=day_dt.strftime("%Y-%m-%d"),
+                        holdings=[ticker],
+                        watchlist=[ticker],
+                        client=self.news_client,
+                    )
+                except Exception:
+                    world_state = "(News unavailable)"
+
+                review = self.decision_engine.run_catastrophic_stop_review(
+                    sim_date=str(day_dt.date()),
+                    ticker=ticker,
+                    position_data=position_data,
+                    thesis_data=thesis or {},
+                    technicals_summary=tech_summary,
+                    world_state=world_state,
+                    portfolio_value=self.broker.portfolio_value,
+                    cash=self.broker.cash,
+                )
+
+                decision = review.get("decision", "EXIT")
+                reasoning = review.get("reasoning", "")
+                logger.info("  !!! Claude decision: %s — %s", decision, reasoning)
+
+                if decision == "EXIT":
+                    # Proceed with the stop-out
+                    logger.info("  EXITING %s @ $%.2f (P&L: $%+.2f) — thesis broken", ticker, exit_price, pnl)
+                    self.thesis_manager.remove_position(ticker)
+                    self.thesis_manager.remove_thesis(ticker)
+                elif decision == "HOLD":
+                    # Cancel the stop-out, reset catastrophic stop from current price
+                    logger.info("  HOLDING %s — resetting catastrophic stop from $%.2f", ticker, exit_price)
+                    # Re-add the position (it was already closed by broker.check_stops_and_targets)
+                    # We need to re-open it at the exit price
+                    from src.strategy.risk_v3 import PositionPlan
+                    reopen_plan = PositionPlan(
+                        ticker=ticker,
+                        quantity=t.get("quantity", 0),
+                        entry_price=t.get("entry_price", exit_price),
+                        stop_loss=exit_price * 0.70 if not t.get("is_short") else exit_price * 1.30,
+                        take_profit=t.get("entry_price", exit_price) * 100.0,
+                        risk_amount=0,
+                        position_value=t.get("quantity", 0) * exit_price,
+                        risk_pct=0,
+                        is_short=t.get("is_short", False),
+                    )
+                    self.broker.place_bracket_order(reopen_plan, is_short=t.get("is_short", False),
+                                                     opened_at=t.get("opened_at", day_dt.isoformat()))
+                elif decision == "ADD":
+                    # Re-open position AND add more
+                    add_pct = review.get("add_allocation_pct", 0)
+                    logger.info("  ADDING to %s — reopening + deploying %d%% more", ticker, add_pct)
+                    import math
+                    # Re-open original position
+                    from src.strategy.risk_v3 import PositionPlan
+                    orig_qty = t.get("quantity", 0)
+                    reopen_plan = PositionPlan(
+                        ticker=ticker,
+                        quantity=orig_qty,
+                        entry_price=t.get("entry_price", exit_price),
+                        stop_loss=exit_price * 0.70 if not t.get("is_short") else exit_price * 1.30,
+                        take_profit=t.get("entry_price", exit_price) * 100.0,
+                        risk_amount=0,
+                        position_value=orig_qty * exit_price,
+                        risk_pct=0,
+                        is_short=t.get("is_short", False),
+                    )
+                    self.broker.place_bracket_order(reopen_plan, is_short=t.get("is_short", False),
+                                                     opened_at=t.get("opened_at", day_dt.isoformat()))
+                    # Add to position
+                    if add_pct > 0 and exit_price > 0:
+                        add_value = self.broker.portfolio_value * (add_pct / 100.0)
+                        min_cash = self.broker.portfolio_value * self.risk._min_cash_pct
+                        available = self.broker.cash - min_cash
+                        add_value = min(add_value, max(0, available))
+                        add_qty = math.floor(add_value / exit_price)
+                        if add_qty > 0:
+                            self.broker.add_to_position(ticker, add_qty, exit_price)
+                            logger.info("  PYRAMIDED %s: +%d shares @ $%.2f", ticker, add_qty, exit_price)
+                continue
+
+            # Scout position or take-profit — standard handling
             logger.info(
                 "  STOP HIT: %s @ $%.2f (P&L: $%+.2f) — %s",
                 ticker, exit_price, pnl, reason,
@@ -576,6 +1079,17 @@ class ThesisSimulation:
 
     def _build_technicals_summary(self, day) -> str:
         """Build a technicals summary string for Claude."""
+        # Compute SPY snapshot for relative strength calculations
+        spy_bars = self._all_bars.get("SPY")
+        if spy_bars is not None:
+            spy_history = self._get_bars_up_to(spy_bars, day)
+            if not spy_history.empty and len(spy_history) >= 20:
+                self._spy_snapshot = self.technicals.analyze("SPY", spy_history)
+            else:
+                self._spy_snapshot = None
+        else:
+            self._spy_snapshot = None
+
         lines = []
         # Start with current holdings, then add universe tickers with data
         tickers = list(self.broker.positions.keys())
@@ -595,8 +1109,7 @@ class ThesisSimulation:
 
         return "\n".join(lines) if lines else "(No technical data)"
 
-    @staticmethod
-    def _format_snapshot(s: TechnicalSnapshot) -> str:
+    def _format_snapshot(self, s: TechnicalSnapshot) -> str:
         parts = [f"{s.ticker}: ${s.current_price:.2f}"]
         if s.rsi_14 is not None:
             parts.append(f"RSI={s.rsi_14:.0f}")
@@ -619,6 +1132,21 @@ class ThesisSimulation:
             parts.append(f"ADX={s.adx_14:.0f}")
         if s.obv_trend is not None:
             parts.append(f"OBV {s.obv_trend}")
+        # Price performance + relative strength vs SPY
+        perf_parts = []
+        if s.return_1m is not None:
+            perf_parts.append(f"1M={s.return_1m:+.1f}%")
+        if s.return_3m is not None:
+            perf_parts.append(f"3M={s.return_3m:+.1f}%")
+        if s.return_6m is not None:
+            perf_parts.append(f"6M={s.return_6m:+.1f}%")
+        if perf_parts:
+            parts.append(f"Returns({', '.join(perf_parts)})")
+        # Relative strength vs SPY
+        spy_snap = self._spy_snapshot
+        if spy_snap and s.return_3m is not None and spy_snap.return_3m is not None:
+            rs = s.return_3m - spy_snap.return_3m
+            parts.append(f"vs SPY(3M)={rs:+.1f}%")
         return " | ".join(parts)
 
     # ------------------------------------------------------------------

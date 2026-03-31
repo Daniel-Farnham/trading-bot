@@ -39,6 +39,10 @@ class TechnicalSnapshot:
     adx_14: float | None = None  # Average Directional Index (0-100)
     # Volume confirmation
     obv_trend: str | None = None  # "rising", "falling", or "flat"
+    # Price performance
+    return_1m: float | None = None  # 1-month return %
+    return_3m: float | None = None  # 3-month return %
+    return_6m: float | None = None  # 6-month return %
 
     @property
     def is_overbought(self) -> bool:
@@ -183,6 +187,11 @@ class TechnicalAnalyzer:
         adx_14 = self._calc_adx(df)
         obv_trend = self._calc_obv_trend(df)
 
+        # Price performance returns
+        return_1m = self._calc_return(close, 21)
+        return_3m = self._calc_return(close, 63)
+        return_6m = self._calc_return(close, 126)
+
         return TechnicalSnapshot(
             ticker=ticker,
             rsi_14=rsi_14,
@@ -204,6 +213,9 @@ class TechnicalAnalyzer:
             atr_pct=atr_pct,
             adx_14=adx_14,
             obv_trend=obv_trend,
+            return_1m=return_1m,
+            return_3m=return_3m,
+            return_6m=return_6m,
         )
 
     def _calc_rsi(self, close: pd.Series, window: int = 14) -> float | None:
@@ -336,3 +348,14 @@ class TechnicalAnalyzer:
         elif normalised < -0.05:
             return "falling"
         return "flat"
+
+    @staticmethod
+    def _calc_return(close: pd.Series, periods: int) -> float | None:
+        """Calculate return over N trading days as a percentage."""
+        if len(close) <= periods:
+            return None
+        current = float(close.iloc[-1])
+        past = float(close.iloc[-periods - 1])
+        if past <= 0:
+            return None
+        return round((current - past) / past * 100, 1)

@@ -67,6 +67,8 @@ class ThesisManager:
             "lessons": root / _mem_cfg("lessons_path", "data/lessons_learned.md"),
             "themes": root / _mem_cfg("themes_path", "data/themes.md"),
             "beliefs": root / _mem_cfg("beliefs_path", "data/beliefs.md"),
+            "world_view": root / _mem_cfg("world_view_path", "data/world_view.md"),
+            "journal": root / _mem_cfg("decision_journal_path", "data/decision_journal.md"),
         }
         self._max_theses = _mem_cfg("max_active_theses", 15)
         self._max_watching = _mem_cfg("max_watching_theses", 5)
@@ -75,6 +77,7 @@ class ThesisManager:
         self._max_themes = _mem_cfg("max_themes", 8)
         self._max_lessons = _mem_cfg("max_lessons", 15)
         self._max_beliefs = _mem_cfg("max_beliefs", 5)
+        self._max_journal_entries = _mem_cfg("max_journal_entries", 12)
         # In-memory watching list (persisted via theses file with WATCHING status)
         self._watching: list[dict] = []
 
@@ -201,6 +204,7 @@ class ThesisManager:
 
     def move_to_watching(
         self, ticker: str, exit_price: float, reason: str = "stopped_out",
+        reentry_price: float | None = None,
     ) -> bool:
         """Move a stopped-out thesis to WATCHING status.
 
@@ -219,6 +223,8 @@ class ThesisManager:
             "thesis_summary": thesis.get("thesis", "")[:150],
             "entry_price": thesis.get("entry_price", 0),
             "exit_price": exit_price,
+            "exit_reason": reason[:100] if reason else "stopped_out",
+            "reentry_price": reentry_price,
             "stop_price": thesis.get("stop_price", 0),
             "confidence": thesis.get("confidence", "medium"),
             "reviews_remaining": self._watching_expiry_reviews,
@@ -319,17 +325,21 @@ class ThesisManager:
 
         if self._watching:
             parts.append("\n---\n")
-            parts.append("# Watching (stopped out — thesis may still be valid)\n")
+            parts.append("# Watching (exited — thesis may still be valid)\n")
             for w in self._watching:
                 direction = w.get("direction", "LONG")
                 entry = w.get("entry_price", 0)
                 exit_p = w.get("exit_price", 0)
+                reason = w.get("exit_reason", "stopped_out")
+                reentry = w.get("reentry_price")
                 summary = w.get("thesis_summary", "")
                 reviews = w.get("reviews_remaining", 0)
+                reentry_str = f" | Re-enter at: ${reentry:.2f}" if reentry else ""
                 parts.append(
                     f"- **{w['ticker']}** ({direction}) | "
-                    f"Entry: ${entry:.2f} → Stopped: ${exit_p:.2f} | "
-                    f"{reviews} reviews left | {summary}"
+                    f"Bought: ${entry:.2f} → Exited: ${exit_p:.2f} | "
+                    f"Why: {reason} | "
+                    f"{reviews} reviews left{reentry_str} | {summary}"
                 )
 
         self._write("theses", "\n".join(parts))
@@ -345,6 +355,31 @@ class ThesisManager:
             line = line.strip()
             if not line.startswith("- **"):
                 continue
+            # Try new format first: Bought/Exited/Why/Re-enter
+            m = re.match(
+                r"- \*\*([A-Z0-9.]+)\*\* \((\w+)\) \| "
+                r"Bought: \$([\d.,]+) → Exited: \$([\d.,]+) \| "
+                r"Why: (.+?) \| "
+                r"(\d+) reviews left"
+                r"(?: \| Re-enter at: \$([\d.,]+))?"
+                r" \| (.+)",
+                line,
+            )
+            if m:
+                reentry = float(m.group(7).replace(",", "")) if m.group(7) else None
+                self._watching.append({
+                    "ticker": m.group(1),
+                    "direction": m.group(2),
+                    "entry_price": float(m.group(3).replace(",", "")),
+                    "exit_price": float(m.group(4).replace(",", "")),
+                    "exit_reason": m.group(5).strip(),
+                    "reentry_price": reentry,
+                    "thesis_summary": m.group(8).strip(),
+                    "reviews_remaining": int(m.group(6)),
+                    "confidence": "medium",
+                })
+                continue
+            # Fall back to old format: Entry/Stopped
             m = re.match(
                 r"- \*\*([A-Z0-9.]+)\*\* \((\w+)\) \| "
                 r"Entry: \$([\d.,]+) → Stopped: \$([\d.,]+) \| "
@@ -357,6 +392,8 @@ class ThesisManager:
                     "direction": m.group(2),
                     "entry_price": float(m.group(3).replace(",", "")),
                     "exit_price": float(m.group(4).replace(",", "")),
+                    "exit_reason": "stopped_out",
+                    "reentry_price": None,
                     "thesis_summary": m.group(6).strip(),
                     "reviews_remaining": int(m.group(5)),
                     "confidence": "medium",
@@ -875,6 +912,86 @@ class ThesisManager:
         self._write("themes", "\n".join(lines))
 
     # ------------------------------------------------------------------
+    # World View (macro regime summary, updated each review)
+    # ------------------------------------------------------------------
+
+    def get_world_view(self) -> str:
+        """Return the current world view content."""
+        return self._read("world_view").strip()
+
+    def update_world_view(self, content: str) -> None:
+        """Replace the world view with Claude's updated macro assessment."""
+        self._write("world_view", f"# World View\n\n{content.strip()}\n")
+
+    # ------------------------------------------------------------------
+    # Decision Journal (rolling log of decisions with reasoning)
+    # ------------------------------------------------------------------
+
+    JOURNAL_ENTRY = re.compile(r"^## (\d{4}-\d{2}-\d{2})", re.MULTILINE)
+
+    def get_journal_entries(self) -> list[dict]:
+        """Parse decision_journal.md into a list of {date, content} dicts."""
+        content = self._read("journal")
+        if not content.strip():
+            return []
+
+        entries = []
+        matches = list(self.JOURNAL_ENTRY.finditer(content))
+        for idx, m in enumerate(matches):
+            date = m.group(1)
+            start = m.end()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(content)
+            body = content[start:end].strip()
+            if body.endswith("---"):
+                body = body[:-3].strip()
+            entries.append({"date": date, "content": body})
+        return entries
+
+    def append_journal_entry(self, date: str, decisions: list[dict]) -> None:
+        """Add a journal entry summarizing this review's decisions.
+
+        Each decision dict should have: ticker, action, allocation_pct, reasoning.
+        Entries are capped at max_journal_entries (rolling window).
+        """
+        if not decisions:
+            return
+
+        lines = [f"## {date}\n"]
+        for d in decisions:
+            ticker = d.get("ticker", "?")
+            action = d.get("action", "?")
+            alloc = d.get("allocation_pct", "?")
+            reasoning = d.get("reasoning", "")
+            lines.append(f"- **{action} {ticker}** ({alloc}%): {reasoning}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        entry_text = "\n".join(lines)
+        content = self._read("journal")
+        if not content.strip():
+            content = "# Decision Journal\n\n"
+        content += entry_text
+        self._write("journal", content)
+        self._truncate_journal()
+
+    def _truncate_journal(self) -> None:
+        """Keep only the most recent max_journal_entries entries."""
+        entries = self.get_journal_entries()
+        if len(entries) <= self._max_journal_entries:
+            return
+        kept = entries[-self._max_journal_entries:]
+        lines = ["# Decision Journal\n"]
+        for e in kept:
+            lines.append(f"## {e['date']}")
+            lines.append(e["content"])
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        self._write("journal", "\n".join(lines))
+        logger.debug("Truncated decision journal to %d entries", self._max_journal_entries)
+
+    # ------------------------------------------------------------------
     # Decision Context (main interface for the decision engine)
     # ------------------------------------------------------------------
 
@@ -884,6 +1001,13 @@ class ThesisManager:
         Excludes simulation_log — that's for post-hoc analysis only.
         """
         sections = []
+
+        # World View (macro regime — top of context for framing)
+        world_view = self.get_world_view()
+        if world_view:
+            sections.append(f"### World View (Your Macro Regime Assessment)\n{world_view}")
+        else:
+            sections.append("### World View\n(No world view set — write one in your response)")
 
         # Themes
         themes = self.get_all_themes()
@@ -906,6 +1030,16 @@ class ThesisManager:
             sections.append(f"### Portfolio Ledger\n{ledger_content.strip()}")
         else:
             sections.append("### Portfolio Ledger\n(No current holdings)")
+
+        # Decision Journal (recent decisions with reasoning)
+        journal_entries = self.get_journal_entries()
+        if journal_entries:
+            journal_lines = []
+            for e in journal_entries:
+                journal_lines.append(f"**{e['date']}**\n{e['content']}")
+            sections.append("### Decision Journal (Your Recent Decisions)\n" + "\n\n".join(journal_lines))
+        else:
+            sections.append("### Decision Journal\n(No prior decisions)")
 
         # Quarterly summaries
         summaries = self.get_recent_summaries()

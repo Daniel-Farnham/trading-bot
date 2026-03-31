@@ -16,14 +16,22 @@ from src.strategy.thesis_manager import ThesisManager
 logger = logging.getLogger(__name__)
 
 
+def _mem_cfg(key: str, default):
+    return CONFIG.get("memory", {}).get(key, default)
+
+
 class DecisionEngine:
     """Orchestrates Claude's weekly investment review."""
 
     def __init__(
         self,
         thesis_manager: ThesisManager,
+        model: str = "sonnet",
+        use_extended_thinking: bool = False,
     ):
         self._tm = thesis_manager
+        self._model = model
+        self._use_extended_thinking = use_extended_thinking
 
     def run_weekly_review(
         self,
@@ -36,15 +44,16 @@ class DecisionEngine:
         bot_return_pct: float = 0.0,
         spy_return_pct: float = 0.0,
         review_number: int = 0,
-        review_type: str = "weekly",
+        review_type: str = "monthly",
         trade_count: int = 0,
     ) -> dict:
-        """Run a weekly thesis-driven review via Claude.
+        """Run a thesis-driven review via Claude.
 
         Returns parsed decision dict with keys:
             world_assessment, thesis_updates, new_positions,
             close_positions, reduce_positions, lessons, weekly_summary,
-            lesson_updates, belief_updates, lessons_to_prune
+            lesson_updates, belief_updates, lessons_to_prune,
+            world_view_update, decision_reasoning
         """
         memory_context = self._tm.get_decision_context()
         prompt = self._build_prompt(
@@ -62,6 +71,109 @@ class DecisionEngine:
         self._apply_to_memory(response, sim_date)
 
         return response
+
+    def run_catastrophic_stop_review(
+        self,
+        sim_date: str,
+        ticker: str,
+        position_data: dict,
+        thesis_data: dict,
+        technicals_summary: str,
+        world_state: str,
+        portfolio_value: float,
+        cash: float,
+    ) -> dict:
+        """Emergency review when a catastrophic stop is hit.
+
+        Claude decides: EXIT (thesis broken), HOLD (temporary panic),
+        or ADD (thesis intact + buying opportunity).
+
+        Returns dict with keys: decision ("EXIT" | "HOLD" | "ADD"),
+        reasoning, add_allocation_pct (if ADD).
+        """
+        entry_price = position_data.get("entry_price", 0)
+        current_price = position_data.get("current_price", 0)
+        pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        direction = position_data.get("direction", "LONG")
+
+        thesis_text = thesis_data.get("thesis", "(no thesis on file)")
+        invalidation = thesis_data.get("invalidation", "(no invalidation criteria)")
+
+        world_view = self._tm.get_world_view()
+
+        prompt = f"""CRITICAL: You are making a decision on {sim_date}.
+You DO NOT know what happens after this date.
+
+EMERGENCY REVIEW: CATASTROPHIC STOP HIT
+
+{ticker} has hit -30% from entry. This requires your immediate assessment.
+
+POSITION DATA:
+- Ticker: {ticker}
+- Direction: {direction}
+- Entry Price: ${entry_price:.2f}
+- Current Price: ${current_price:.2f}
+- P&L: {pnl_pct:+.1f}%
+- Portfolio Value: ${portfolio_value:,.2f}
+- Cash: ${cash:,.2f}
+
+ORIGINAL THESIS:
+{thesis_text}
+
+INVALIDATION CRITERIA:
+{invalidation}
+
+CURRENT WORLD VIEW:
+{world_view if world_view else "(No world view on file)"}
+
+CURRENT TECHNICALS:
+{technicals_summary}
+
+RECENT NEWS:
+{world_state}
+
+YOUR TASK:
+This position has dropped 30%. You must decide:
+
+1. **EXIT** — The thesis is broken. The drop reflects a fundamental change
+   (earnings disaster, competitive disruption, policy reversal, sector rotation).
+   Sell immediately and accept the loss.
+
+2. **HOLD** — The thesis is intact. The drop is a market-wide panic, temporary
+   sentiment shock, or noise. The original investment case still holds.
+   Reset the catastrophic stop to current price -30%.
+
+3. **ADD** — The thesis is STRONGER than when you entered. This is a gift —
+   the market is giving you a better price on a thesis you believe in even more.
+   Specify additional allocation %. This is the Druckenmiller/Burry move.
+
+Be honest. Most -30% drops are thesis-breaking. Only choose HOLD/ADD if you have
+specific evidence the thesis is intact — not just hope.
+
+Respond with ONLY valid JSON:
+{{
+  "decision": "EXIT" or "HOLD" or "ADD",
+  "reasoning": "2-3 sentences explaining why",
+  "add_allocation_pct": 0
+}}
+
+If decision is ADD, set add_allocation_pct to the ADDITIONAL % to deploy (e.g. 5 for 5% more).
+If EXIT or HOLD, set add_allocation_pct to 0."""
+
+        response = self._call_claude(prompt)
+        if not response:
+            logger.warning("No Claude response for catastrophic stop review of %s — defaulting to EXIT", ticker)
+            return {"decision": "EXIT", "reasoning": "Claude failed to respond — safety exit", "add_allocation_pct": 0}
+
+        # Validate response
+        decision = response.get("decision", "EXIT").upper()
+        if decision not in ("EXIT", "HOLD", "ADD"):
+            decision = "EXIT"
+        return {
+            "decision": decision,
+            "reasoning": response.get("reasoning", ""),
+            "add_allocation_pct": response.get("add_allocation_pct", 0),
+        }
 
     def _build_prompt(
         self,
@@ -100,6 +212,9 @@ class DecisionEngine:
         # Monthly belief review section
         monthly_section = self._monthly_review_text(review_type)
 
+        # Shock review urgency note
+        shock_section = self._shock_review_text(review_type)
+
         # Anti-churning discipline
         discipline_section = self._trade_discipline_text(trade_count)
 
@@ -113,6 +228,8 @@ class DecisionEngine:
         # Build JSON schema
         json_schema = self._build_json_schema(review_type, review_number)
 
+        max_new = _mem_cfg("max_new_positions_per_review", 3)
+
         return f"""CRITICAL: You are making decisions on {sim_date}.
 You DO NOT know what happens after this date.
 Base your decisions ONLY on the news and data provided below.
@@ -120,6 +237,7 @@ Do not reference any events after {sim_date}.
 
 You are the Chief Investment Officer of a thesis-driven trading bot.
 Your role is to decide WHAT to own based on how the world is changing.
+{shock_section}
 
 PORTFOLIO STATE:
 - Portfolio Value: ${portfolio_value:,.2f}
@@ -133,7 +251,7 @@ PORTFOLIO STATE:
 MEMORY (your persistent context):
 {memory_context}
 
-THIS WEEK'S RESEARCH:
+THIS MONTH'S RESEARCH:
 {world_state}
 
 TECHNICAL TIMING DATA:
@@ -141,8 +259,12 @@ TECHNICAL TIMING DATA:
 
 FUNDAMENTALS (quarterly financial data — use to validate thesis quality):
 {fundamentals_summary if fundamentals_summary else "(No fundamental data available)"}
-NOTE: Unprofitable companies are CAPPED at "high" confidence (max 10% allocation).
-Only profitable companies can receive "highest" confidence (15%).
+NOTE: Unprofitable small/mid-cap companies are CAPPED at "high" confidence.
+Large-cap companies ($100B+) bypass this gate.
+KEY: RevGr(YoY) is the most important growth metric. Companies growing revenue 30%+ YoY
+are structural winners. Companies growing <10% YoY are compounders, not alpha generators.
+Your LARGEST positions should be in the FASTEST growing companies, not just the safest ones.
+A 25% allocation to a 8% YoY grower will NOT hit 30% annual returns.
 
 {theme_section}
 
@@ -153,15 +275,21 @@ You can also trade stocks outside this universe if you discover them through res
 GOALS:
 1. Target 30%+ annualized return — we are concentrated, conviction-driven investors
 2. Beat the S&P 500 by 10%+ annually. This requires CONCENTRATED bets, not diversification.
-3. In bear markets, capital preservation matters — shorting and cash are valid strategies.
+3. Do NOT prioritise capital preservation over growth. We accept drawdowns as the price
+   of outsized returns. A 20% drawdown on a 50%+ winner is fine. Sitting in defensive
+   stocks that grow 8% YoY is NOT fine — that guarantees underperformance.
+4. Even in a falling market, your PRIMARY positions should be high-growth companies
+   bought at a discount. Market pullbacks are BUYING opportunities for the best growers,
+   not a signal to hide in defensives. Defensive positions should be max 20% of portfolio.
 We are Druckenmiller-style macro investors. We identify regime changes, bet big on our
 best ideas, and hold winners for months. We use pullbacks as entry opportunities.
+We make FEWER trades with LARGER conviction. Quality over quantity.
 
 POSITION TIERS:
 You have TWO types of positions:
 
 SCOUT POSITIONS (low/medium confidence, max 5% / 8%):
-  - Testing a thesis. Small, capped bet to see if you're right.
+  - Testing a thesis cheaply. Small, capped bet.
   - These have MECHANICAL stop losses and targets — the system auto-exits at your stated stop/target price daily.
   - Use these when: interesting setup but uncertain timing, or exploring a new theme.
 
@@ -169,46 +297,68 @@ CORE POSITIONS (high/highest confidence, YOU decide the size):
   - Your BEST ideas. The alpha engine. Druckenmiller's "going for the jugular."
   - NO allocation cap — you decide how much to put on. 10%, 20%, 40% — size to conviction.
   - The only limit is the 20% minimum cash reserve. Deploy the rest as you see fit.
-  - These have NO mechanical stop and NO mechanical target. Zero. Nothing.
-  - YOU are 100% responsible for exits. The system will not save you.
+  - These have a 30% catastrophic safety net (emergency review triggered, not auto-sell).
+  - YOU are 100% responsible for exits via thesis reviews.
   - If the thesis is intact, HOLD — even through a 20% drawdown. That's the Burry trade.
   - If the thesis breaks, EXIT IMMEDIATELY — don't hope it comes back.
   - Use "high" when thesis + technicals align strongly.
   - Use "highest" when you want MAXIMUM sizing. Requirements:
-    * Thesis is crystal clear with an identifiable catalyst (earnings, policy, sector shift)
+    * Thesis is crystal clear with an identifiable catalyst
     * Technicals confirm: above SMA50, MACD bullish, OBV rising (all three)
-    * Fundamentals support: profitable company, reasonable valuation, healthy balance sheet
+    * Fundamentals support: profitable company, reasonable valuation
     * Macro regime aligns with the trade direction
-    * You would be genuinely surprised if this trade failed
-  - UPGRADING: You can upgrade a scout to core by re-submitting it in new_positions with
-    higher confidence. The system will automatically widen the stop from mechanical to
-    30% catastrophic. Do this when a scout has confirmed your thesis.
+  - You CAN open core positions from the very first review if conviction warrants it.
+    You do NOT need to go through a scout phase first. If the thesis, technicals,
+    fundamentals, and macro all align, go straight to core. Druckenmiller didn't
+    "test" his best ideas with 5% — he went big immediately.
   - PYRAMIDING (adding to winners): To add to an existing position, re-submit the ticker
     in new_positions with the TOTAL allocation you want (not the additional amount).
     Example: if you hold NVDA at ~10% and want to go to 25%, submit allocation_pct: 25.
-    The system calculates how many additional shares to buy at the current price.
-    ONLY pyramid into positions where: thesis is STRENGTHENING, OBV is rising, and you
-    have a clear reason why more capital is warranted (earnings beat, catalyst confirmed).
-    Never pyramid into a losing position — that's averaging down, not pyramiding.
-  - Hold core positions for weeks to months. A 5-10% drawdown on a core position is NORMAL —
-    do NOT exit just because the price dipped. Only exit when the THESIS is broken.
-  - When a core position is working (thesis strengthening, OBV rising), ADD TO IT rather than
-    opening new positions. Your biggest winners should be your biggest positions.
+    ONLY pyramid into positions where thesis is STRENGTHENING and OBV is rising.
+    Never pyramid into a losing position.
+  - When a core position is working, ADD TO IT rather than opening new positions.
+    Your biggest winners should be your biggest positions.
 
 RULES:
-- Max 8 positions at any time — prefer 5-6 concentrated bets over 10+ small ones
+- Max 8 positions at any time — prefer 3-5 concentrated bets
+- Max {max_new} NEW positions per review — be selective, not reactive
 - Keep at least 20% cash at all times
 - Every position MUST have a thesis with explicit invalidation conditions
 - When a thesis is invalidated, EXIT immediately regardless of tier
-- At each review, evaluate EVERY core position: is the thesis still valid?
-  A core position that has lost money but whose thesis is INTACT should be HELD.
-  A core position whose thesis is BROKEN should be closed regardless of P&L.
-- Scout positions are auto-managed by stops/targets — focus your review energy on core positions
+- At each review, evaluate EVERY position: is the thesis still valid?
+  A position that has lost money but whose thesis is INTACT should be HELD.
+  A position whose thesis is BROKEN should be closed regardless of P&L.
+- A thesis is BROKEN when the REASON you bought the stock is no longer true:
+  * Company loses competitive moat (real competitor emerges, key product obsoleted)
+  * Regulatory/legal action against THIS specific company (antitrust, fraud, FDA rejection)
+  * Key customer or partner loss (contract cancelled, partnership ended)
+  * Fundamental business deterioration (revenue declining, margins collapsing in earnings)
+  * Management crisis (CEO departure, accounting scandal)
+  * The structural trend you bet on has ended (capex cycle stops, policy reversed)
+- A thesis is NOT broken by: price drops, analyst downgrades, sector rotation,
+  tariff fears, short-term earnings miss with intact growth story, or general market panic.
+  These are noise. Hold through them.
 - Use technicals for entry timing. Key exit signals for CORE positions:
   - Thesis invalidated by news, earnings, or policy change
-  - Below SMA50 + MACD bearish + OBV falling (triple distribution signal) — thesis likely broken
+  - Below SMA50 + MACD bearish + OBV falling (triple distribution) — thesis likely broken
   - HOWEVER: a price dip with OBV rising is NOT a sell signal — institutions are accumulating
 - For scouts: set tight stops (5-10% below entry). You're testing, not committing.
+
+CRITICAL — MACRO CRASH vs THESIS BREAK (read this carefully):
+When 50%+ of your positions show triple distribution SIMULTANEOUSLY, this is a MACRO EVENT
+(tariff shock, market panic, rate scare) — NOT individual thesis breaks. During macro events:
+1. Do NOT sell positions whose fundamental thesis is still intact. The technicals are reflecting
+   market-wide panic, not company-specific deterioration. They WILL recover.
+2. The ONLY reason to sell during a macro crash is COMPANY-SPECIFIC bad news (fraud, earnings
+   disaster, regulatory action against THAT company specifically).
+3. Use RELATIVE STRENGTH as your guide: positions falling LESS than SPY are your strongest
+   holdings — these are what institutions will buy back first. Hold or add to these.
+4. Do NOT rotate into "defensive" stocks during a macro crash. Defensives underperform in the
+   recovery and you'll be stuck in slow-growth names while your original positions bounce 30-40%.
+5. Market crashes are BUYING opportunities for your highest-conviction thesis-intact positions.
+   Druckenmiller's biggest wins came from buying during panics, not hiding from them.
+Triple distribution is a SELL signal only when it's isolated to 1-2 positions while the rest
+of the portfolio is fine. When everything is distributing, the signal is noise — hold your nerve.
 
 {discipline_section}
 
@@ -216,33 +366,29 @@ DEPLOYMENT PACING:
 {self._deployment_pacing_text(review_number, holdings_count)}
 
 SHORTING:
-You SHOULD actively consider shorts — especially when we're trailing the S&P or in a
-declining market. Shorts can be scout OR core positions:
-- Scout shorts: small (3-5%), mechanical stop, quick thesis test
-- Core shorts: larger (8-12%), no mechanical stop, hold through volatility if thesis intact
-In a bear market, aim for 1-2 core short positions as portfolio hedges.
+Consider shorts when trailing SPY or in a declining market.
+- Scout shorts: small (3-5%), mechanical stop
+- Core shorts: larger (8-12%), thesis-based exits
+In a bear market, aim for 1-2 core short positions as hedges.
 
 WATCHING THESES:
-If you see a "Watching" section in your theses, these are positions that were stopped out
-but where the thesis may still be valid. You can re-enter a watched position by including
-it in new_positions — you don't need to rewrite the thesis from scratch, just reference why
-you're re-entering at this price. Watching theses auto-expire after 6 reviews if not re-entered.
-If you believe a watching thesis is truly dead, close it via close_positions to remove it.
-
-DISCOVERY:
-The research section may include "Emerging Opportunities" — tickers getting significant
-news coverage that aren't in our current watchlist. If any look compelling and align with
-our themes, consider opening a position. Don't force it, but don't ignore it either.
+If you see a "Watching" section, these are stopped-out positions with potentially valid theses.
+You can re-enter by including in new_positions. Auto-expire after 6 reviews.
 
 TASKS:
-1. Review world events — what's changed this week that matters?
-2. Update each active thesis — still valid? stronger? weakening?
-3. Should we open any new positions? Check the Emerging Opportunities section for ideas.
+1. UPDATE YOUR WORLD VIEW — write a concise macro regime assessment (current regime +
+   forward outlook 12-18 months + key risks). This persists between reviews and is your
+   primary source of macro continuity. Max 300 words.
+2. Review each active thesis — still valid? stronger? weakening?
+3. Should we open any new positions? (max {max_new} new per review)
 4. Should we SHORT any companies facing structural headwinds?
 5. Should we close or reduce any positions? (thesis broken?)
-6. Theme check: any themes strengthening or weakening? Any new themes emerging from the news?
+6. Theme check: any themes strengthening or weakening? New themes emerging?
 7. Any new lessons learned? Be specific and actionable (include trigger conditions).
 {lesson_update_task}
+8. For EVERY trade decision (buy, sell, short, reduce, pyramid), write a 1-2 sentence
+   reasoning in decision_reasoning. This is your decision journal — it helps you remember
+   WHY you made each decision when you review it next month.
 {monthly_section}
 
 Respond with ONLY valid JSON:
@@ -253,7 +399,8 @@ Theme update rules:
 - To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
 - Only adjust themes when there's clear evidence from the news. Max ±1 per review.
 
-If no changes needed, return empty arrays. Always include world_assessment and weekly_summary."""
+If no changes needed, return empty arrays. Always include world_assessment, world_view_update,
+decision_reasoning, and weekly_summary."""
 
     def _theme_section_text(self, review_number: int) -> str:
         """Generate the theme section. First review discovers themes from news."""
@@ -264,12 +411,41 @@ If no changes needed, return empty arrays. Always include world_assessment and w
                 "These should reflect the current market environment, not predetermined ideas.\n"
                 "Add them via theme_updates with action \"ADD\"."
             )
+        num_themes = len(self._tm.get_all_themes())
+        at_cap = num_themes >= self._tm._max_themes
+        cap_warning = ""
+        if at_cap:
+            cap_warning = (
+                f"\nWARNING: You are at the theme cap ({num_themes}/{self._tm._max_themes}). "
+                f"To add a new theme, you MUST first decrement a weaker theme to remove it. "
+                f"Look for themes that are no longer supported by recent evidence, have no "
+                f"positions tied to them, or scored 1-2 with no recent reinforcement. "
+                f"Stale themes waste capacity — be ruthless about pruning."
+            )
         return (
             f"THEMES (see Memory section above — scored 1-5, higher = stronger conviction):\n"
             f"Themes are informational — they guide your thinking but don't dictate allocations.\n"
             f"You can propose new themes or adjust scores. New themes start at score 1 and must prove themselves.\n"
             f"If a theme is decremented below 1 it is auto-removed. Max {self._tm._max_themes} themes."
+            f"{cap_warning}"
         )
+
+    @staticmethod
+    def _shock_review_text(review_type: str) -> str:
+        """Generate note for volatility-triggered reviews."""
+        if review_type not in ("shock", "volatility"):
+            return ""
+        return """
+*** VOLATILITY REVIEW — SIGNIFICANT MARKET MOVEMENT DETECTED ***
+Something has moved unusually. This is NOT a scheduled review.
+Step back and reassess calmly — do not panic:
+1. Is this a market-wide regime shift or company-specific?
+2. For EACH position: has the thesis strengthened, weakened, or broken?
+3. If macro-driven and thesis intact, dips with OBV rising are BUYING opportunities.
+4. If company-specific and thesis broken, EXIT — don't hope for recovery.
+5. Has the macro regime changed? Update your world view if so.
+This is a reassessment, not a reaction. Make deliberate decisions.
+"""
 
     @staticmethod
     def _monthly_review_text(review_type: str) -> str:
@@ -304,9 +480,10 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
         """Generate anti-churning trade discipline section."""
         return (
             f"TRADE DISCIPLINE:\n"
-            f"You have executed {trade_count} trades so far. If this exceeds 5 trades per month of simulation,\n"
-            f"you may be over-trading. Each trade has real costs (stop-loss risk, slippage).\n"
-            f"Prefer holding existing positions over opening new ones unless conviction is significantly higher."
+            f"You have executed {trade_count} trades so far. Target: ~15-20 trades per year.\n"
+            f"Each trade has real costs (stop-loss risk, slippage, opportunity cost).\n"
+            f"Prefer HOLDING and PYRAMIDING existing positions over opening new ones.\n"
+            f"The best trade is often no trade — let your winners run."
         )
 
     def _build_json_schema(self, review_type: str, review_number: int) -> str:
@@ -345,7 +522,7 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
     }
   ],
   "close_positions": [
-    {"ticker": "TSLA", "reason": "EV margin thesis broken by competition"}
+    {"ticker": "TSLA", "reason": "EV margin thesis broken by competition", "reentry_price": 0}
   ],
   "reduce_positions": [
     {"ticker": "AAPL", "new_allocation_pct": 4, "reason": "China weakness"}
@@ -376,6 +553,11 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             pass
 
         base += """
+  "world_view_update": "Your updated macro regime assessment (current regime + 12-18 month forward outlook + key risks). Max 300 words. This persists between reviews.",
+  "decision_reasoning": [
+    {"ticker": "NVDA", "action": "BUY", "allocation_pct": 20, "reasoning": "AI capex confirmed by MSFT earnings, OBV rising, RSI pullback to 42 — entering core at size"},
+    {"ticker": "NKE", "action": "SELL", "reasoning": "Tariff thesis broken — 25% of supply chain exposed to China tariffs, OBV falling"}
+  ],
   "weekly_summary": "Brief narrative for the quarterly summary"
 }"""
         return base
@@ -385,22 +567,18 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
         """Generate deployment pacing guidance based on how many reviews have occurred."""
         if review_number <= 1:
             return (
-                "This is your FIRST review. Open 1-2 SCOUT positions to test the regime.\n"
-                "Do NOT open core positions yet — scouts first."
+                "This is your FIRST review. If you have high conviction from the data,\n"
+                "go straight to core positions. You do NOT need to scout first.\n"
+                "If uncertain, open 1-2 scouts to test the regime. Deploy based on conviction, not protocol."
             )
         elif review_number == 2:
             return (
-                "SECOND review. If scouts are confirming, upgrade one to CORE.\n"
-                "You can add new positions. Start deploying capital — don't sit in cash."
-            )
-        elif review_number == 3:
-            return (
-                "THIRD review. You should have a regime read by now.\n"
-                "Core positions are appropriate. Deploy with conviction."
+                "SECOND review. You should be deploying capital with conviction.\n"
+                "If existing positions are confirming, PYRAMID into them rather than opening new ones."
             )
         else:
             cash_warning = ""
-            if holdings_count <= 3:
+            if holdings_count <= 2:
                 cash_warning = (
                     "\nWARNING: You only have {0} positions. Cash above 40% is underperformance "
                     "unless you're in a confirmed bear market. If you see opportunities, DEPLOY. "
@@ -408,21 +586,26 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
                 ).format(holdings_count)
             return (
                 "Deploy capital based on conviction. Your best idea deserves 20-40% of the portfolio.\n"
+                "Prefer PYRAMIDING into winning positions over opening new ones.\n"
                 "Sitting in cash during a bull market is the biggest risk — you miss the move."
                 + cash_warning
             )
 
     def _call_claude(self, prompt: str) -> dict | None:
         try:
+            cmd = [
+                "claude", "-p", prompt,
+                "--output-format", "text",
+                "--model", self._model,
+            ]
+            if self._use_extended_thinking:
+                cmd.extend(["--thinking", "enabled"])
+            timeout = 900 if self._model == "opus" else 600
             result = subprocess.run(
-                [
-                    "claude", "-p", prompt,
-                    "--output-format", "text",
-                    "--model", "sonnet",
-                ],
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=600,
+                timeout=timeout,
             )
 
             if result.returncode != 0:
@@ -465,6 +648,18 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
 
     def _apply_to_memory(self, response: dict, sim_date: str) -> None:
         """Write Claude's decisions back to memory files."""
+        # Update world view
+        world_view = response.get("world_view_update", "")
+        if world_view and world_view.strip():
+            self._tm.update_world_view(world_view)
+            logger.info("  World view updated")
+
+        # Update decision journal
+        decision_reasoning = response.get("decision_reasoning", [])
+        if decision_reasoning:
+            self._tm.append_journal_entry(sim_date, decision_reasoning)
+            logger.info("  Decision journal updated (%d entries)", len(decision_reasoning))
+
         # Update existing thesis statuses
         for update in response.get("thesis_updates", []):
             ticker = update.get("ticker", "")
@@ -495,12 +690,9 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
                 confidence=pos.get("confidence", "medium"),
             )
 
-        # Remove theses for closed positions (Claude chose to close = thesis invalidated)
-        for close in response.get("close_positions", []):
-            ticker = close.get("ticker", "")
-            if ticker:
-                self._tm.remove_thesis(ticker)
-                self._tm.remove_watching(ticker)  # Also remove from watching if present
+        # NOTE: close_positions are NOT handled here — they are handled in
+        # _execute_decisions AFTER the broker confirms the close succeeded.
+        # This prevents orphaned positions (thesis removed but broker close failed).
 
         # Apply theme updates
         for update in response.get("theme_updates", []):
@@ -579,5 +771,7 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             "lesson_updates": [],
             "belief_updates": [],
             "lessons_to_prune": [],
+            "world_view_update": "",
+            "decision_reasoning": [],
             "weekly_summary": "",
         }
