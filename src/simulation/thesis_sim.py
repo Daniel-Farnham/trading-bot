@@ -167,6 +167,10 @@ class ThesisSimulation:
             }
 
             self.broker.update_prices(daily_bars)
+            self.broker.reprice_options(daily_bars, str(day))
+            expired_options = self.broker.check_option_expiry(str(day), daily_bars)
+            for exp in expired_options:
+                logger.info("  OPTION %s: %s", exp.get("exit_reason", "expired"), exp.get("contract_id", ""))
             self._check_catastrophic_stops(daily_bars, day_dt)
             self._update_ledger_values(daily_bars, day)
             self._record_snapshot(day)
@@ -404,6 +408,135 @@ Respond with ONLY valid JSON:
             logger.info("    DUE DILIGENCE REJECTED %s: %s", ticker, reasoning[:100])
         return proceed
 
+    def _execute_option_trade(
+        self, new_pos: dict, daily_bars: dict, day_dt: datetime,
+    ) -> None:
+        """Execute an options trade (BUY_CALL, BUY_PUT, SELL_PUT)."""
+        from src.options.pricing import (
+            select_strike, quote_option, expiry_date_from_months,
+            DEFAULT_RISK_FREE_RATE,
+        )
+
+        ticker = new_pos.get("ticker", "")
+        action = new_pos.get("action", "").upper()
+        allocation_pct = new_pos.get("allocation_pct", 5) / 100.0
+        strike_selection = new_pos.get("strike_selection", "ATM")
+        expiry_months = new_pos.get("expiry_months", 6)
+
+        # Get underlying price
+        bar = daily_bars.get(ticker)
+        if not bar:
+            price = self._get_or_download_price(ticker, day_dt)
+            if not price:
+                logger.warning("    No price for %s, skipping option", ticker)
+                return
+        else:
+            price = bar["close"]
+
+        # Determine option type and direction
+        if action == "BUY_CALL":
+            option_type = "CALL"
+            is_short = False
+        elif action == "BUY_PUT":
+            option_type = "PUT"
+            is_short = False
+        elif action == "SELL_PUT":
+            option_type = "PUT"
+            is_short = True
+        else:
+            logger.warning("    Unknown option action: %s", action)
+            return
+
+        # Calculate strike and expiry
+        strike = select_strike(price, strike_selection, option_type)
+        expiry = expiry_date_from_months(str(day_dt.date()), expiry_months)
+
+        # Get volatility from ATR cache or default
+        sigma = 0.30  # Default 30%
+        atr_pct = self._atr_cache.get(ticker)
+        if atr_pct is not None:
+            # Convert daily ATR% to annualised vol: ATR% * sqrt(252) / 100
+            import math
+            sigma = max(0.15, min(1.0, (atr_pct / 100.0) * math.sqrt(252)))
+
+        # Get quote
+        from src.options.pricing import time_to_expiry_years
+        T = time_to_expiry_years(str(day_dt.date()), expiry)
+        if T <= 0:
+            logger.warning("    Option expiry %s is in the past, skipping", expiry)
+            return
+
+        quote = quote_option(price, strike, T, DEFAULT_RISK_FREE_RATE, sigma, option_type)
+        premium = quote.premium
+
+        if premium <= 0.01:
+            logger.warning("    Option premium too low ($%.2f), skipping", premium)
+            return
+
+        # Calculate number of contracts
+        budget = self.broker.portfolio_value * allocation_pct
+        contracts = max(1, int(budget / (premium * 100)))
+
+        # Check options premium limit (max 15% of portfolio)
+        greeks = self.broker.get_portfolio_greeks()
+        current_options_pct = greeks["total_options_value"] / self.broker.portfolio_value if self.broker.portfolio_value > 0 else 0
+        new_premium_cost = premium * 100 * contracts
+        new_options_pct = (greeks["total_options_value"] + new_premium_cost) / self.broker.portfolio_value
+        if new_options_pct > 0.15:
+            logger.info("    OPTIONS CAP: %s would push options to %.1f%% of portfolio (max 15%%)", ticker, new_options_pct * 100)
+            return
+
+        # Build contract ID
+        expiry_short = expiry.replace("-", "")[2:]  # "250620"
+        type_char = "C" if option_type == "CALL" else "P"
+        contract_id = f"{ticker}_{expiry_short}{type_char}{strike:.0f}"
+
+        # Place the order
+        result = self.broker.place_option_order(
+            contract_id=contract_id,
+            ticker=ticker,
+            option_type=option_type,
+            strike=strike,
+            expiry=expiry,
+            quantity=contracts,
+            premium=premium,
+            is_short=is_short,
+            entry_date=str(day_dt.date()),
+            sigma=sigma,
+        )
+
+        if result.success:
+            total_cost = premium * 100 * contracts
+            side = "SOLD" if is_short else "BOUGHT"
+            logger.info(
+                "    %s %d %s %s $%.0f %s @ $%.2f/sh ($%,.0f total, delta %.2f)",
+                side, contracts, ticker, option_type, strike, expiry,
+                premium, total_cost, quote.greeks.delta,
+            )
+        else:
+            logger.warning("    Option order failed for %s: %s", ticker, result.error)
+
+    def _build_options_context(self) -> str:
+        """Build options context string for Claude's prompt."""
+        greeks = self.broker.get_portfolio_greeks()
+        if greeks["option_count"] == 0:
+            return ""
+
+        lines = ["\nOPEN OPTION POSITIONS:"]
+        for opt in self.broker.option_positions.values():
+            pnl = (opt.current_premium - opt.premium_paid) * 100 * opt.quantity
+            if opt.is_short:
+                pnl = -pnl
+            side = "SHORT" if opt.is_short else "LONG"
+            lines.append(
+                f"  {side} {opt.ticker} {opt.expiry} {opt.option_type} ${opt.strike:.0f} "
+                f"x{opt.quantity} | Premium: ${opt.premium_paid:.2f}→${opt.current_premium:.2f} | "
+                f"P&L: ${pnl:+,.0f} | Delta: {opt.current_delta:.2f}"
+            )
+        lines.append(f"  Net Delta: {greeks['net_delta']:.0f} shares equivalent")
+        lines.append(f"  Total Options Value: ${greeks['total_options_value']:,.0f}")
+        return "\n".join(lines)
+
     def _get_trade_count(self) -> int:
         """Get total trade count: closed trades + open positions."""
         return len(self.broker.closed_trades) + len(self.broker.positions)
@@ -457,6 +590,9 @@ Respond with ONLY valid JSON:
             self.fundamentals, fundamentals_tickers, as_of=day_dt,
         )
 
+        # Step 2c: Build options context
+        options_context = self._build_options_context()
+
         # Step 3: Claude review
         pv = self.broker.portfolio_value
         bot_return = ((pv / self.initial_cash) - 1) * 100
@@ -476,6 +612,7 @@ Respond with ONLY valid JSON:
             review_number=self._weeks_elapsed + 1,
             review_type=review_type,
             trade_count=trade_count,
+            options_context=options_context,
         )
 
         # Step 4: Execute decisions
@@ -692,6 +829,12 @@ Respond with ONLY valid JSON:
                     logger.info("    DUE DILIGENCE REJECTED %s — Claude reconsidered after reviewing recent news", ticker)
                     self.thesis_manager.remove_thesis(ticker)
                     continue
+
+            # Route options trades separately from equity
+            action = new_pos.get("action", "BUY").upper()
+            if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
+                self._execute_option_trade(new_pos, daily_bars, day_dt)
+                continue
 
             bar = daily_bars.get(ticker)
             if not bar:

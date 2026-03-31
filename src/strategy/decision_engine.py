@@ -46,6 +46,7 @@ class DecisionEngine:
         review_number: int = 0,
         review_type: str = "monthly",
         trade_count: int = 0,
+        options_context: str = "",
     ) -> dict:
         """Run a thesis-driven review via Claude.
 
@@ -60,6 +61,7 @@ class DecisionEngine:
             sim_date, memory_context, world_state, technicals_summary,
             fundamentals_summary, portfolio_value, cash, bot_return_pct,
             spy_return_pct, review_number, review_type, trade_count,
+            options_context,
         )
 
         response = self._call_claude(prompt)
@@ -189,6 +191,7 @@ If EXIT or HOLD, set add_allocation_pct to 0."""
         review_number: int = 0,
         review_type: str = "weekly",
         trade_count: int = 0,
+        options_context: str = "",
     ) -> str:
         holdings = self._tm.get_holdings()
         holdings_count = len(holdings)
@@ -371,6 +374,29 @@ Consider shorts when trailing SPY or in a declining market.
 - Core shorts: larger (8-12%), thesis-based exits
 In a bear market, aim for 1-2 core short positions as hedges.
 
+OPTIONS TRADING:
+You can use options to amplify conviction or manage risk. Available strategies:
+- BUY_CALL: Leveraged upside on highest-conviction ideas. LEAPS only (3mo+ expiry).
+  Your premium is your max loss — no catastrophic stop needed. 3-5x notional leverage.
+  Use when: thesis is strong, you want more exposure than cash allows.
+  Strike selection: "ATM", "5_OTM", "10_OTM" (system calculates exact strike).
+  Example: BUY_CALL NVDA, 6 months, ATM, 5% allocation = $5k premium for ~$25k exposure.
+- SELL_PUT: Get paid to wait for a pullback entry. Cash-secured only.
+  If assigned, you own shares at (strike - premium). If not, keep the premium.
+  Use when: you want to buy a stock but only at a lower price.
+  Example: SELL_PUT NVDA, 3 months, 10_OTM = sell put 10% below current price.
+- BUY_PUT: Portfolio insurance on core positions. Replaces catastrophic stop.
+  Costs premium but defines maximum loss precisely.
+  Use when: protecting a large core position through uncertain period.
+
+OPTIONS RULES:
+- Max 15% of portfolio value in total options premium
+- LEAPS only — minimum 3 months to expiry (expiry_months: 3, 6, 9, 12, 18)
+- Cash-secured puts must have full assignment cash available
+- No naked calls (undefined risk)
+- Options are expressions of equity theses — every option needs a thesis
+{options_context}
+
 WATCHING THESES:
 If you see a "Watching" section, these are stopped-out positions with potentially valid theses.
 You can re-enter by including in new_positions. Auto-expire after 6 reviews.
@@ -519,6 +545,32 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
       "horizon": "3-6 months",
       "confidence": "medium",
       "timing_note": "Breaking below support"
+    },
+    {
+      "ticker": "NVDA",
+      "action": "BUY_CALL",
+      "allocation_pct": 5,
+      "direction": "LONG",
+      "thesis": "Leveraged bet on AI capex cycle — LEAPS for 3-5x exposure",
+      "invalidation": "AI capex cuts by hyperscalers",
+      "strike_selection": "ATM",
+      "expiry_months": 6,
+      "horizon": "6 months",
+      "confidence": "high",
+      "timing_note": "IV rank low, good time to buy options"
+    },
+    {
+      "ticker": "AMZN",
+      "action": "SELL_PUT",
+      "allocation_pct": 8,
+      "direction": "LONG",
+      "thesis": "Want to own AMZN at 10% discount — sell put to get paid while waiting",
+      "invalidation": "AWS growth decelerates below 15%",
+      "strike_selection": "10_OTM",
+      "expiry_months": 3,
+      "horizon": "3 months",
+      "confidence": "high",
+      "timing_note": "IV elevated after earnings — good premium"
     }
   ],
   "close_positions": [

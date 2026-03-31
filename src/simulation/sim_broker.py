@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.execution.broker import OrderResult
+from src.options.pricing import (
+    price_option, greeks, time_to_expiry_years, DEFAULT_RISK_FREE_RATE,
+)
 from src.strategy.risk_v3 import PositionPlan
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,23 @@ class SimPosition:
 
 
 @dataclass
+class SimOptionPosition:
+    """A simulated option contract position."""
+    contract_id: str         # e.g., NVDA_250620C140
+    ticker: str              # Underlying
+    option_type: str         # "CALL" or "PUT"
+    strike: float
+    expiry: str              # "2025-06-20"
+    quantity: int            # Number of contracts (each = 100 shares)
+    premium_paid: float      # Per-share premium at entry
+    entry_date: str
+    is_short: bool = False   # True = sold/written
+    current_premium: float = 0.0
+    current_delta: float = 0.0
+    sigma: float = 0.30      # Volatility used for pricing
+
+
+@dataclass
 class SimBroker:
     """A simulated broker that tracks positions in memory.
 
@@ -33,6 +53,7 @@ class SimBroker:
     initial_cash: float = 100000.0
     cash: float = 0.0
     positions: dict[str, SimPosition] = field(default_factory=dict)
+    option_positions: dict[str, SimOptionPosition] = field(default_factory=dict)
     closed_trades: list[dict] = field(default_factory=list)
     total_pnl: float = 0.0
 
@@ -42,16 +63,24 @@ class SimBroker:
 
     @property
     def portfolio_value(self) -> float:
+        # Equity positions
         position_value = 0.0
         for p in self.positions.values():
             price = p.current_price if p.current_price > 0 else p.entry_price
             if p.is_short:
-                # Short P&L: profit when price drops below entry
-                # Cash received at open + unrealized gain/loss
                 position_value += p.quantity * (p.entry_price - price)
             else:
                 position_value += p.quantity * price
-        return self.cash + position_value
+        # Options mark-to-market
+        options_value = 0.0
+        for opt in self.option_positions.values():
+            contract_value = opt.current_premium * 100 * opt.quantity
+            if opt.is_short:
+                # Short options: we owe the current premium
+                options_value -= contract_value
+            else:
+                options_value += contract_value
+        return self.cash + position_value + options_value
 
     def update_prices(self, daily_bars: dict[str, dict]) -> None:
         """Update current prices for all positions from daily bars."""
@@ -229,6 +258,185 @@ class SimBroker:
                 triggered.append(trade)
 
         return triggered
+
+    # ------------------------------------------------------------------
+    # Options
+    # ------------------------------------------------------------------
+
+    def place_option_order(
+        self, contract_id: str, ticker: str, option_type: str,
+        strike: float, expiry: str, quantity: int, premium: float,
+        is_short: bool, entry_date: str, sigma: float = 0.30,
+    ) -> OrderResult:
+        """Place an option order. Premium is per share (x100 per contract)."""
+        total_cost = premium * 100 * quantity
+
+        if is_short:
+            # Selling options: receive premium, but must reserve cash for assignment
+            if option_type.upper() == "PUT":
+                # Cash-secured put: reserve strike * 100 * qty
+                assignment_reserve = strike * 100 * quantity
+                if assignment_reserve > self.cash:
+                    return OrderResult(success=False, error="Insufficient cash for cash-secured put")
+            self.cash += total_cost
+        else:
+            # Buying options: pay premium
+            if total_cost > self.cash:
+                return OrderResult(success=False, error="Insufficient cash for option premium")
+            self.cash -= total_cost
+
+        self.option_positions[contract_id] = SimOptionPosition(
+            contract_id=contract_id,
+            ticker=ticker,
+            option_type=option_type.upper(),
+            strike=strike,
+            expiry=expiry,
+            quantity=quantity,
+            premium_paid=premium,
+            entry_date=entry_date,
+            is_short=is_short,
+            current_premium=premium,
+            sigma=sigma,
+        )
+
+        action = "Sold" if is_short else "Bought"
+        logger.debug(
+            "SIM: %s %d %s %s $%.0f %s @ $%.2f/sh ($%.0f total)",
+            action, quantity, ticker, option_type, strike, expiry, premium, total_cost,
+        )
+        return OrderResult(success=True, order_id=f"sim_opt_{contract_id}")
+
+    def close_option_position(self, contract_id: str, current_premium: float) -> OrderResult:
+        """Close an option position at the current premium."""
+        if contract_id not in self.option_positions:
+            return OrderResult(success=False, error=f"No option position {contract_id}")
+
+        opt = self.option_positions.pop(contract_id)
+        total_exit = current_premium * 100 * opt.quantity
+
+        if opt.is_short:
+            # Buying back a short option costs money
+            self.cash -= total_exit
+            pnl = (opt.premium_paid - current_premium) * 100 * opt.quantity
+        else:
+            # Selling a long option receives money
+            self.cash += total_exit
+            pnl = (current_premium - opt.premium_paid) * 100 * opt.quantity
+
+        self.total_pnl += pnl
+        self.closed_trades.append({
+            "ticker": opt.ticker,
+            "contract_id": contract_id,
+            "instrument": "OPTION",
+            "option_type": opt.option_type,
+            "strike": opt.strike,
+            "expiry": opt.expiry,
+            "quantity": opt.quantity,
+            "entry_premium": opt.premium_paid,
+            "exit_premium": current_premium,
+            "pnl": round(pnl, 2),
+            "is_short": opt.is_short,
+        })
+        return OrderResult(success=True, filled_price=current_premium)
+
+    def reprice_options(self, daily_bars: dict, current_date: str) -> None:
+        """Reprice all option positions using Black-Scholes."""
+        for opt in self.option_positions.values():
+            bar = daily_bars.get(opt.ticker)
+            if not bar:
+                continue
+            S = bar["close"]
+            T = time_to_expiry_years(current_date, opt.expiry)
+            if T <= 0:
+                # At expiry — set to intrinsic value
+                if opt.option_type == "CALL":
+                    opt.current_premium = max(0.0, S - opt.strike)
+                else:
+                    opt.current_premium = max(0.0, opt.strike - S)
+                opt.current_delta = 1.0 if opt.current_premium > 0 else 0.0
+            else:
+                opt.current_premium = price_option(
+                    S, opt.strike, T, DEFAULT_RISK_FREE_RATE, opt.sigma, opt.option_type,
+                )
+                g = greeks(S, opt.strike, T, DEFAULT_RISK_FREE_RATE, opt.sigma, opt.option_type)
+                opt.current_delta = g.delta
+
+    def check_option_expiry(self, current_date: str, daily_bars: dict) -> list[dict]:
+        """Handle option expiration. Returns list of expired/exercised trades."""
+        expired = []
+        to_remove = []
+
+        for contract_id, opt in self.option_positions.items():
+            if current_date < opt.expiry:
+                continue
+
+            bar = daily_bars.get(opt.ticker)
+            S = bar["close"] if bar else 0.0
+
+            # Determine if ITM
+            if opt.option_type == "CALL":
+                intrinsic = max(0.0, S - opt.strike)
+            else:
+                intrinsic = max(0.0, opt.strike - S)
+
+            itm = intrinsic > 0
+
+            if itm and not opt.is_short:
+                # Long ITM option — exercise (close at intrinsic value)
+                pnl = (intrinsic - opt.premium_paid) * 100 * opt.quantity
+                self.cash += intrinsic * 100 * opt.quantity
+                logger.info("  OPTION EXERCISED: %s ITM @ $%.2f (P&L: $%+.2f)", contract_id, intrinsic, pnl)
+            elif itm and opt.is_short:
+                # Short ITM option — assigned
+                pnl = (opt.premium_paid - intrinsic) * 100 * opt.quantity
+                self.cash -= intrinsic * 100 * opt.quantity
+                logger.info("  OPTION ASSIGNED: %s ITM @ $%.2f (P&L: $%+.2f)", contract_id, intrinsic, pnl)
+            else:
+                # OTM — expires worthless
+                if opt.is_short:
+                    pnl = opt.premium_paid * 100 * opt.quantity  # Keep full premium
+                    logger.info("  OPTION EXPIRED WORTHLESS: %s (kept $%.2f premium)", contract_id, pnl)
+                else:
+                    pnl = -opt.premium_paid * 100 * opt.quantity  # Lost full premium
+                    logger.info("  OPTION EXPIRED WORTHLESS: %s (lost $%.2f)", contract_id, -pnl)
+
+            self.total_pnl += pnl
+            self.closed_trades.append({
+                "ticker": opt.ticker,
+                "contract_id": contract_id,
+                "instrument": "OPTION",
+                "option_type": opt.option_type,
+                "strike": opt.strike,
+                "expiry": opt.expiry,
+                "quantity": opt.quantity,
+                "entry_premium": opt.premium_paid,
+                "exit_premium": intrinsic if itm else 0.0,
+                "pnl": round(pnl, 2),
+                "is_short": opt.is_short,
+                "exit_reason": "exercised" if itm else "expired_worthless",
+            })
+            expired.append(self.closed_trades[-1])
+            to_remove.append(contract_id)
+
+        for cid in to_remove:
+            del self.option_positions[cid]
+
+        return expired
+
+    def get_portfolio_greeks(self) -> dict:
+        """Aggregate portfolio Greeks from all option positions."""
+        net_delta = 0.0
+        net_theta = 0.0
+        total_premium = 0.0
+        for opt in self.option_positions.values():
+            sign = -1 if opt.is_short else 1
+            net_delta += sign * opt.current_delta * 100 * opt.quantity
+            total_premium += opt.current_premium * 100 * opt.quantity
+        return {
+            "net_delta": round(net_delta, 1),
+            "total_options_value": round(total_premium, 2),
+            "option_count": len(self.option_positions),
+        }
 
     def get_positions_list(self) -> list[dict]:
         """Returns positions in the same format as MarketData.get_positions."""
