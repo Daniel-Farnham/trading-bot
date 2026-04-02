@@ -65,6 +65,7 @@ def consolidate_beliefs(
     run_beliefs: list[dict],
     run_regime: str,
     run_summary: dict,
+    claude_client=None,
 ) -> list[dict]:
     """Consolidate lessons from a sim run into seed beliefs via Claude.
 
@@ -126,6 +127,25 @@ Respond with ONLY valid JSON:
   "reasoning": "Brief explanation of what changed and why"
 }}"""
 
+    # Delegate to Anthropic SDK client if available (live mode)
+    if claude_client is not None:
+        try:
+            data = claude_client.call(prompt, model="sonnet")
+            if not data:
+                return existing
+            beliefs = data.get("seed_beliefs", [])
+            reasoning = data.get("reasoning", "")
+            if reasoning:
+                logger.info("Belief consolidation: %s", reasoning[:200])
+            if beliefs:
+                save_seed_beliefs(beliefs)
+                return beliefs
+            return existing
+        except Exception as e:
+            logger.error("Belief consolidation via SDK failed: %s", e)
+            return existing
+
+    # Fallback: subprocess to Claude CLI (sim mode)
     try:
         result = subprocess.run(
             ["claude", "-p", prompt, "--output-format", "text", "--model", "sonnet"],

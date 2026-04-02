@@ -28,10 +28,12 @@ class DecisionEngine:
         thesis_manager: ThesisManager,
         model: str = "sonnet",
         use_extended_thinking: bool = False,
+        claude_client=None,
     ):
         self._tm = thesis_manager
         self._model = model
         self._use_extended_thinking = use_extended_thinking
+        self._claude_client = claude_client
 
     def run_weekly_review(
         self,
@@ -677,6 +679,16 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             )
 
     def _call_claude(self, prompt: str) -> dict | None:
+        # Delegate to Anthropic SDK client if available (live mode)
+        if self._claude_client is not None:
+            data = self._claude_client.call(prompt, model=self._model)
+            if data:
+                assessment = data.get("world_assessment", "")
+                if assessment:
+                    logger.info("  World Assessment: %s", assessment[:200])
+            return data
+
+        # Fallback: subprocess to Claude CLI (sim mode)
         try:
             cmd = [
                 "claude", "-p", prompt,

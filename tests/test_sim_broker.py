@@ -85,6 +85,110 @@ class TestSimBroker:
         assert broker.cash == pytest.approx(96500.0)  # 100000 - 1500 - 2000
 
 
+class TestReducePosition:
+    """Test the close-and-reopen pattern used for position reductions."""
+
+    def test_reduce_preserves_current_price(self):
+        """After a reduce (close + reopen smaller), current_price should not be 0."""
+        broker = SimBroker(initial_cash=100000.0)
+        broker.place_bracket_order(_make_plan(ticker="LNG", quantity=100, entry_price=182.0))
+
+        # Update price to simulate a trading day
+        broker.update_prices({"LNG": {"close": 185.0, "high": 186.0, "low": 181.0}})
+        assert broker.positions["LNG"].current_price == 185.0
+
+        # Simulate reduce: close full, reopen smaller (as thesis_sim does)
+        price = 185.0
+        broker.close_position("LNG", price)
+        remaining = 71
+        reopen = _make_plan(ticker="LNG", quantity=remaining, entry_price=price)
+        broker.place_bracket_order(reopen)
+
+        # current_price defaults to 0.0 on new position — this is the bug
+        # The sim patches this, but broker-level should use entry_price as fallback
+        pos = broker.positions["LNG"]
+        assert pos.quantity == 71
+        assert pos.entry_price == 185.0
+        # equity_value should use entry_price fallback when current_price is 0
+        assert broker.equity_value == pytest.approx(71 * 185.0)
+
+    def test_reduce_portfolio_value_unchanged(self):
+        """Reducing a position should not change total portfolio value."""
+        broker = SimBroker(initial_cash=100000.0)
+        broker.place_bracket_order(_make_plan(ticker="LNG", quantity=100, entry_price=180.0))
+        broker.update_prices({"LNG": {"close": 185.0, "high": 186.0, "low": 181.0}})
+
+        pv_before = broker.portfolio_value
+
+        # Reduce: sell 30 shares at 185
+        broker.close_position("LNG", 185.0)
+        remaining = 70
+        reopen = _make_plan(ticker="LNG", quantity=remaining, entry_price=185.0)
+        broker.place_bracket_order(reopen)
+
+        # Portfolio value should be the same (just shifted cash vs equity)
+        assert broker.portfolio_value == pytest.approx(pv_before)
+
+    def test_reduce_then_update_prices(self):
+        """After reduce + next day's update_prices, values should be correct."""
+        broker = SimBroker(initial_cash=100000.0)
+        broker.place_bracket_order(_make_plan(ticker="LNG", quantity=100, entry_price=180.0))
+        broker.update_prices({"LNG": {"close": 185.0, "high": 186.0, "low": 181.0}})
+
+        # Reduce
+        broker.close_position("LNG", 185.0)
+        reopen = _make_plan(ticker="LNG", quantity=71, entry_price=185.0)
+        broker.place_bracket_order(reopen)
+
+        # Next day: price moves to 190
+        broker.update_prices({"LNG": {"close": 190.0, "high": 191.0, "low": 189.0}})
+
+        pos = broker.positions["LNG"]
+        assert pos.current_price == 190.0
+        assert broker.equity_value == pytest.approx(71 * 190.0)
+
+    def test_ledger_value_after_reduce(self):
+        """The value used for ledger updates should be bar_close * quantity, not 0."""
+        broker = SimBroker(initial_cash=100000.0)
+        broker.place_bracket_order(_make_plan(ticker="LNG", quantity=100, entry_price=180.0))
+        broker.update_prices({"LNG": {"close": 185.0, "high": 186.0, "low": 181.0}})
+
+        # Reduce
+        broker.close_position("LNG", 185.0)
+        reopen = _make_plan(ticker="LNG", quantity=71, entry_price=185.0)
+        broker.place_bracket_order(reopen)
+
+        # Simulate what _update_ledger_values does: bar["close"] * pos.quantity
+        bar_close = 185.0
+        pos = broker.positions["LNG"]
+        ledger_value = bar_close * pos.quantity
+
+        assert ledger_value == pytest.approx(71 * 185.0)
+        # This should NOT be 0 or some wrong number
+        assert ledger_value > 13000  # ~$13,135
+
+    def test_reduce_does_not_produce_anomalous_price(self):
+        """Regression test: LNG at $182 should never show as $108 after reduce."""
+        broker = SimBroker(initial_cash=100000.0)
+        broker.place_bracket_order(_make_plan(ticker="LNG", quantity=100, entry_price=181.89))
+        broker.update_prices({"LNG": {"close": 182.0, "high": 183.0, "low": 181.0}})
+
+        # Reduce from 100 to 71 shares
+        broker.close_position("LNG", 182.0)
+        reopen = _make_plan(ticker="LNG", quantity=71, entry_price=182.0)
+        broker.place_bracket_order(reopen)
+
+        pos = broker.positions["LNG"]
+        # The derived "current price" from equity_value / quantity must be sane
+        if pos.current_price > 0:
+            assert pos.current_price > 150.0, f"Anomalous price: ${pos.current_price}"
+        # entry_price should be the reduce price, not the original
+        assert pos.entry_price == pytest.approx(182.0)
+        # equity_value uses entry_price when current_price is 0
+        implied_price = broker.equity_value / 71
+        assert implied_price > 150.0, f"Anomalous implied price: ${implied_price}"
+
+
 class TestStopsAndTargets:
     def test_stop_loss_triggered(self):
         broker = SimBroker(initial_cash=100000.0)
