@@ -10,9 +10,11 @@ ta>=0.11.0
 # Fundamental Data
 yfinance>=0.2.36
 
-# Sentiment Analysis (Phase 2)
-transformers>=4.40.0
-torch>=2.2.0
+# Anthropic SDK (live trading)
+anthropic>=0.39.0
+
+# Market holidays
+exchange-calendars>=4.5.0
 
 # Scheduling
 APScheduler>=3.10.0

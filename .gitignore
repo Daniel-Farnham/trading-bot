@@ -8,6 +8,16 @@ __pycache__/
 # Database
 data/*.db
 
+# Simulation & live data (keep seed_beliefs.md only)
+data/sim_*/
+data/reports/
+data/fundamentals_cache/
+data/v3_results/
+data/v3_sim/
+data/live/
+data/simulation_log.md
+data/strategy_journal.md
+
 # IDE
 .vscode/
 .idea/
