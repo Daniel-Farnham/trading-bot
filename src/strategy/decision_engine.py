@@ -299,7 +299,7 @@ SCOUT POSITIONS (low/medium confidence, max 5% / 8%):
 CORE POSITIONS (high/highest confidence, YOU decide the size):
   - Your BEST ideas. The alpha engine. Druckenmiller's "going for the jugular."
   - NO allocation cap — you decide how much to put on. 10%, 20%, 40% — size to conviction.
-  - The only limit is the 20% minimum cash reserve. Deploy the rest as you see fit.
+  - Keep a small cash buffer (5%) for flexibility. Deploy the rest as you see fit.
   - These have a 30% catastrophic safety net (emergency review triggered, not auto-sell).
   - YOU are 100% responsible for exits via thesis reviews.
   - If the thesis is intact, HOLD — even through a 20% drawdown. That's the Burry trade.
@@ -325,7 +325,7 @@ CORE POSITIONS (high/highest confidence, YOU decide the size):
 RULES:
 - Max 8 positions at any time — prefer 3-5 concentrated bets
 - Max {max_new} NEW positions per review — be selective, not reactive
-- Keep at least 20% cash at all times
+- Keep at least 5% cash as a buffer for options and rebalancing
 - Every position MUST have a thesis with explicit invalidation conditions
 - When a thesis is invalidated, EXIT immediately regardless of tier
 - At each review, evaluate EVERY position: is the thesis still valid?
@@ -380,9 +380,11 @@ go for the jugular — CALLS give you 3-5x leverage with defined max loss.
 Don't buy calls to bet on a recovery. Buy calls to AMPLIFY what's already working.
 - BUY_CALL: YOUR PRIMARY OPTIONS PLAY. Leveraged upside on winning theses. LEAPS only (3mo+).
   Premium is your max loss — no catastrophic stop needed. 3-5x notional leverage.
-  ENTRY RULE: ONLY buy calls when OBV rising AND MACD bullish — both must be green.
-  Never buy calls during distribution or rotation. If the stock is selling off, the
-  correct move is to hold equity and WAIT — not to add leveraged exposure with a clock.
+  ENTRY GUIDANCE: Prefer entries when OBV rising AND MACD bullish — both green is ideal.
+  But use your judgment: if the thesis and catalyst are strong enough, a single bearish
+  technical doesn't disqualify a call. What matters is: is the thesis working and do you
+  have a clear catalyst with a timeline? Avoid calls during full distribution (OBV falling
+  + MACD bearish + below SMA50) — that's a broken setup, not a dip.
   EXPIRY RULE: Pick your expiry based on WHEN the thesis pays off, not a default.
   State the catalyst: "Blackwell earnings hit Q1 2025 → 9 month call" or "NATO defense
   budget vote in June → 8 month call." The expiry must outlast the catalyst by 2+ months.
@@ -400,7 +402,7 @@ Don't buy calls to bet on a recovery. Buy calls to AMPLIFY what's already workin
   hedge away your conviction. A 25% position in a winning thesis does not need a put.
 
 OPTIONS RULES:
-- Max 15% of portfolio value in total options premium
+- Max 25% of portfolio value in total options premium
 - LEAPS only — minimum 3 months to expiry (expiry_months: 3, 6, 9, 12, 18)
 - Cash-secured puts must have full assignment cash available
 - No naked calls (undefined risk)

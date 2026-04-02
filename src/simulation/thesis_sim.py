@@ -514,8 +514,8 @@ Respond with ONLY valid JSON:
         current_options_pct = greeks["total_options_value"] / self.broker.portfolio_value if self.broker.portfolio_value > 0 else 0
         new_premium_cost = premium * 100 * contracts
         new_options_pct = (greeks["total_options_value"] + new_premium_cost) / self.broker.portfolio_value
-        if new_options_pct > 0.15:
-            logger.info("    OPTIONS CAP: %s would push options to %.1f%% of portfolio (max 15%%)", ticker, new_options_pct * 100)
+        if new_options_pct > 0.25:
+            logger.info("    OPTIONS CAP: %s would push options to %.1f%% of portfolio (max 25%%)", ticker, new_options_pct * 100)
             return
 
         # Build contract ID
@@ -556,7 +556,7 @@ Respond with ONLY valid JSON:
         """
         pv = self.broker.portfolio_value
         greeks = self.broker.get_portfolio_greeks()
-        max_premium_pct = 0.15
+        max_premium_pct = 0.25
         current_options_value = greeks["total_options_value"]
         budget = pv * max_premium_pct - current_options_value
         budget = max(0.0, budget)
@@ -907,6 +907,9 @@ Respond with ONLY valid JSON:
                     risk_pct=0, is_short=pos.is_short,
                 )
                 self.broker.place_bracket_order(reopen_plan, is_short=pos.is_short, opened_at=day_dt.isoformat())
+                # Set current_price immediately (avoids 0.0 until next update_prices)
+                if ticker in self.broker.positions:
+                    self.broker.positions[ticker].current_price = price
                 logger.info("    REDUCED %s by %d shares @ $%.2f", ticker, shares_to_sell, price)
 
         # New positions (and tier upgrades) — enforce max new positions per review
