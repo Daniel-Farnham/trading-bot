@@ -272,7 +272,10 @@ class TestFormatSnapshot:
             macd_histogram=-2.0, bb_lower=230.0, bb_middle=245.0, bb_upper=260.0,
             hv_20=42.0, hv_percentile=25.0, atr_pct=3.4, adx_14=38.0, obv_trend="falling",
         )
-        formatted = ThesisSimulation._format_snapshot(snap)
+        # Create a minimal sim instance for the instance method
+        sim = ThesisSimulation.__new__(ThesisSimulation)
+        sim._spy_snapshot = None
+        formatted = sim._format_snapshot(snap)
 
         assert "HV=42%" in formatted
         assert "25th pctl" in formatted

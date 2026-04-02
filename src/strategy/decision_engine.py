@@ -375,26 +375,39 @@ Consider shorts when trailing SPY or in a declining market.
 In a bear market, aim for 1-2 core short positions as hedges.
 
 OPTIONS TRADING:
-You can use options to amplify conviction or manage risk. Available strategies:
-- BUY_CALL: Leveraged upside on highest-conviction ideas. LEAPS only (3mo+ expiry).
-  Your premium is your max loss — no catastrophic stop needed. 3-5x notional leverage.
-  Use when: thesis is strong, you want more exposure than cash allows.
-  Strike selection: "ATM", "5_OTM", "10_OTM" (system calculates exact strike).
-  Example: BUY_CALL NVDA, 6 months, ATM, 5% allocation = $5k premium for ~$25k exposure.
+Options amplify conviction. Druckenmiller's approach: when you have a winning thesis,
+go for the jugular — CALLS give you 3-5x leverage with defined max loss.
+Don't buy calls to bet on a recovery. Buy calls to AMPLIFY what's already working.
+- BUY_CALL: YOUR PRIMARY OPTIONS PLAY. Leveraged upside on winning theses. LEAPS only (3mo+).
+  Premium is your max loss — no catastrophic stop needed. 3-5x notional leverage.
+  ENTRY RULE: ONLY buy calls when OBV rising AND MACD bullish — both must be green.
+  Never buy calls during distribution or rotation. If the stock is selling off, the
+  correct move is to hold equity and WAIT — not to add leveraged exposure with a clock.
+  EXPIRY RULE: Pick your expiry based on WHEN the thesis pays off, not a default.
+  State the catalyst: "Blackwell earnings hit Q1 2025 → 9 month call" or "NATO defense
+  budget vote in June → 8 month call." The expiry must outlast the catalyst by 2+ months.
+  EXIT RULE: Close a call when the THESIS is invalidated, not on short-term technical
+  noise. A 2-week MACD dip doesn't break a 12-month AI spending thesis. But if the
+  reason you bought the call is no longer true (catalyst cancelled, earnings miss,
+  competitive moat lost), close immediately regardless of P&L. Also close when time
+  value is near zero — at that point you're holding expensive stock, not an option.
+  Strike selection: "ATM" (default), "5_OTM", "10_OTM", "5_ITM", "10_ITM".
 - SELL_PUT: Get paid to wait for a pullback entry. Cash-secured only.
   If assigned, you own shares at (strike - premium). If not, keep the premium.
   Use when: you want to buy a stock but only at a lower price.
-  Example: SELL_PUT NVDA, 3 months, 10_OTM = sell put 10% below current price.
-- BUY_PUT: Portfolio insurance on core positions. Replaces catastrophic stop.
-  Costs premium but defines maximum loss precisely.
-  Use when: protecting a large core position through uncertain period.
+- BUY_PUT: RARELY NEEDED. Only for genuine crisis uncertainty, NOT as default insurance on
+  every large position. Concentrated positions are the POINT of this strategy — don't
+  hedge away your conviction. A 25% position in a winning thesis does not need a put.
 
 OPTIONS RULES:
 - Max 15% of portfolio value in total options premium
 - LEAPS only — minimum 3 months to expiry (expiry_months: 3, 6, 9, 12, 18)
 - Cash-secured puts must have full assignment cash available
 - No naked calls (undefined risk)
-- Options are expressions of equity theses — every option needs a thesis
+- Every option must have a thesis AND a catalyst with a timeline
+- You can CLOSE options early using close_options with the contract_id — take profits,
+  cut losses, or close when thesis breaks. Don't let options expire worthless
+  when they still have time value — close them and redeploy the capital.
 {options_context}
 
 WATCHING THESES:
@@ -415,6 +428,10 @@ TASKS:
 8. For EVERY trade decision (buy, sell, short, reduce, pyramid), write a 1-2 sentence
    reasoning in decision_reasoning. This is your decision journal — it helps you remember
    WHY you made each decision when you review it next month.
+9. OPTIONS CHECK: Review the OPTIONS STATUS section. Calls amplify winners — only buy when
+   OBV rising AND MACD bullish (both green) and you can name a specific catalyst + timeline.
+   For open calls: is the thesis/catalyst still valid? If yes, hold regardless of short-term
+   technicals. If thesis is broken or time value is near zero, close and redeploy.
 {monthly_section}
 
 Respond with ONLY valid JSON:
@@ -459,6 +476,17 @@ decision_reasoning, and weekly_summary."""
     @staticmethod
     def _shock_review_text(review_type: str) -> str:
         """Generate note for volatility-triggered reviews."""
+        if review_type == "low_volatility":
+            return """
+*** LOW VOLATILITY REVIEW — OPTIONS PREMIUMS ARE CHEAP ***
+Market volatility has dropped — options premiums are unusually cheap right now.
+This is a LEVERAGE OPPORTUNITY. Druckenmiller goes for the jugular when conviction is high.
+1. BUY_CALL LEAPS on your winning theses — 3-5x leverage at low premium cost.
+   Which positions have OBV rising + MACD bullish? Those are your CALL candidates.
+2. SELL_PUT on names you want to own at a discount — collect rich relative premium.
+Low volatility windows don't last. If your thesis is working, amplify it NOW with calls
+before the next vol spike makes premiums expensive again.
+"""
         if review_type not in ("shock", "volatility"):
             return ""
         return """
@@ -551,13 +579,13 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
       "action": "BUY_CALL",
       "allocation_pct": 5,
       "direction": "LONG",
-      "thesis": "Leveraged bet on AI capex cycle — LEAPS for 3-5x exposure",
-      "invalidation": "AI capex cuts by hyperscalers",
+      "thesis": "Blackwell GPU ramp hits Q1 2025 earnings — call captures the catalyst with 2mo buffer",
+      "invalidation": "Hyperscalers cut AI capex guidance or Blackwell delayed",
       "strike_selection": "ATM",
-      "expiry_months": 6,
-      "horizon": "6 months",
+      "expiry_months": 9,
+      "horizon": "9 months",
       "confidence": "high",
-      "timing_note": "IV rank low, good time to buy options"
+      "timing_note": "OBV rising + MACD bullish — both green. Catalyst: Blackwell earnings Q1 2025"
     },
     {
       "ticker": "AMZN",
@@ -575,6 +603,9 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
   ],
   "close_positions": [
     {"ticker": "TSLA", "reason": "EV margin thesis broken by competition", "reentry_price": 0}
+  ],
+  "close_options": [
+    {"contract_id": "NVDA_250620C140", "reason": "Taking profits — call up 80%, thesis fully priced in"}
   ],
   "reduce_positions": [
     {"ticker": "AAPL", "new_allocation_pct": 4, "reason": "China weakness"}
@@ -662,13 +693,19 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
 
             if result.returncode != 0:
                 logger.error(
-                    "Claude review failed (exit %d): %s",
-                    result.returncode, result.stderr[:300],
+                    "Claude review failed (exit %d):\n  STDERR: %s\n  STDOUT (last 500): %s",
+                    result.returncode,
+                    result.stderr.strip()[:500] or "(empty)",
+                    result.stdout.strip()[-500:] or "(empty)",
                 )
                 return None
 
             raw = result.stdout.strip()
-            logger.debug("Claude raw response: %s", raw[:500])
+            if not raw:
+                logger.error("Claude returned empty response (exit 0 but no output)")
+                return None
+
+            logger.debug("Claude raw response (%d chars): %s", len(raw), raw[:500])
 
             # Strip markdown code fences
             text = raw
@@ -680,6 +717,13 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
                 text = text.split("```", 1)[0]
             text = text.strip()
 
+            if not text:
+                logger.error(
+                    "Claude response contained no JSON after stripping fences.\n  Raw (first 1000): %s",
+                    raw[:1000],
+                )
+                return None
+
             data = json.loads(text)
 
             assessment = data.get("world_assessment", "")
@@ -689,13 +733,19 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             return data
 
         except subprocess.TimeoutExpired:
-            logger.error("Claude review timed out")
+            logger.error("Claude review timed out after %ds", timeout)
             return None
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse Claude response: %s", e)
+            logger.error(
+                "Failed to parse Claude JSON: %s\n  Text attempted (first 1000): %s",
+                e, text[:1000] if 'text' in dir() else raw[:1000],
+            )
             return None
         except FileNotFoundError:
             logger.error("Claude CLI not found. Is Claude Code installed?")
+            return None
+        except Exception as e:
+            logger.error("Unexpected error calling Claude: %s: %s", type(e).__name__, e)
             return None
 
     def _apply_to_memory(self, response: dict, sim_date: str) -> None:
@@ -817,6 +867,7 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             "thesis_updates": [],
             "new_positions": [],
             "close_positions": [],
+            "close_options": [],
             "reduce_positions": [],
             "theme_updates": [],
             "lessons": [],

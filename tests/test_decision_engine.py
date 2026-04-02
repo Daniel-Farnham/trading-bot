@@ -19,6 +19,8 @@ def manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
+        "world_view": tmp_path / "world_view.md",
+        "journal": tmp_path / "decision_journal.md",
     }
     mgr._max_theses = 15
     mgr._max_watching = 5
@@ -28,6 +30,7 @@ def manager(tmp_path):
     mgr._max_themes = 8
     mgr._max_lessons = 15
     mgr._max_beliefs = 5
+    mgr._max_journal_entries = 12
     return mgr
 
 
@@ -136,9 +139,10 @@ class TestParseResponse:
         assert crwd is not None
         assert crwd["thesis"] == "Cybersecurity demand growing"
 
-        # TSLA should be removed (Claude closed = thesis invalidated)
+        # TSLA thesis should still exist after run_weekly_review —
+        # it only gets moved to watching during _execute_decisions (after broker confirms close)
         tsla = manager.get_by_ticker("TSLA")
-        assert tsla is None
+        assert tsla is not None
 
         # Lesson should be added
         lessons = manager.get_all_lessons()

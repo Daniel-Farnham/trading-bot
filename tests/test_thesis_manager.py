@@ -16,6 +16,8 @@ def manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
+        "world_view": tmp_path / "world_view.md",
+        "journal": tmp_path / "decision_journal.md",
     }
     mgr._max_theses = 15
     mgr._max_watching = 5
@@ -25,6 +27,7 @@ def manager(tmp_path):
     mgr._max_themes = 8
     mgr._max_lessons = 15
     mgr._max_beliefs = 5
+    mgr._max_journal_entries = 12
     return mgr
 
 
@@ -39,6 +42,8 @@ def small_manager(tmp_path):
         "lessons": tmp_path / "lessons_learned.md",
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
+        "world_view": tmp_path / "world_view.md",
+        "journal": tmp_path / "decision_journal.md",
     }
     mgr._max_theses = 3
     mgr._max_watching = 2
@@ -48,6 +53,7 @@ def small_manager(tmp_path):
     mgr._max_themes = 3
     mgr._max_lessons = 3
     mgr._max_beliefs = 2
+    mgr._max_journal_entries = 12
     return mgr
 
 

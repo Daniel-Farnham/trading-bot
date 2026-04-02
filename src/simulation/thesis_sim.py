@@ -106,6 +106,11 @@ class ThesisSimulation:
         self._max_new_per_review = CONFIG.get("memory", {}).get("max_new_positions_per_review", 3)
         self._spy_snapshot = None  # Cached SPY technicals for relative strength
         self._atr_cache: dict[str, float] = {}  # ticker -> ATR% for shock detection
+        self._hv_cache: dict[str, float] = {}  # ticker -> HV percentile for low-vol trigger
+        self._hv_prev: dict[str, float] = {}  # previous HV percentiles (debounce)
+        self._spy_hv_pctl: float = 50.0  # SPY HV percentile for market-wide vol trigger
+        self._spy_hv_prev: float = 50.0  # previous SPY HV (debounce)
+        self._last_snapshots: dict = {}  # ticker -> TechnicalSnapshot from latest review
 
     def run(self) -> dict:
         """Run the full thesis-driven simulation."""
@@ -150,7 +155,7 @@ class ThesisSimulation:
         self._run_pre_research(universe)
 
         # Main simulation loop — step day by day, review every N days
-        days_since_review = 0  # Observe one cycle before first review
+        days_since_review = self.review_cadence  # Trigger review on first trading day
         days_since_monthly = 0
 
         for i, day in enumerate(self._trading_days):
@@ -175,7 +180,7 @@ class ThesisSimulation:
             self._update_ledger_values(daily_bars, day)
             self._record_snapshot(day)
 
-            # Update ATR cache for held positions (used by volatility trigger)
+            # Update ATR + HV cache for held positions (used by volatility triggers)
             for ticker in self.broker.positions:
                 bars_df = self._all_bars.get(ticker)
                 if bars_df is not None:
@@ -184,6 +189,17 @@ class ThesisSimulation:
                         snap = self.technicals.analyze(ticker, history)
                         if snap.atr_pct is not None:
                             self._atr_cache[ticker] = snap.atr_pct
+                        if snap.hv_percentile is not None:
+                            self._hv_cache[ticker] = snap.hv_percentile
+
+            # Update SPY HV for market-wide low-vol trigger
+            spy_bars_df = self._all_bars.get("SPY")
+            if spy_bars_df is not None:
+                spy_history = self._get_bars_up_to(spy_bars_df, day)
+                if not spy_history.empty and len(spy_history) >= 20:
+                    spy_snap = self.technicals.analyze("SPY", spy_history)
+                    if spy_snap.hv_percentile is not None:
+                        self._spy_hv_pctl = spy_snap.hv_percentile
 
             # Track peak for drawdown
             pv = self.broker.portfolio_value
@@ -196,18 +212,26 @@ class ThesisSimulation:
             # Check for volatility trigger (consolidates shock + drift detection)
             # Cooldown prevents over-trading on inherently volatile stocks
             volatility_triggered = False
+            low_vol_triggered = False
             if days_since_review >= self._volatility_cooldown and self.broker.positions:
                 shock = self._check_intraday_shock(daily_bars, prev_prices)
                 drift = self._check_volatility_trigger(days_since_review)
                 volatility_triggered = shock or drift
+                # Low-vol trigger: options become cheap when HV drops
+                if not volatility_triggered:
+                    low_vol_triggered = self._check_low_vol_trigger()
 
             # Scheduled review OR volatility-triggered reassessment
-            if days_since_review >= self.review_cadence or volatility_triggered:
+            if days_since_review >= self.review_cadence or volatility_triggered or low_vol_triggered:
                 if not self.risk.check_drawdown(pv, self._peak_value):
                     dd = (self._peak_value - pv) / self._peak_value * 100
                     logger.warning("  Drawdown %.1f%% — skipping review, stops still active", dd)
                 else:
-                    if volatility_triggered and days_since_review < self.review_cadence:
+                    if low_vol_triggered and days_since_review < self.review_cadence:
+                        review_type = "low_volatility"
+                        logger.info("")
+                        logger.info("  !!! LOW VOLATILITY — options are cheap, triggering options review")
+                    elif volatility_triggered and days_since_review < self.review_cadence:
                         review_type = "volatility"
                         logger.info("")
                         logger.info("  !!! VOLATILITY DETECTED — triggering reassessment review")
@@ -223,10 +247,18 @@ class ThesisSimulation:
             if (i + 1) % 20 == 0:
                 ret = ((pv / self.initial_cash) - 1) * 100
                 pos_count = len(self.broker.positions)
-                logger.info(
-                    ">>> Day %d/%d (%s) | $%s (%+.1f%%) | %d positions",
-                    i + 1, len(self._trading_days), day, f"{pv:,.0f}", ret, pos_count,
-                )
+                opts_count = len(self.broker.option_positions)
+                if opts_count:
+                    logger.info(
+                        ">>> Day %d/%d (%s) | $%s (%+.1f%%) | %d positions + %d opts",
+                        i + 1, len(self._trading_days), day, f"{pv:,.0f}", ret,
+                        pos_count, opts_count,
+                    )
+                else:
+                    logger.info(
+                        ">>> Day %d/%d (%s) | $%s (%+.1f%%) | %d positions",
+                        i + 1, len(self._trading_days), day, f"{pv:,.0f}", ret, pos_count,
+                    )
 
         report = self._build_report()
         return report
@@ -509,33 +541,132 @@ Respond with ONLY valid JSON:
             total_cost = premium * 100 * contracts
             side = "SOLD" if is_short else "BOUGHT"
             logger.info(
-                "    %s %d %s %s $%.0f %s @ $%.2f/sh ($%,.0f total, delta %.2f)",
+                "    OPTION: %s %d %s %s $%.0f expiry %s @ $%.2f/sh ($%s total, delta %.2f)",
                 side, contracts, ticker, option_type, strike, expiry,
-                premium, total_cost, quote.greeks.delta,
+                premium, f"{total_cost:,.0f}", quote.greeks.delta,
             )
         else:
             logger.warning("    Option order failed for %s: %s", ticker, result.error)
 
     def _build_options_context(self) -> str:
-        """Build options context string for Claude's prompt."""
-        greeks = self.broker.get_portfolio_greeks()
-        if greeks["option_count"] == 0:
-            return ""
+        """Build options context string for Claude's prompt.
 
-        lines = ["\nOPEN OPTION POSITIONS:"]
-        for opt in self.broker.option_positions.values():
-            pnl = (opt.current_premium - opt.premium_paid) * 100 * opt.quantity
-            if opt.is_short:
-                pnl = -pnl
-            side = "SHORT" if opt.is_short else "LONG"
-            lines.append(
-                f"  {side} {opt.ticker} {opt.expiry} {opt.option_type} ${opt.strike:.0f} "
-                f"x{opt.quantity} | Premium: ${opt.premium_paid:.2f}→${opt.current_premium:.2f} | "
-                f"P&L: ${pnl:+,.0f} | Delta: {opt.current_delta:.2f}"
-            )
-        lines.append(f"  Net Delta: {greeks['net_delta']:.0f} shares equivalent")
-        lines.append(f"  Total Options Value: ${greeks['total_options_value']:,.0f}")
+        Always returns content — when no options are open, shows budget
+        and opportunity signals to actively prompt Claude to consider options.
+        """
+        pv = self.broker.portfolio_value
+        greeks = self.broker.get_portfolio_greeks()
+        max_premium_pct = 0.15
+        current_options_value = greeks["total_options_value"]
+        budget = pv * max_premium_pct - current_options_value
+        budget = max(0.0, budget)
+
+        lines = ["\nOPTIONS STATUS:"]
+
+        # Show open positions if any
+        if greeks["option_count"] > 0:
+            lines.append("  Open Option Positions (use contract_id in close_options to exit early):")
+            for contract_id, opt in self.broker.option_positions.items():
+                pnl = (opt.current_premium - opt.premium_paid) * 100 * opt.quantity
+                if opt.is_short:
+                    pnl = -pnl
+                pnl_pct = ((opt.current_premium - opt.premium_paid) / opt.premium_paid * 100) if opt.premium_paid > 0 else 0
+                if opt.is_short:
+                    pnl_pct = -pnl_pct
+                side = "SHORT" if opt.is_short else "LONG"
+
+                # Days to expiry
+                days_left = 0
+                if self.daily_snapshots:
+                    from src.options.pricing import time_to_expiry_years
+                    t = time_to_expiry_years(self.daily_snapshots[-1]["date"], opt.expiry)
+                    days_left = max(0, int(t * 365))
+
+                # Intrinsic vs time value
+                snap = self._last_snapshots.get(opt.ticker)
+                spot = snap.current_price if snap else 0
+                intrinsic_str = ""
+                if spot > 0:
+                    if opt.option_type == "CALL":
+                        intrinsic = max(0.0, spot - opt.strike)
+                    else:
+                        intrinsic = max(0.0, opt.strike - spot)
+                    time_val = max(0.0, opt.current_premium - intrinsic)
+                    intrinsic_str = f" | Intrinsic: ${intrinsic:.2f}, Time: ${time_val:.2f}"
+
+                lines.append(
+                    f"    [{contract_id}] {side} {opt.ticker} {opt.option_type} ${opt.strike:.0f} "
+                    f"x{opt.quantity} | ${opt.premium_paid:.2f}→${opt.current_premium:.2f} ({pnl_pct:+.0f}%) | "
+                    f"Delta: {opt.current_delta:.2f} | {days_left}d left{intrinsic_str}"
+                )
+            lines.append(f"  Net Delta: {greeks['net_delta']:.0f} shares equivalent")
+            lines.append(f"  Total Options Value: ${current_options_value:,.0f}")
+        else:
+            lines.append("  Open Options: None")
+
+        lines.append(f"  Options Budget Available: ${budget:,.0f} (15% cap = ${pv * max_premium_pct:,.0f})")
+
+        # Generate opportunity signals from current portfolio + technicals
+        opportunities = self._detect_options_opportunities()
+        if opportunities:
+            lines.append("")
+            lines.append("  OPTIONS DATA (volatility context for your decision-making):")
+            for opp in opportunities:
+                lines.append(f"  → {opp}")
+
         return "\n".join(lines)
+
+    def _detect_options_opportunities(self) -> list[str]:
+        """Scan portfolio and technicals for actionable options opportunities.
+
+        Biased toward BUY_CALL (amplify winners) over BUY_PUT (insurance).
+        Druckenmiller uses leverage on conviction, not hedging on fear.
+        """
+        opportunities = []
+        pv = self.broker.portfolio_value
+        if pv <= 0:
+            return opportunities
+
+        # Check each held position — prioritize CALL opportunities
+        for ticker, pos in self.broker.positions.items():
+            snap = self._last_snapshots.get(ticker)
+            if snap is None:
+                continue
+
+            position_value = pos.quantity * pos.current_price
+            position_pct = (position_value / pv) * 100
+            hv_pctl = snap.hv_percentile
+            hv = snap.hv_20
+
+            # Strong thesis + OBV rising → BUY_CALL candidate (primary signal)
+            if snap.obv_trend == "rising" and snap.is_macd_bullish:
+                hv_note = ""
+                if hv_pctl is not None and hv_pctl < 40 and hv is not None:
+                    hv_note = f" HV at {hv_pctl:.0f}th pctl — premiums are cheap."
+                opportunities.append(
+                    f"{ticker} ({position_pct:.0f}% position) — OBV rising + MACD bullish. "
+                    f"BUY_CALL LEAPS would give 3-5x leveraged exposure on this winning thesis.{hv_note}"
+                )
+
+            # High HV percentile → premium is rich, good for selling
+            if hv_pctl is not None and hv_pctl > 75 and hv is not None:
+                opportunities.append(
+                    f"{ticker} HV={hv:.0f}% at {hv_pctl:.0f}th percentile — premium is RICH. "
+                    f"SELL_PUT to collect elevated premium if you want to add on a pullback."
+                )
+
+        # Check non-held tickers for sell-put entries
+        for ticker, snap in self._last_snapshots.items():
+            if ticker in self.broker.positions:
+                continue
+            if snap.rsi_14 is not None and snap.rsi_14 > 68:
+                if snap.hv_percentile is not None and snap.hv_percentile > 60:
+                    opportunities.append(
+                        f"{ticker} RSI={snap.rsi_14:.0f} (extended) with HV at {snap.hv_percentile:.0f}th pctl: "
+                        f"SELL_PUT 10% OTM to get paid while waiting for a better entry."
+                    )
+
+        return opportunities
 
     def _get_trade_count(self) -> int:
         """Get total trade count: closed trades + open positions."""
@@ -547,11 +678,22 @@ Respond with ONLY valid JSON:
         logger.info("")
         logger.info("=" * 60)
         logger.info("  %s REVIEW | %s", label, day)
-        logger.info(
-            "  Portfolio: $%s | Cash: $%s | Positions: %d",
-            f"{self.broker.portfolio_value:,.0f}", f"{self.broker.cash:,.0f}",
-            len(self.broker.positions),
-        )
+        equity_val = self.broker.equity_value
+        options_val = self.broker.options_value
+        if self.broker.option_positions:
+            logger.info(
+                "  Portfolio: $%s (Stocks: $%s + Options: $%s) | Cash: $%s | Positions: %d + %d opts",
+                f"{self.broker.portfolio_value:,.0f}",
+                f"{equity_val:,.0f}", f"{options_val:,.0f}",
+                f"{self.broker.cash:,.0f}",
+                len(self.broker.positions), len(self.broker.option_positions),
+            )
+        else:
+            logger.info(
+                "  Portfolio: $%s | Cash: $%s | Positions: %d",
+                f"{self.broker.portfolio_value:,.0f}", f"{self.broker.cash:,.0f}",
+                len(self.broker.positions),
+            )
         logger.info("=" * 60)
 
         # Tick watching thesis expiry
@@ -643,6 +785,7 @@ Respond with ONLY valid JSON:
         changes = (
             len(response.get("new_positions", []))
             + len(response.get("close_positions", []))
+            + len(response.get("close_options", []))
             + len(response.get("reduce_positions", []))
         )
         logger.info("  Review complete: %d action(s)", changes)
@@ -710,6 +853,30 @@ Respond with ONLY valid JSON:
                     )
                     logger.info("    SOLD %s @ $%.2f → WATCHING — %s", ticker, price, reason[:80])
 
+        # Close option positions early
+        for close_opt in response.get("close_options", []):
+            contract_id = close_opt.get("contract_id", "")
+            if contract_id not in self.broker.option_positions:
+                logger.warning("    Option %s not found — skipping close", contract_id)
+                continue
+            opt = self.broker.option_positions[contract_id]
+            result = self.broker.close_option_position(contract_id, opt.current_premium)
+            if result.success:
+                pnl = result.order_id  # close_option_position stores pnl info
+                reason = close_opt.get("reason", "closed early")
+                # Calculate P&L for logging
+                if opt.is_short:
+                    trade_pnl = (opt.premium_paid - opt.current_premium) * 100 * opt.quantity
+                else:
+                    trade_pnl = (opt.current_premium - opt.premium_paid) * 100 * opt.quantity
+                side = "SHORT" if opt.is_short else "LONG"
+                logger.info(
+                    "    CLOSED OPTION [%s] %s %s %s $%.0f @ $%.2f (P&L: $%s) — %s",
+                    contract_id, side, opt.ticker, opt.option_type, opt.strike,
+                    opt.current_premium, f"{trade_pnl:+,.0f}", reason[:80],
+                )
+                self._sync_options_to_ledger()
+
         # Reduce positions
         for reduce in response.get("reduce_positions", []):
             ticker = reduce.get("ticker", "")
@@ -747,6 +914,14 @@ Respond with ONLY valid JSON:
         for new_pos in response.get("new_positions", []):
             ticker = new_pos.get("ticker", "")
             if not ticker:
+                continue
+
+            # Route options trades BEFORE the pyramid check — options on a held
+            # ticker (e.g., BUY_PUT on NVDA while holding NVDA shares) are not pyramids
+            action = new_pos.get("action", "BUY").upper()
+            if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
+                self._execute_option_trade(new_pos, daily_bars, day_dt)
+                self._sync_options_to_ledger()
                 continue
 
             # Check if this is a pyramid/upgrade on an existing position
@@ -829,12 +1004,6 @@ Respond with ONLY valid JSON:
                     logger.info("    DUE DILIGENCE REJECTED %s — Claude reconsidered after reviewing recent news", ticker)
                     self.thesis_manager.remove_thesis(ticker)
                     continue
-
-            # Route options trades separately from equity
-            action = new_pos.get("action", "BUY").upper()
-            if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
-                self._execute_option_trade(new_pos, daily_bars, day_dt)
-                continue
 
             bar = daily_bars.get(ticker)
             if not bar:
@@ -963,6 +1132,29 @@ Respond with ONLY valid JSON:
                     plan.allocation_pct, tier, stop_loss, stop_pct,
                 )
 
+    def _sync_options_to_ledger(self) -> None:
+        """Sync broker option positions to thesis_manager's cached options.
+
+        Must be called after any option placement or closure so that subsequent
+        equity ledger rebuilds don't wipe the options section.
+        """
+        if self.broker.option_positions:
+            options_data = []
+            for opt in self.broker.option_positions.values():
+                options_data.append({
+                    "ticker": opt.ticker,
+                    "option_type": opt.option_type,
+                    "strike": opt.strike,
+                    "expiry": opt.expiry,
+                    "quantity": opt.quantity,
+                    "premium_paid": opt.premium_paid,
+                    "current_premium": opt.current_premium,
+                    "is_short": opt.is_short,
+                })
+            self.thesis_manager._current_options = options_data
+        else:
+            self.thesis_manager._current_options = None
+
     def _check_intraday_shock(
         self, daily_bars: dict,
         prev_prices: dict[str, float] | None = None,
@@ -1056,6 +1248,33 @@ Respond with ONLY valid JSON:
                 f"{review_value:,.0f}", f"{current_value:,.0f}",
             )
             return True
+        return False
+
+    def _check_low_vol_trigger(self, hv_threshold: float = 30.0) -> bool:
+        """Fire a review when market-wide volatility drops below threshold.
+
+        Uses SPY HV percentile as a proxy for overall options pricing regime.
+        Individual high-growth stocks rarely hit low HV percentiles on their own,
+        but when the broad market calms down, options on everything become cheaper.
+        Only fires once per calm period (requires SPY HV to go back above threshold
+        before triggering again).
+        """
+        if not self.broker.positions:
+            return False
+
+        spy_hv = self._spy_hv_pctl
+        if spy_hv < hv_threshold:
+            # Debounce: only fire once per calm period
+            if self._spy_hv_prev < hv_threshold:
+                return False  # Already in a calm period
+            logger.info(
+                "  LOW VOL: SPY HV at %.0fth percentile — market is calm, options premiums are cheap",
+                spy_hv,
+            )
+            self._spy_hv_prev = spy_hv
+            return True
+
+        self._spy_hv_prev = spy_hv
         return False
 
     def _check_catastrophic_stops(self, daily_bars: dict, day_dt: datetime) -> None:
@@ -1217,8 +1436,25 @@ Respond with ONLY valid JSON:
                         }
             if bar:
                 updates[ticker] = bar["close"] * pos.quantity
-        if updates:
-            self.thesis_manager.update_values(updates)
+
+        # Build options snapshot for ledger
+        options_data = None
+        if self.broker.option_positions:
+            options_data = []
+            for opt in self.broker.option_positions.values():
+                options_data.append({
+                    "ticker": opt.ticker,
+                    "option_type": opt.option_type,
+                    "strike": opt.strike,
+                    "expiry": opt.expiry,
+                    "quantity": opt.quantity,
+                    "premium_paid": opt.premium_paid,
+                    "current_premium": opt.current_premium,
+                    "is_short": opt.is_short,
+                })
+
+        if updates or options_data:
+            self.thesis_manager.update_values(updates, options=options_data)
 
     def _build_technicals_summary(self, day) -> str:
         """Build a technicals summary string for Claude."""
@@ -1240,6 +1476,7 @@ Respond with ONLY valid JSON:
             if t not in tickers:
                 tickers.append(t)
 
+        self._last_snapshots = {}
         for ticker in tickers:
             bars = self._all_bars.get(ticker)
             if bars is None:
@@ -1248,6 +1485,7 @@ Respond with ONLY valid JSON:
             if history.empty or len(history) < 20:
                 continue
             snap = self.technicals.analyze(ticker, history)
+            self._last_snapshots[ticker] = snap
             lines.append(self._format_snapshot(snap))
 
         return "\n".join(lines) if lines else "(No technical data)"
@@ -1446,6 +1684,15 @@ Respond with ONLY valid JSON:
         spy_return_pct = self._get_spy_return(self._trading_days[-1]) if self._trading_days else 0.0
         alpha = total_return * 100 - spy_return_pct
 
+        # Options stats
+        options_closed = [t for t in closed if t.get("contract_id")]
+        equity_closed = [t for t in closed if not t.get("contract_id")]
+        options_pnl = sum(t.get("pnl", 0) for t in options_closed)
+        equity_pnl = sum(t.get("pnl", 0) for t in equity_closed)
+        open_options = len(self.broker.option_positions)
+        equity_val = self.broker.equity_value
+        options_val = self.broker.options_value
+
         report = {
             "version": "V3",
             "period": f"{self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}",
@@ -1466,6 +1713,13 @@ Respond with ONLY valid JSON:
             "total_pnl": round(total_pnl, 2),
             "avg_pnl_per_trade": round(avg_pnl, 2),
             "open_positions": len(self.broker.positions),
+            "open_options": open_options,
+            "equity_value": round(equity_val, 2),
+            "options_value": round(options_val, 2),
+            "equity_trades": len(equity_closed),
+            "equity_pnl": round(equity_pnl, 2),
+            "options_trades": len(options_closed),
+            "options_pnl": round(options_pnl, 2),
             "weekly_reviews": self._weeks_elapsed,
             "review_decisions": self._review_decisions,
             "closed_trades": closed,
@@ -1481,12 +1735,23 @@ Respond with ONLY valid JSON:
         logger.info("  Weekly Reviews:      %d", report["weekly_reviews"])
         logger.info("  Initial Capital:     $%s", f"{report['initial_cash']:,.2f}")
         logger.info("  Final Value:         $%s", f"{report['final_value']:,.2f}")
+        if open_options or options_closed:
+            logger.info("    Stocks:            $%s (%d open)",
+                        f"{equity_val:,.2f}", len(self.broker.positions))
+            logger.info("    Options:           $%s (%d open)",
+                        f"{options_val:,.2f}", open_options)
+            logger.info("    Cash:              $%s", f"{self.broker.cash:,.2f}")
         logger.info("  Total Return:        %+.2f%%", report["total_return_pct"])
         logger.info("  S&P 500 Return:      %+.2f%%", report["spy_return_pct"])
         logger.info("  Alpha:               %+.2f%%", report["alpha_pct"])
         logger.info("  Annualized Return:   %+.2f%%", report["annualized_return_pct"])
         logger.info("  Max Drawdown:        -%.2f%%", report["max_drawdown_pct"])
         logger.info("  Total Trades:        %d (%dW / %dL)", total_trades, wins, losses)
+        if options_closed:
+            logger.info("    Equity Trades:     %d | P&L: $%s",
+                        len(equity_closed), f"{equity_pnl:+,.2f}")
+            logger.info("    Options Trades:    %d | P&L: $%s",
+                        len(options_closed), f"{options_pnl:+,.2f}")
         logger.info("  Win Rate:            %.1f%%", report["win_rate_pct"])
         logger.info("  Total P&L:           $%s", f"{report['total_pnl']:+,.2f}")
         logger.info("=" * 60)

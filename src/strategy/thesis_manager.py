@@ -78,8 +78,14 @@ class ThesisManager:
         self._max_lessons = _mem_cfg("max_lessons", 15)
         self._max_beliefs = _mem_cfg("max_beliefs", 5)
         self._max_journal_entries = _mem_cfg("max_journal_entries", 12)
+        self._current_options: list[dict] | None = None  # cached options for ledger rebuilds
         # In-memory watching list (persisted via theses file with WATCHING status)
         self._watching: list[dict] = []
+
+    @property
+    def _options_for_ledger(self) -> list[dict] | None:
+        """Safely access cached options (handles __new__ bypassing __init__)."""
+        return getattr(self, "_current_options", None)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -522,7 +528,7 @@ class ThesisManager:
                 "entry_price": entry_price, "current_value": current_value,
                 "date_opened": date_opened,
             })
-        self._rebuild_ledger(holdings)
+        self._rebuild_ledger(holdings, options=self._options_for_ledger)
 
     def remove_position(self, ticker: str) -> bool:
         ticker = ticker.upper()
@@ -530,11 +536,15 @@ class ThesisManager:
         filtered = [h for h in holdings if h["ticker"] != ticker]
         if len(filtered) == len(holdings):
             return False
-        self._rebuild_ledger(filtered)
+        self._rebuild_ledger(filtered, options=self._options_for_ledger)
         return True
 
-    def update_values(self, updates: dict[str, float]) -> None:
+    def update_values(
+        self, updates: dict[str, float], options: list[dict] | None = None,
+    ) -> None:
         """Batch update current_value and current_price for multiple tickers."""
+        if options is not None:
+            self._current_options = options
         holdings = self.get_holdings()
         for h in holdings:
             if h["ticker"] in updates:
@@ -542,11 +552,15 @@ class ThesisManager:
                 qty = h["qty"]
                 if qty > 0:
                     h["current_price"] = updates[h["ticker"]] / qty
-        self._rebuild_ledger(holdings)
+        self._rebuild_ledger(holdings, options=self._options_for_ledger)
 
-    def _rebuild_ledger(self, holdings: list[dict]) -> None:
+    def _rebuild_ledger(
+        self, holdings: list[dict], options: list[dict] | None = None,
+    ) -> None:
         lines = [
             "# Portfolio Ledger",
+            "",
+            "## Equity Positions",
             "",
             "| Ticker | Side | Qty | Entry Price | Current Value | Current Price | P&L % | Date Opened |",
             "|--------|------|-----|-------------|---------------|---------------|-------|-------------|",
@@ -566,6 +580,32 @@ class ThesisManager:
                 f"${entry_price:,.2f} | ${current_value:,.2f} | "
                 f"${current_price:,.2f} | {pnl_pct:+.1f}% | {h['date_opened']} |"
             )
+
+        # Options section
+        if options:
+            lines.append("")
+            lines.append("## Option Positions")
+            lines.append("")
+            lines.append("| Contract | Side | Qty | Entry Premium | Current Premium | Value | P&L % | Expiry |")
+            lines.append("|----------|------|-----|---------------|-----------------|-------|-------|--------|")
+            for o in options:
+                qty = o["quantity"]
+                entry_prem = o["premium_paid"]
+                curr_prem = o["current_premium"]
+                cost = entry_prem * 100 * qty
+                curr_value = curr_prem * 100 * qty
+                side = "SHORT" if o["is_short"] else "LONG"
+                if o["is_short"]:
+                    pnl_pct = ((cost - curr_value) / cost * 100) if cost > 0 else 0.0
+                else:
+                    pnl_pct = ((curr_value - cost) / cost * 100) if cost > 0 else 0.0
+                label = f"{o['ticker']} {o['option_type']} ${o['strike']:.0f}"
+                lines.append(
+                    f"| {label} | {side} | {qty} | "
+                    f"${entry_prem:.2f} | ${curr_prem:.2f} | "
+                    f"${curr_value:,.0f} | {pnl_pct:+.1f}% | {o['expiry']} |"
+                )
+
         lines.append("")
         self._write("ledger", "\n".join(lines))
 

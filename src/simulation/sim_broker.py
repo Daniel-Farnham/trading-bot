@@ -62,25 +62,32 @@ class SimBroker:
             self.cash = self.initial_cash
 
     @property
-    def portfolio_value(self) -> float:
-        # Equity positions
-        position_value = 0.0
+    def equity_value(self) -> float:
+        """Total value of equity (stock) positions."""
+        value = 0.0
         for p in self.positions.values():
             price = p.current_price if p.current_price > 0 else p.entry_price
             if p.is_short:
-                position_value += p.quantity * (p.entry_price - price)
+                value += p.quantity * (p.entry_price - price)
             else:
-                position_value += p.quantity * price
-        # Options mark-to-market
-        options_value = 0.0
+                value += p.quantity * price
+        return value
+
+    @property
+    def options_value(self) -> float:
+        """Total mark-to-market value of options positions."""
+        value = 0.0
         for opt in self.option_positions.values():
             contract_value = opt.current_premium * 100 * opt.quantity
             if opt.is_short:
-                # Short options: we owe the current premium
-                options_value -= contract_value
+                value -= contract_value
             else:
-                options_value += contract_value
-        return self.cash + position_value + options_value
+                value += contract_value
+        return value
+
+    @property
+    def portfolio_value(self) -> float:
+        return self.cash + self.equity_value + self.options_value
 
     def update_prices(self, daily_bars: dict[str, dict]) -> None:
         """Update current prices for all positions from daily bars."""
