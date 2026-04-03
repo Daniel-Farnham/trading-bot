@@ -1,7 +1,7 @@
 """Live trade executor — translates Claude's decisions into real Alpaca orders.
 
 Mirrors the sim's _execute_decisions logic but uses the real broker.
-Handles: closes, reduces, new positions (scout/core), pyramids, upgrades.
+Handles: closes, reduces, new positions (scout/core), pyramids, upgrades, options.
 """
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import logging
 import math
 
 from src.execution.broker import Broker, OrderResult
+from src.execution.options_broker import OptionsBroker
+from src.strategy.contract_selector import ContractSelector
 from src.strategy.risk_v3 import RiskManagerV3, V3RiskVeto, PositionPlan
 from src.strategy.thesis_manager import ThesisManager
 
@@ -21,10 +23,14 @@ class LiveExecutor:
         broker: Broker,
         risk_manager: RiskManagerV3,
         thesis_manager: ThesisManager,
+        options_broker: OptionsBroker | None = None,
+        contract_selector: ContractSelector | None = None,
     ):
         self._broker = broker
         self._risk = risk_manager
         self._tm = thesis_manager
+        self._options_broker = options_broker
+        self._contract_selector = contract_selector
 
     def execute_decisions(
         self,
@@ -115,9 +121,14 @@ class LiveExecutor:
 
             action = new_pos.get("action", "BUY").upper()
 
-            # Options — routed to options executor when available (Phase 9)
+            # Options — route to options broker
             if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
-                logger.info("OPTIONS SKIPPED %s %s — options executor not yet wired", action, ticker)
+                if not self._options_broker or not self._contract_selector:
+                    logger.info("OPTIONS SKIPPED %s %s — options broker not configured", action, ticker)
+                    continue
+                trade = self._handle_option_trade(new_pos, portfolio_value)
+                if trade:
+                    executed.append(trade)
                 continue
 
             # Pyramid/upgrade on existing position
@@ -226,7 +237,7 @@ class LiveExecutor:
             cash=cash,
             open_position_count=len(existing_tickers),
             existing_tickers=existing_tickers,
-            short_exposure=0,  # TODO: calculate from positions
+            short_exposure=self._calculate_short_exposure(existing_tickers, portfolio_value),
             thesis=new_pos.get("thesis", ""),
             confidence=confidence,
         )
@@ -282,6 +293,106 @@ class LiveExecutor:
             }
         else:
             logger.error("Order failed for %s: %s", ticker, result.error)
+            return None
+
+
+    def _calculate_short_exposure(self, position_tickers: list[str], portfolio_value: float) -> float:
+        """Calculate total short exposure from current positions."""
+        if portfolio_value <= 0:
+            return 0.0
+        try:
+            positions = self._broker._client.get_all_positions()
+            short_value = sum(
+                abs(float(p.market_value))
+                for p in positions
+                if hasattr(p, 'side') and str(p.side) == 'short'
+            )
+            return short_value
+        except Exception:
+            return 0.0
+
+    def _handle_option_trade(
+        self,
+        new_pos: dict,
+        portfolio_value: float,
+    ) -> dict | None:
+        """Handle an options trade (BUY_CALL, BUY_PUT, SELL_PUT)."""
+        ticker = new_pos.get("ticker", "")
+        action = new_pos.get("action", "").upper()
+        allocation_pct = new_pos.get("allocation_pct", 5)
+        strike_selection = new_pos.get("strike_selection", "ATM")
+        expiry_months = new_pos.get("expiry_months", 6)
+
+        # Check options premium cap (max 25% of portfolio)
+        # Options premium cap check (max 25% of portfolio)
+        if self._options_broker:
+            options_positions = self._options_broker.get_options_positions()
+            options_value = sum(abs(float(p.get("market_value", 0))) for p in options_positions)
+            options_pct = options_value / portfolio_value if portfolio_value > 0 else 0
+            if options_pct > 0.25:
+                logger.info("OPTIONS CAP: %.1f%% of portfolio in options (max 25%%), skipping", options_pct * 100)
+                return None
+
+        allocation_usd = portfolio_value * (allocation_pct / 100.0)
+
+        # Get current underlying price
+        from src.data.market import MarketData
+        current_price = 0.0
+        try:
+            # Use broker's latest price if available
+            current_price = self._broker._client.get_open_position(ticker).current_price
+            current_price = float(current_price)
+        except Exception:
+            pass
+
+        if current_price <= 0:
+            logger.warning("No price for %s, cannot select options contract", ticker)
+            return None
+
+        # Select best contract from real chain
+        selected = self._contract_selector.select_contract(
+            ticker=ticker,
+            action=action,
+            current_price=current_price,
+            allocation_usd=allocation_usd,
+            strike_selection=strike_selection,
+            expiry_months=expiry_months,
+        )
+
+        if not selected:
+            logger.warning("No suitable contract found for %s %s", action, ticker)
+            return None
+
+        # Execute via options broker
+        if action == "BUY_CALL":
+            result = self._options_broker.buy_to_open(selected.symbol, selected.quantity)
+        elif action == "BUY_PUT":
+            result = self._options_broker.buy_to_open(selected.symbol, selected.quantity)
+        elif action == "SELL_PUT":
+            result = self._options_broker.sell_to_open(selected.symbol, selected.quantity)
+        else:
+            return None
+
+        if result.success:
+            logger.info(
+                "OPTION %s: %d x %s $%.0f %s exp %s @ $%.2f ($%.0f total)",
+                action, selected.quantity, ticker, selected.strike,
+                selected.option_type, selected.expiry, selected.premium,
+                selected.total_cost,
+            )
+            return {
+                "ticker": ticker,
+                "action": action,
+                "quantity": selected.quantity,
+                "details": (
+                    f"{selected.option_type.upper()} ${selected.strike:.0f} "
+                    f"exp {selected.expiry} @ ${selected.premium:.2f} "
+                    f"({selected.quantity} contracts, ${selected.total_cost:.0f} total, "
+                    f"delta {selected.delta:.2f})"
+                ),
+            }
+        else:
+            logger.error("Options order failed for %s: %s", ticker, result.error)
             return None
 
 

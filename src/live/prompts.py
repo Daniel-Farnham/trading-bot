@@ -19,12 +19,14 @@ def build_call1_prompt(
     watchlist_tickers: list[str],
     universe_tickers: list[str],
     world_view_md: str,
+    prefetched_news: str = "",
+    holdings_news: str = "",
 ) -> str:
     """Build the Call 1 discovery prompt.
 
-    Call 1 has Alpaca MCP tools available — it can autonomously fetch news,
-    quotes, bars, and fundamentals. The prompt tells Claude what to look for
-    and what context it already has.
+    Pre-fetched news is always included (guaranteed baseline). Claude also has
+    Alpaca MCP tools available to dig deeper into stories and discover new
+    opportunities beyond what was pre-fetched.
     """
     today = date.today().isoformat()
 
@@ -32,15 +34,28 @@ def build_call1_prompt(
     watchlist_text = ", ".join(watchlist_tickers) if watchlist_tickers else "(Empty watchlist)"
     universe_text = ", ".join(universe_tickers) if universe_tickers else "(No universe configured)"
 
+    news_section = ""
+    if prefetched_news:
+        news_section = f"""
+PRE-FETCHED NEWS (overnight/morning headlines — your baseline):
+{prefetched_news}
+"""
+    if holdings_news:
+        news_section += f"""
+HOLDINGS-SPECIFIC NEWS:
+{holdings_news}
+"""
+
     return f"""You are the research analyst for a Druckenmiller-style macro trading bot.
 Today is {today}. Your job is DISCOVERY — find what matters and what's changed.
 
-You have access to the Alpaca API tools. Use them to:
-1. Fetch overnight and morning news headlines (broad market, not just our universe)
-2. Check ticker-specific news for our current holdings and watchlist
-3. Look up quotes, price action, or fundamentals for anything interesting you find
-4. Dig deeper into stories that match our investment themes
-
+You have been given pre-fetched news headlines below as a baseline. You also have access
+to the Alpaca API tools to dig deeper — use them to:
+1. Investigate stories from the pre-fetched news that match our themes
+2. Look up quotes, price action, or fundamentals for anything interesting
+3. Search for news on specific tickers or sectors not covered in the pre-fetch
+4. Discover opportunities BEYOND our known universe
+{news_section}
 CURRENT HOLDINGS:
 {holdings_text}
 

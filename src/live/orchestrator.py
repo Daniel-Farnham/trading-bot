@@ -16,6 +16,7 @@ from src.analysis.technical import TechnicalAnalyzer
 from src.data.market import MarketData
 from src.live.claude_client import ClaudeClient, BudgetExceededError
 from src.live.daily_state import DailyState
+from src.live.health import update_status
 from src.live.executor import LiveExecutor
 from src.live.notifier import EmailNotifier
 from src.live.prompts import build_call1_prompt, build_call3_prompt
@@ -23,6 +24,8 @@ from src.live.trigger_check import TriggerCheck
 from src.live.universe import LiveUniverse
 from src.live.watchlist import LiveWatchlist
 from src.research.fundamentals import FundamentalsClient
+from src.research.news_client import AlpacaNewsClient
+from src.research.world_state import build_world_state
 from src.strategy.decision_engine import DecisionEngine
 from src.strategy.thesis_manager import ThesisManager
 
@@ -40,6 +43,7 @@ class LiveOrchestrator:
         market_data: MarketData,
         technical_analyzer: TechnicalAnalyzer,
         fundamentals_client: FundamentalsClient,
+        news_client: AlpacaNewsClient,
         trigger_check: TriggerCheck,
         executor: LiveExecutor,
         watchlist: LiveWatchlist,
@@ -53,6 +57,7 @@ class LiveOrchestrator:
         self._market = market_data
         self._technicals = technical_analyzer
         self._fundamentals = fundamentals_client
+        self._news = news_client
         self._trigger = trigger_check
         self._executor = executor
         self._watchlist = watchlist
@@ -83,21 +88,61 @@ class LiveOrchestrator:
             themes_md = self._tm.get_themes_text()
             world_view_md = self._tm.get_world_view_text()
 
+            # Pre-fetch news via API (guaranteed baseline)
+            prefetched_news = ""
+            holdings_news = ""
+            try:
+                from datetime import timedelta
+                yesterday = (date.today() - timedelta(days=1)).isoformat()
+                today_str = date.today().isoformat()
+
+                # Broad market news
+                broad_articles = self._news.get_news(
+                    start_date=yesterday, end_date=today_str, limit=30,
+                )
+                if broad_articles:
+                    prefetched_news = "\n".join(
+                        f"- [{a.get('publishedDate', '')[:10]}] {a.get('title', '')} "
+                        f"(tickers: {', '.join(a.get('tickers', [])[:5])})"
+                        for a in broad_articles
+                    )
+
+                # Holdings-specific news
+                if holdings_tickers:
+                    holdings_articles = self._news.get_news(
+                        symbols=holdings_tickers,
+                        start_date=yesterday, end_date=today_str, limit=20,
+                    )
+                    if holdings_articles:
+                        holdings_news = "\n".join(
+                            f"- [{a.get('publishedDate', '')[:10]}] [{', '.join(a.get('tickers', [])[:3])}] "
+                            f"{a.get('title', '')}"
+                            for a in holdings_articles
+                        )
+            except Exception as e:
+                logger.warning("Pre-fetch news failed (Claude can still use MCP tools): %s", e)
+
             prompt = build_call1_prompt(
                 themes_md=themes_md,
                 holdings_tickers=holdings_tickers,
                 watchlist_tickers=self._watchlist.get_tickers(),
                 universe_tickers=self._universe.get_tickers(),
                 world_view_md=world_view_md,
+                prefetched_news=prefetched_news,
+                holdings_news=holdings_news,
             )
 
-            # Call Claude with Alpaca MCP tools
-            # TODO: Wire Alpaca MCP tools here when available
+            # Call Claude — MCP tools available for deeper exploration
             result = self._claude.call(prompt, model="sonnet")
+            update_status("last_call1", datetime.now().isoformat())
 
             if not result:
                 logger.error("Call 1 returned no result")
                 return
+
+            # Log Claude's full output for debugging
+            import json as _json
+            logger.info("Call 1 raw output:\n%s", _json.dumps(result, indent=2)[:3000])
 
             # Process outputs
             self._state.call1_output = result
@@ -152,6 +197,7 @@ class LiveOrchestrator:
                 watchlist_tickers=self._watchlist.get_tickers(),
                 portfolio_value=portfolio_value,
             )
+            update_status("last_trigger_check", datetime.now().isoformat())
 
             if result is None:
                 logger.debug("Trigger check: no trigger")
@@ -209,9 +255,8 @@ class LiveOrchestrator:
             call1_output = self._state.call1_output
 
             # Performance vs SPY
-            # TODO: compute from Alpaca historical data
-            bot_return_pct = 0.0
-            spy_return_pct = 0.0
+            bot_return_pct = self._compute_bot_return(portfolio_value)
+            spy_return_pct = self._compute_spy_return()
 
             self._review_count += 1
 
@@ -236,10 +281,15 @@ class LiveOrchestrator:
 
             # Call Claude
             result = self._claude.call(prompt, model="sonnet")
+            update_status("last_call3", datetime.now().isoformat())
 
             if not result:
                 logger.error("Call 3 returned no result")
                 return
+
+            # Log Claude's full output for debugging
+            import json as _json
+            logger.info("Call 3 raw output:\n%s", _json.dumps(result, indent=2)[:5000])
 
             self._state.call3_output = result
             self._state.save(self._state_path)
@@ -332,15 +382,139 @@ class LiveOrchestrator:
             logger.error("Reconcile failed: %s", e)
 
     def initialize_first_boot(self) -> None:
-        """Cold start: seed universe, copy seed beliefs."""
+        """Cold start: seed universe, fetch 12 months of headlines, build world view + themes."""
         logger.info("=== First boot initialization ===")
 
         # Seed universe from config
         added = self._universe.seed_from_config()
         logger.info("Seeded %d tickers into universe", added)
 
-        # TODO: Fetch 6 months of headlines and synthesize world view + themes
-        # For now, the first Call 1 will start building context
+        # Fetch 12 months of headlines and synthesize world view + themes
+        logger.info("Fetching 12 months of headlines for initial world view...")
+        try:
+            from datetime import timedelta
+            end_date = date.today().isoformat()
+            start_date = (date.today() - timedelta(days=365)).isoformat()
+
+            universe_tickers = self._universe.get_tickers()
+
+            world_state = build_world_state(
+                start_date=start_date,
+                end_date=end_date,
+                holdings=None,
+                watchlist=universe_tickers[:30],  # Top 30 to keep API calls reasonable
+                client=self._news,
+            )
+
+            if not world_state:
+                logger.warning("No headlines fetched for first boot")
+                return
+
+            # Call Claude to synthesize into world view + themes + initial watchlist
+            universe_tickers = self._universe.get_tickers()
+            prompt = f"""You are initializing a Druckenmiller-style macro trading bot.
+Below are 12 months of financial news headlines. Your job is to:
+
+1. Write an initial WORLD VIEW — current macro regime assessment + 12-18 month forward outlook.
+   Max 300 words.
+2. Identify 3-5 initial THEMES — investment themes you see in the data, scored 1-5.
+3. Pick an initial WATCHLIST — up to 20 stocks from the universe (or outside it) that you
+   think are the most interesting right now based on the themes and headlines. These are stocks
+   you want to monitor closely. Think: what would Druckenmiller be watching today?
+4. Note any key observations about what's working and what's not.
+
+STOCK UNIVERSE ({len(universe_tickers)} stocks):
+{', '.join(universe_tickers)}
+
+NEWS HEADLINES (past 12 months):
+{world_state}
+
+Respond with ONLY valid JSON:
+{{
+  "world_view": "Your macro regime assessment + forward outlook (max 300 words)",
+  "themes": [
+    {{"name": "Theme Name", "score": 4, "description": "Why this theme matters"}}
+  ],
+  "initial_watchlist": [
+    {{"ticker": "NVDA", "reason": "AI capex leader, Blackwell cycle ramping"}}
+  ],
+  "observations": "Key patterns you noticed"
+}}"""
+
+            result = self._claude.call(prompt, model="sonnet")
+            if not result:
+                logger.warning("First boot Claude call returned no result")
+                return
+
+            # Write world view
+            world_view = result.get("world_view", "")
+            if world_view:
+                self._tm.write_world_view(world_view)
+                logger.info("Initial world view written (%d chars)", len(world_view))
+
+            # Write themes
+            themes = result.get("themes", [])
+            for theme in themes:
+                name = theme.get("name", "")
+                score = theme.get("score", 1)
+                desc = theme.get("description", "")
+                if name:
+                    self._tm.add_theme(name, score, desc)
+                    logger.info("Initial theme: %s [%d] — %s", name, score, desc[:80])
+
+            # Populate initial watchlist
+            watchlist_picks = result.get("initial_watchlist", [])
+            for pick in watchlist_picks:
+                ticker = pick.get("ticker", "")
+                reason = pick.get("reason", "")
+                if ticker:
+                    self._watchlist.add(ticker, source="first_boot", reason=reason)
+                    # Add to universe if not already there
+                    self._universe.add(ticker, source="first_boot", reason=reason)
+            logger.info("Initial watchlist: %d stocks", len(watchlist_picks))
+
+            observations = result.get("observations", "")
+            if observations:
+                logger.info("First boot observations: %s", observations[:200])
+
+            self._notifier.send_alert(
+                "First Boot Complete",
+                f"World view initialized from 12 months of headlines. "
+                f"{len(themes)} themes discovered. {len(watchlist_picks)} stocks watchlisted.",
+            )
+
+        except BudgetExceededError as e:
+            logger.error("First boot blocked by budget: %s", e)
+        except Exception as e:
+            logger.error("First boot headline synthesis failed: %s", e)
+            logger.info("Call 1 will start building context from scratch")
+
+    def _compute_bot_return(self, current_value: float) -> float:
+        """Compute bot return % from Alpaca account history."""
+        try:
+            account = self._market.get_account()
+            # Use Alpaca's last_equity as starting reference
+            # For a more accurate measure, track initial deposit separately
+            last_equity = float(account.get("last_equity", current_value))
+            if last_equity > 0:
+                return ((current_value - last_equity) / last_equity) * 100
+        except Exception:
+            pass
+        return 0.0
+
+    def _compute_spy_return(self) -> float:
+        """Compute SPY return % over the same period."""
+        try:
+            from datetime import timedelta
+            bars = self._market.get_bars("SPY", limit=30)
+            if not bars.empty and len(bars) >= 2:
+                start_price = float(bars.iloc[0]["close"])
+                end_price = float(bars.iloc[-1]["close"])
+                if start_price > 0:
+                    return ((end_price - start_price) / start_price) * 100
+        except Exception:
+            pass
+        return 0.0
 
     def _build_technicals_summary(self) -> str:
         """Build technicals for holdings + universe from live Alpaca bars."""

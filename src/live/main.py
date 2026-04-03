@@ -12,10 +12,12 @@ import sys
 from src.config import CONFIG, get_alpaca_keys, get_anthropic_key, get_gmail_credentials
 from src.analysis.technical import TechnicalAnalyzer
 from src.data.market import MarketData
+from src.data.options_data import OptionsDataClient
 from src.execution.broker import Broker
+from src.execution.options_broker import OptionsBroker
 from src.live.claude_client import ClaudeClient
 from src.live.executor import LiveExecutor
-from src.live.health import start_health_server
+from src.live.health import start_health_server, set_data_dir, set_market_data
 from src.live.notifier import EmailNotifier
 from src.live.orchestrator import LiveOrchestrator
 from src.live.scheduler import create_scheduler
@@ -23,6 +25,8 @@ from src.live.trigger_check import TriggerCheck
 from src.live.universe import LiveUniverse
 from src.live.watchlist import LiveWatchlist
 from src.research.fundamentals import FundamentalsClient
+from src.research.news_client import AlpacaNewsClient
+from src.strategy.contract_selector import ContractSelector
 from src.strategy.decision_engine import DecisionEngine
 from src.strategy.risk_v3 import RiskManagerV3
 from src.strategy.thesis_manager import ThesisManager
@@ -85,6 +89,14 @@ def main() -> None:
         claude_client=claude_client,
     )
 
+    # News client
+    news_client = AlpacaNewsClient()
+
+    # Options components
+    options_data = OptionsDataClient(api_key=api_key, secret_key=secret_key)
+    options_broker = OptionsBroker(api_key=api_key, secret_key=secret_key)
+    contract_selector = ContractSelector(options_data=options_data)
+
     # Live components
     watchlist = LiveWatchlist(path=os.path.join(data_dir, "watchlist.json"))
     universe = LiveUniverse(path=os.path.join(data_dir, "universe.json"))
@@ -96,6 +108,8 @@ def main() -> None:
         broker=broker,
         risk_manager=risk_manager,
         thesis_manager=thesis_manager,
+        options_broker=options_broker,
+        contract_selector=contract_selector,
     )
 
     # Email notifications
@@ -123,6 +137,7 @@ def main() -> None:
         market_data=market_data,
         technical_analyzer=technical_analyzer,
         fundamentals_client=fundamentals_client,
+        news_client=news_client,
         trigger_check=trigger_check,
         executor=executor,
         watchlist=watchlist,
@@ -138,7 +153,9 @@ def main() -> None:
     if len(universe) == 0:
         orchestrator.initialize_first_boot()
 
-    # Start health check server
+    # Start dashboard server
+    set_data_dir(data_dir)
+    set_market_data(market_data)
     health_port = int(os.environ.get("PORT", 8080))
     start_health_server(port=health_port)
 
