@@ -67,34 +67,58 @@ universe:
     - CMG     # Fast casual dining
     - HD      # Home improvement, housing cycle
 
+  biotech_precision_medicine:
+    - NTRA    # Natera — genetic testing, precision medicine (Druckenmiller's top pick)
+    - INSM    # Insmed — rare disease biotech
+    - TEVA    # Teva Pharma — value pharma turnaround
+    - GILD    # Gilead Sciences — HIV/oncology, strong cash flow
+    - MRNA    # Moderna — mRNA platform, pipeline optionality
+
+  memory_storage:
+    - WDC     # Western Digital — storage/HDD/SSD
+    - STX     # Seagate — storage, AI data center demand
+
+  industrials_defense:
+    - GE      # GE Aerospace — defense/aviation (+94% in 2025)
+    - RTX     # RTX Corp — defense/aerospace (+63% in 2025)
+    - LMT     # Lockheed Martin — defense
+    - CAT     # Caterpillar — industrials/infrastructure
+
   discovery_pool:
     - T       # AT&T — telecom
     - VZ      # Verizon — telecom
-    - KSS     # Kohl's — department stores
-    - WBA     # Walgreens — pharmacy retail
-    - CAT     # Caterpillar — industrials
     - BA      # Boeing — aerospace
-    - FCX     # Freeport-McMoRan — copper mining
-    - NUE     # Nucor — steel
-    - DIS     # Disney — media/entertainment
     - NFLX    # Netflix — streaming
-    - PARA    # Paramount — legacy media
+    - DIS     # Disney — media/entertainment
     - CMCSA   # Comcast — cable/media
     - AMT     # American Tower — cell tower REIT
     - PLD     # Prologis — industrial REIT
     - SO      # Southern Company — utility
     - PG      # Procter & Gamble — consumer staples
-    - F       # Ford — auto
     - CVS     # CVS Health — pharmacy/insurance
     - MCD     # McDonald's — fast food
     - DE      # Deere — agriculture/industrials
+    - HOOD    # Robinhood — retail trading platform
+    - DOCU    # DocuSign — e-signatures
+    - ROKU    # Roku — streaming platform
+    - F       # Ford — auto
+    - FCX     # Freeport-McMoRan — copper mining
+    - NUE     # Nucor — steel
+    - KSS     # Kohl's — department stores
+    - INTC    # Intel — struggling chipmaker
+    - PYPL    # PayPal — fintech
+    - UBER    # Uber — ride-sharing/delivery
+    - SHOP    # Shopify — e-commerce platform
+    - RIVN    # Rivian — EV startup
+    - SNAP    # Snap — social media
+    - ABNB    # Airbnb — travel platform
 
 trading:
   max_position_pct: 1.0
   max_open_positions: 8
   max_daily_loss_pct: 0.03
   max_drawdown_pct: 0.30
-  min_cash_reserve_pct: 0.20
+  min_cash_reserve_pct: 0.05
   enable_short_selling: true
   max_short_exposure_pct: 0.30
   max_short_position_pct: 0.15
@@ -121,6 +145,8 @@ memory:
   summaries_path: "data/quarterly_summaries.md"
   lessons_path: "data/lessons_learned.md"
   themes_path: "data/themes.md"
+  world_view_path: "data/world_view.md"
+  decision_journal_path: "data/decision_journal.md"
   max_active_theses: 15
   max_watching_theses: 5
   watching_expiry_reviews: 6
@@ -129,3 +155,5 @@ memory:
   beliefs_path: "data/beliefs.md"
   max_lessons: 15
   max_beliefs: 5
+  max_journal_entries: 12
+  max_new_positions_per_review: 3

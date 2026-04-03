@@ -121,6 +121,88 @@ class Broker:
             logger.error("Cancel all orders failed: %s", str(e))
             return False
 
+    def place_market_buy(self, ticker: str, quantity: int) -> OrderResult:
+        """Places a market buy order for core position entries."""
+        try:
+            order = MarketOrderRequest(
+                symbol=ticker,
+                qty=quantity,
+                side=OrderSide.BUY,
+                time_in_force=TimeInForce.DAY,
+            )
+
+            result = self._client.submit_order(order)
+
+            logger.info(
+                "Market buy placed: %d shares of %s [order_id: %s]",
+                quantity, ticker, result.id,
+            )
+
+            return OrderResult(
+                success=True,
+                order_id=str(result.id),
+                filled_price=float(result.filled_avg_price) if result.filled_avg_price else None,
+            )
+
+        except Exception as e:
+            logger.error("Buy order failed for %s: %s", ticker, str(e))
+            return OrderResult(success=False, error=str(e))
+
+    def place_short_sell(self, ticker: str, quantity: int) -> OrderResult:
+        """Places a market short sell order."""
+        try:
+            order = MarketOrderRequest(
+                symbol=ticker,
+                qty=quantity,
+                side=OrderSide.SELL,
+                time_in_force=TimeInForce.DAY,
+            )
+
+            result = self._client.submit_order(order)
+
+            logger.info(
+                "Short sell placed: %d shares of %s [order_id: %s]",
+                quantity, ticker, result.id,
+            )
+
+            return OrderResult(
+                success=True,
+                order_id=str(result.id),
+                filled_price=float(result.filled_avg_price) if result.filled_avg_price else None,
+            )
+
+        except Exception as e:
+            logger.error("Short sell failed for %s: %s", ticker, str(e))
+            return OrderResult(success=False, error=str(e))
+
+    def get_all_orders(self, status: str = "open") -> list[dict]:
+        """List orders by status."""
+        try:
+            from alpaca.trading.requests import GetOrdersRequest
+            from alpaca.trading.enums import QueryOrderStatus
+            status_map = {
+                "open": QueryOrderStatus.OPEN,
+                "closed": QueryOrderStatus.CLOSED,
+                "all": QueryOrderStatus.ALL,
+            }
+            request = GetOrdersRequest(status=status_map.get(status, QueryOrderStatus.OPEN))
+            orders = self._client.get_orders(filter=request)
+            return [
+                {
+                    "id": str(o.id),
+                    "status": str(o.status),
+                    "symbol": o.symbol,
+                    "qty": str(o.qty),
+                    "filled_qty": str(o.filled_qty),
+                    "side": str(o.side),
+                    "type": str(o.type),
+                }
+                for o in orders
+            ]
+        except Exception as e:
+            logger.error("Failed to get orders: %s", str(e))
+            return []
+
     def get_order(self, order_id: str) -> dict | None:
         """Gets the current state of an order."""
         try:
