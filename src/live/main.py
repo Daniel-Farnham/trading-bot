@@ -66,16 +66,17 @@ def main() -> None:
     market_data = MarketData(api_key=api_key, secret_key=secret_key)
     broker = Broker(api_key=api_key, secret_key=secret_key)
 
-    # Thesis manager — uses live data directory
-    memory_paths = {}
-    for key in ["theses", "ledger", "summaries", "lessons", "themes", "beliefs", "world_view", "journal"]:
-        config_key = f"{key}_path"
-        default_filename = CONFIG.get("memory", {}).get(config_key, f"{key}.md")
-        # Override to use live data dir
-        filename = os.path.basename(default_filename)
-        memory_paths[config_key] = os.path.join(data_dir, filename)
+    # Thesis manager — override config memory paths to use live data directory
+    # ThesisManager reads from CONFIG["memory"] and prepends base_dir
+    # We override the config paths to point to the live dir's filenames
+    memory_cfg = CONFIG.setdefault("memory", {})
+    for key in ["theses_path", "ledger_path", "summaries_path", "lessons_path",
+                 "themes_path", "beliefs_path", "world_view_path", "decision_journal_path"]:
+        default = memory_cfg.get(key, "")
+        filename = os.path.basename(default) if default else f"{key.replace('_path', '')}.md"
+        memory_cfg[key] = os.path.join(data_dir, filename)
 
-    thesis_manager = ThesisManager(paths=memory_paths)
+    thesis_manager = ThesisManager()
 
     # Strategy components
     risk_manager = RiskManagerV3()

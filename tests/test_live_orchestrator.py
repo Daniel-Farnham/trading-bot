@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -351,10 +352,10 @@ def _make_orchestrator():
     orchestrator._engine._build_prompt.return_value = "PORTFOLIO STATE:\ntest prompt"
     orchestrator._tm = MagicMock()
     orchestrator._tm.get_holdings.return_value = []
-    orchestrator._tm.get_themes_text.return_value = ""
-    orchestrator._tm.get_world_view_text.return_value = ""
+    orchestrator._tm.get_all_themes.return_value = []
+    orchestrator._tm.get_world_view.return_value = ""
     orchestrator._tm.get_decision_context.return_value = "memory"
-    orchestrator._tm.get_data_dir.return_value = "/tmp/test"
+    orchestrator._tm._paths = {"theses": Path("/tmp/test/active_theses.md")}
     orchestrator._market = MagicMock()
     orchestrator._technicals = MagicMock()
     orchestrator._fundamentals = MagicMock()

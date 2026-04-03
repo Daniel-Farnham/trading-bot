@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import traceback
 from datetime import date, datetime
+from pathlib import Path
 
 from src.analysis.technical import TechnicalAnalyzer
 from src.data.market import MarketData
@@ -85,8 +86,8 @@ class LiveOrchestrator:
             # Build prompt
             holdings = self._tm.get_holdings()
             holdings_tickers = [h["ticker"] for h in holdings]
-            themes_md = self._tm.get_themes_text()
-            world_view_md = self._tm.get_world_view_text()
+            themes_md = self._format_themes()
+            world_view_md = self._tm.get_world_view()
 
             # Pre-fetch news via API (guaranteed baseline)
             prefetched_news = ""
@@ -167,7 +168,9 @@ class LiveOrchestrator:
             observation = result.get("world_view_observation", "")
             if observation:
                 today = date.today().isoformat()
-                self._tm.append_world_view(f"- {today}: {observation}")
+                # Append observation to existing world view
+                current_wv = self._tm.get_world_view()
+                self._tm.update_world_view(f"{current_wv}\n- {today}: {observation}")
 
             # Send email
             self._notifier.send_call1_summary(result)
@@ -348,7 +351,7 @@ class LiveOrchestrator:
                     "unrealized_plpc": p.get("unrealized_pnl_pct", 0),
                 })
 
-            memory_dir = self._tm.get_data_dir()
+            memory_dir = str(self._tm._paths.get("theses", Path("data/live")).parent)
             self._notifier.send_eod_portfolio(account, formatted_positions, memory_dir)
 
             logger.info("EOD portfolio email sent.")
@@ -449,7 +452,7 @@ Respond with ONLY valid JSON:
             # Write world view
             world_view = result.get("world_view", "")
             if world_view:
-                self._tm.write_world_view(world_view)
+                self._tm.update_world_view(world_view)
                 logger.info("Initial world view written (%d chars)", len(world_view))
 
             # Write themes
@@ -459,7 +462,7 @@ Respond with ONLY valid JSON:
                 score = theme.get("score", 1)
                 desc = theme.get("description", "")
                 if name:
-                    self._tm.add_theme(name, score, desc)
+                    self._tm.add_theme(name, desc, score)
                     logger.info("Initial theme: %s [%d] — %s", name, score, desc[:80])
 
             # Populate initial watchlist
@@ -488,6 +491,19 @@ Respond with ONLY valid JSON:
         except Exception as e:
             logger.error("First boot headline synthesis failed: %s", e)
             logger.info("Call 1 will start building context from scratch")
+
+    def _format_themes(self) -> str:
+        """Format themes for prompt context."""
+        themes = self._tm.get_all_themes()
+        if not themes:
+            return "(No themes yet)"
+        lines = []
+        for t in themes:
+            name = t.get("name", "")
+            score = t.get("score", 1)
+            desc = t.get("description", "")
+            lines.append(f"- {name} [{score}]: {desc}")
+        return "\n".join(lines)
 
     def _compute_bot_return(self, current_value: float) -> float:
         """Compute bot return % from Alpaca account history."""
