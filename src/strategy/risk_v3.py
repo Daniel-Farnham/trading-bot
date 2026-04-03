@@ -59,7 +59,7 @@ class RiskManagerV3:
         p = params or {}
         self._max_positions = p.get("max_positions", _portfolio_cfg("max_positions", 8))
         self._max_single_pct = p.get("max_single_position_pct", _portfolio_cfg("max_single_position_pct", 0.20))
-        self._min_cash_pct = p.get("min_cash_reserve_pct", _portfolio_cfg("min_cash_reserve_pct", 0.20))
+        self._min_cash_pct = p.get("min_cash_reserve_pct", _portfolio_cfg("min_cash_reserve_pct", 0.05))
         self._catastrophic_stop_pct = p.get("catastrophic_stop_pct", _portfolio_cfg("catastrophic_stop_pct", 0.30))
         self._max_short_pct = p.get("max_short_exposure_pct", _portfolio_cfg("max_short_exposure_pct", 0.30))
         self._max_drawdown_pct = p.get("max_drawdown_pct", _portfolio_cfg("max_drawdown_pct", 0.30))

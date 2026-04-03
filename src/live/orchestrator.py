@@ -1,0 +1,405 @@
+"""Live trading orchestrator — the main loop.
+
+Equivalent of thesis_sim.run() but event-driven:
+- Call 1: daily at 9:00 AM (discovery + screening)
+- Trigger check: every 30 min 9:30 AM - 3:00 PM (no Claude)
+- Call 3: Friday 3:30 PM + immediately on trigger (full decision)
+- EOD portfolio email: daily at market close (no Claude)
+"""
+from __future__ import annotations
+
+import logging
+import traceback
+from datetime import date, datetime
+
+from src.analysis.technical import TechnicalAnalyzer
+from src.data.market import MarketData
+from src.live.claude_client import ClaudeClient, BudgetExceededError
+from src.live.daily_state import DailyState
+from src.live.executor import LiveExecutor
+from src.live.notifier import EmailNotifier
+from src.live.prompts import build_call1_prompt, build_call3_prompt
+from src.live.trigger_check import TriggerCheck
+from src.live.universe import LiveUniverse
+from src.live.watchlist import LiveWatchlist
+from src.research.fundamentals import FundamentalsClient
+from src.strategy.decision_engine import DecisionEngine
+from src.strategy.thesis_manager import ThesisManager
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_STATE_PATH = "data/live/daily_state.json"
+
+
+class LiveOrchestrator:
+    def __init__(
+        self,
+        claude_client: ClaudeClient,
+        decision_engine: DecisionEngine,
+        thesis_manager: ThesisManager,
+        market_data: MarketData,
+        technical_analyzer: TechnicalAnalyzer,
+        fundamentals_client: FundamentalsClient,
+        trigger_check: TriggerCheck,
+        executor: LiveExecutor,
+        watchlist: LiveWatchlist,
+        universe: LiveUniverse,
+        notifier: EmailNotifier,
+        state_path: str = DEFAULT_STATE_PATH,
+    ):
+        self._claude = claude_client
+        self._engine = decision_engine
+        self._tm = thesis_manager
+        self._market = market_data
+        self._technicals = technical_analyzer
+        self._fundamentals = fundamentals_client
+        self._trigger = trigger_check
+        self._executor = executor
+        self._watchlist = watchlist
+        self._universe = universe
+        self._notifier = notifier
+        self._state_path = state_path
+        self._state = DailyState.load(state_path)
+        self._review_count = 0
+
+        # Reset state if it's a new day
+        if not self._state.is_current_day():
+            self._state.reset_for_day()
+            self._state.save(state_path)
+
+    def run_call1(self) -> None:
+        """Daily discovery + screening call (9:00 AM)."""
+        logger.info("=== CALL 1: Discovery & Screening ===")
+
+        try:
+            # Prune stale watchlist entries
+            pruned = self._watchlist.prune()
+            if pruned:
+                logger.info("Pruned watchlist: %s", pruned)
+
+            # Build prompt
+            holdings = self._tm.get_holdings()
+            holdings_tickers = [h["ticker"] for h in holdings]
+            themes_md = self._tm.get_themes_text()
+            world_view_md = self._tm.get_world_view_text()
+
+            prompt = build_call1_prompt(
+                themes_md=themes_md,
+                holdings_tickers=holdings_tickers,
+                watchlist_tickers=self._watchlist.get_tickers(),
+                universe_tickers=self._universe.get_tickers(),
+                world_view_md=world_view_md,
+            )
+
+            # Call Claude with Alpaca MCP tools
+            # TODO: Wire Alpaca MCP tools here when available
+            result = self._claude.call(prompt, model="sonnet")
+
+            if not result:
+                logger.error("Call 1 returned no result")
+                return
+
+            # Process outputs
+            self._state.call1_output = result
+            self._state.save(self._state_path)
+
+            # Add flagged tickers to watchlist
+            for flagged in result.get("flagged_tickers_universe", []):
+                ticker = flagged.get("ticker", "")
+                reason = flagged.get("reason", "")
+                if ticker:
+                    self._watchlist.add(ticker, source="call1", reason=reason)
+
+            # Add new universe additions
+            for addition in result.get("new_universe_additions", []):
+                ticker = addition.get("ticker", "")
+                reason = addition.get("reason", "")
+                if ticker:
+                    self._universe.add(ticker, source="call1", reason=reason)
+                    self._watchlist.add(ticker, source="call1_discovery", reason=reason)
+
+            # Update world view with daily observation
+            observation = result.get("world_view_observation", "")
+            if observation:
+                today = date.today().isoformat()
+                self._tm.append_world_view(f"- {today}: {observation}")
+
+            # Send email
+            self._notifier.send_call1_summary(result)
+
+            logger.info("Call 1 complete. Flagged %d tickers, %d new universe additions.",
+                        len(result.get("flagged_tickers_universe", [])),
+                        len(result.get("new_universe_additions", [])))
+
+        except BudgetExceededError as e:
+            logger.error("Call 1 blocked by budget: %s", e)
+            self._notifier.send_error("BudgetExceeded", str(e))
+        except Exception as e:
+            logger.error("Call 1 failed: %s", e)
+            self._notifier.send_error("Call1Failed", traceback.format_exc())
+
+    def run_trigger_check(self) -> None:
+        """Volatility/shock check (every 30 min). No Claude call."""
+        try:
+            holdings = self._tm.get_holdings()
+            holdings_tickers = [h["ticker"] for h in holdings]
+
+            account = self._market.get_account()
+            portfolio_value = account.get("portfolio_value", 0)
+
+            result = self._trigger.check(
+                holdings_tickers=holdings_tickers,
+                watchlist_tickers=self._watchlist.get_tickers(),
+                portfolio_value=portfolio_value,
+            )
+
+            if result is None:
+                logger.debug("Trigger check: no trigger")
+                return
+
+            # Trigger fired — log and fire Call 3 immediately
+            logger.info("!!! TRIGGER FIRED: %s — %s", result.trigger_type, result.details)
+            self._state.add_trigger(
+                result.trigger_type, result.details, result.triggered_tickers,
+            )
+            self._state.save(self._state_path)
+
+            self._notifier.send_alert(
+                f"Trigger: {result.trigger_type}",
+                result.details,
+            )
+
+            # Fire Call 3 immediately
+            self.run_call3(
+                review_type=result.trigger_type,
+                trigger_reason=result.details,
+            )
+
+        except Exception as e:
+            logger.error("Trigger check failed: %s", e)
+
+    def run_call3(
+        self,
+        review_type: str = "weekly",
+        trigger_reason: str | None = None,
+    ) -> None:
+        """Full decision & execution call. Self-sufficient."""
+        label = f"Call 3 ({review_type})"
+        if trigger_reason:
+            label += f" — {trigger_reason}"
+        logger.info("=== %s ===", label)
+
+        try:
+            # Fetch all data (self-sufficient, like the sim)
+            account = self._market.get_account()
+            portfolio_value = account.get("portfolio_value", 0)
+            cash = account.get("cash", 0)
+            positions = self._market.get_positions()
+
+            # Memory context
+            memory_context = self._tm.get_decision_context()
+
+            # Technicals for full universe (like the sim)
+            technicals_summary = self._build_technicals_summary()
+
+            # Fundamentals for holdings + universe
+            fundamentals_summary = self._build_fundamentals_summary()
+
+            # World state (Call 1 output if available)
+            call1_output = self._state.call1_output
+
+            # Performance vs SPY
+            # TODO: compute from Alpaca historical data
+            bot_return_pct = 0.0
+            spy_return_pct = 0.0
+
+            self._review_count += 1
+
+            # Build prompt via the proven sim prompt builder
+            prompt = build_call3_prompt(
+                decision_engine=self._engine,
+                sim_date=date.today().isoformat(),
+                memory_context=memory_context,
+                world_state="(Live trading — news provided via Call 1 discovery)",
+                technicals_summary=technicals_summary,
+                fundamentals_summary=fundamentals_summary,
+                portfolio_value=portfolio_value,
+                cash=cash,
+                bot_return_pct=bot_return_pct,
+                spy_return_pct=spy_return_pct,
+                review_number=self._review_count,
+                review_type=review_type,
+                trade_count=self._engine._get_trade_count() if hasattr(self._engine, '_get_trade_count') else 0,
+                options_context="",  # Phase 9
+                call1_output=call1_output,
+            )
+
+            # Call Claude
+            result = self._claude.call(prompt, model="sonnet")
+
+            if not result:
+                logger.error("Call 3 returned no result")
+                return
+
+            self._state.call3_output = result
+            self._state.save(self._state_path)
+
+            # Apply memory updates (thesis updates, lessons, themes, etc.)
+            self._engine._apply_to_memory(result, date.today().isoformat())
+
+            # Execute trades
+            trades = self._executor.execute_decisions(
+                response=result,
+                portfolio_value=portfolio_value,
+                cash=cash,
+                positions=positions,
+            )
+
+            for trade in trades:
+                self._state.add_trade(trade)
+            self._state.save(self._state_path)
+
+            # Update trigger check reference point
+            self._trigger.set_last_call3_value(portfolio_value)
+
+            # Send email
+            self._notifier.send_call3_summary(
+                result, trades,
+                review_type=review_type,
+                trigger_reason=trigger_reason,
+            )
+
+            logger.info("Call 3 complete. %d trades executed.", len(trades))
+
+        except BudgetExceededError as e:
+            logger.error("Call 3 blocked by budget: %s", e)
+            self._notifier.send_error("BudgetExceeded", str(e))
+        except Exception as e:
+            logger.error("Call 3 failed: %s", e)
+            self._notifier.send_error("Call3Failed", traceback.format_exc())
+
+    def run_eod_portfolio(self) -> None:
+        """EOD portfolio email — no Claude call, just raw data + md files."""
+        logger.info("=== EOD Portfolio Update ===")
+        try:
+            account = self._market.get_account()
+            positions = self._market.get_positions()
+
+            # Convert positions to the format the notifier expects
+            formatted_positions = []
+            for p in positions:
+                formatted_positions.append({
+                    "symbol": p.get("ticker", ""),
+                    "qty": p.get("qty", 0),
+                    "avg_entry_price": p.get("avg_entry", 0),
+                    "current_price": p.get("current_price", 0),
+                    "market_value": p.get("market_value", 0),
+                    "unrealized_pl": p.get("unrealized_pnl", 0),
+                    "unrealized_plpc": p.get("unrealized_pnl_pct", 0),
+                })
+
+            memory_dir = self._tm.get_data_dir()
+            self._notifier.send_eod_portfolio(account, formatted_positions, memory_dir)
+
+            logger.info("EOD portfolio email sent.")
+        except Exception as e:
+            logger.error("EOD portfolio failed: %s", e)
+
+    def reconcile_on_startup(self) -> None:
+        """Sync Alpaca positions with thesis memory on startup."""
+        logger.info("=== Reconcile on startup ===")
+        try:
+            positions = self._market.get_positions()
+            alpaca_tickers = {p["ticker"] for p in positions}
+            memory_tickers = {h["ticker"] for h in self._tm.get_holdings()}
+
+            # Tickers in Alpaca but not in memory
+            for ticker in alpaca_tickers - memory_tickers:
+                logger.warning("RECONCILE: %s in Alpaca but not in memory — manual review needed", ticker)
+
+            # Tickers in memory but not in Alpaca
+            for ticker in memory_tickers - alpaca_tickers:
+                logger.warning("RECONCILE: %s in memory but not in Alpaca — may have been closed externally", ticker)
+
+            if alpaca_tickers == memory_tickers:
+                logger.info("Reconcile: positions match.")
+
+            # Set trigger check reference
+            account = self._market.get_account()
+            self._trigger.set_last_call3_value(account.get("portfolio_value", 0))
+
+        except Exception as e:
+            logger.error("Reconcile failed: %s", e)
+
+    def initialize_first_boot(self) -> None:
+        """Cold start: seed universe, copy seed beliefs."""
+        logger.info("=== First boot initialization ===")
+
+        # Seed universe from config
+        added = self._universe.seed_from_config()
+        logger.info("Seeded %d tickers into universe", added)
+
+        # TODO: Fetch 6 months of headlines and synthesize world view + themes
+        # For now, the first Call 1 will start building context
+
+    def _build_technicals_summary(self) -> str:
+        """Build technicals for holdings + universe from live Alpaca bars."""
+        holdings = self._tm.get_holdings()
+        holdings_tickers = [h["ticker"] for h in holdings]
+        universe_tickers = self._universe.get_tickers()
+        all_tickers = list(set(holdings_tickers + universe_tickers))
+
+        lines = []
+        for ticker in all_tickers:
+            try:
+                bars = self._market.get_bars(ticker, limit=60)
+                if bars.empty or len(bars) < 20:
+                    continue
+                snap = self._technicals.analyze(ticker, bars)
+                line = self._format_snapshot(snap, ticker in holdings_tickers)
+                if line:
+                    lines.append(line)
+            except Exception as e:
+                logger.debug("Technicals failed for %s: %s", ticker, e)
+                continue
+
+        return "\n".join(lines) if lines else "(No technical data available)"
+
+    def _build_fundamentals_summary(self) -> str:
+        """Build fundamentals for holdings + universe."""
+        holdings = self._tm.get_holdings()
+        holdings_tickers = [h["ticker"] for h in holdings]
+        universe_tickers = self._universe.get_tickers()
+        all_tickers = list(set(holdings_tickers + universe_tickers))
+
+        try:
+            from src.research.fundamentals import build_fundamentals_prompt_section
+            return build_fundamentals_prompt_section(
+                self._fundamentals, all_tickers,
+            )
+        except Exception as e:
+            logger.warning("Fundamentals summary failed: %s", e)
+            return "(No fundamental data available)"
+
+    @staticmethod
+    def _format_snapshot(snap, is_holding: bool = False) -> str:
+        """Format a TechnicalSnapshot for the prompt."""
+        prefix = "[HELD] " if is_holding else ""
+        parts = [f"{prefix}{snap.ticker}: ${snap.close:.2f}"]
+
+        if snap.rsi is not None:
+            parts.append(f"RSI={snap.rsi:.0f}")
+        if snap.macd_signal is not None:
+            signal = "bullish" if snap.macd_signal == "bullish" else "bearish"
+            parts.append(f"MACD={signal}")
+        if snap.sma50 is not None:
+            above = "above" if snap.close > snap.sma50 else "below"
+            parts.append(f"SMA50={above}")
+        if snap.obv_trend is not None:
+            parts.append(f"OBV={snap.obv_trend}")
+        if snap.atr_pct is not None:
+            parts.append(f"ATR={snap.atr_pct:.1f}%")
+        if snap.hv_percentile is not None:
+            parts.append(f"HV={snap.hv_percentile:.0f}pctl")
+
+        return " | ".join(parts)

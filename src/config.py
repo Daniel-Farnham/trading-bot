@@ -35,4 +35,21 @@ def get_fmp_key() -> str:
     return key
 
 
+def get_anthropic_key() -> str:
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise EnvironmentError("ANTHROPIC_API_KEY must be set in .env")
+    return key
+
+
+def get_gmail_credentials() -> tuple[str, str]:
+    address = os.environ.get("GMAIL_ADDRESS", "")
+    app_password = os.environ.get("GMAIL_APP_PASSWORD", "")
+    if not address or not app_password:
+        raise EnvironmentError(
+            "GMAIL_ADDRESS and GMAIL_APP_PASSWORD must be set in .env"
+        )
+    return address, app_password
+
+
 CONFIG = load_config()

@@ -68,6 +68,7 @@ YOUR TASKS:
    - Check the fundamentals (revenue growth, margins, P/E)
    - Check recent price action
    - If it's worth tracking, add it to new_universe_additions
+   - We are looking for max growth, think PLTR in 2024 / 2025.
 
 4. HOLDINGS ALERTS — Any news or fundamental changes affecting our current positions?
    Earnings surprises, guidance changes, regulatory actions, competitor moves.
