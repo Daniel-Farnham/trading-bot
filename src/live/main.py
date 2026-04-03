@@ -147,6 +147,20 @@ def main() -> None:
         state_path=os.path.join(data_dir, "daily_state.json"),
     )
 
+    # Force fresh start if requested (set FORCE_FIRST_BOOT=true on Railway, then remove after)
+    if os.environ.get("FORCE_FIRST_BOOT", "").lower() == "true":
+        logger.info("FORCE_FIRST_BOOT=true — wiping state and starting fresh")
+        import shutil
+        for f in Path(data_dir).glob("*"):
+            if f.is_file():
+                f.unlink()
+                logger.info("  Deleted %s", f.name)
+        # Recreate components with clean state
+        watchlist = LiveWatchlist(path=os.path.join(data_dir, "watchlist.json"))
+        universe = LiveUniverse(path=os.path.join(data_dir, "universe.json"))
+        orchestrator._watchlist = watchlist
+        orchestrator._universe = universe
+
     # Startup sequence
     orchestrator.reconcile_on_startup()
 
