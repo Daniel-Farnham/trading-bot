@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
 
 from src.config import CONFIG, get_alpaca_keys, get_anthropic_key, get_gmail_credentials
 from src.analysis.technical import TechnicalAnalyzer
