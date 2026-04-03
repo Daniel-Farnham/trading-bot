@@ -136,6 +136,7 @@ class _DashboardHandler(BaseHTTPRequestHandler):
         md_files = [
             "active_theses.md", "portfolio_ledger.md", "themes.md",
             "world_view.md", "beliefs.md", "lessons_learned.md",
+            "decision_journal.md",
         ]
         result = {}
         for filename in md_files:

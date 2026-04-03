@@ -155,7 +155,8 @@ def main() -> None:
     start_health_server(port=health_port)
 
     # Force fresh start if requested (set FORCE_FIRST_BOOT=true on Railway, then remove after)
-    if os.environ.get("FORCE_FIRST_BOOT", "").lower() == "true":
+    force_first_boot = os.environ.get("FORCE_FIRST_BOOT", "").lower() == "true"
+    if force_first_boot:
         logger.info("FORCE_FIRST_BOOT=true — wiping state and starting fresh")
         for f in Path(data_dir).glob("*"):
             if f.is_file():
@@ -170,8 +171,8 @@ def main() -> None:
     # Startup sequence
     orchestrator.reconcile_on_startup()
 
-    # First boot: seed universe if empty
-    if len(universe) == 0:
+    # First boot: seed universe + build world view + themes + watchlist
+    if len(universe) == 0 or force_first_boot:
         orchestrator.initialize_first_boot()
 
     # Start scheduler (blocking)
