@@ -359,6 +359,8 @@ def _make_orchestrator():
     orchestrator._market = MagicMock()
     orchestrator._technicals = MagicMock()
     orchestrator._fundamentals = MagicMock()
+    orchestrator._news = MagicMock()
+    orchestrator._news.get_news.return_value = []
     orchestrator._trigger = MagicMock()
     orchestrator._trigger.check.return_value = None
     orchestrator._executor = MagicMock()

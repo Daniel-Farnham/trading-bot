@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import math
 
+from src.data.market import MarketData
 from src.execution.broker import Broker, OrderResult
 from src.execution.options_broker import OptionsBroker
 from src.strategy.contract_selector import ContractSelector
@@ -23,12 +24,14 @@ class LiveExecutor:
         broker: Broker,
         risk_manager: RiskManagerV3,
         thesis_manager: ThesisManager,
+        market_data: MarketData | None = None,
         options_broker: OptionsBroker | None = None,
         contract_selector: ContractSelector | None = None,
     ):
         self._broker = broker
         self._risk = risk_manager
         self._tm = thesis_manager
+        self._market = market_data
         self._options_broker = options_broker
         self._contract_selector = contract_selector
 
@@ -227,12 +230,18 @@ class LiveExecutor:
         is_core = self._risk.is_core_position(confidence)
         is_short = direction == "SHORT"
 
+        # Fetch current price from Alpaca
+        price = self._get_latest_price(ticker)
+        if price <= 0:
+            logger.warning("No valid price for %s — skipping", ticker)
+            return None
+
         # Risk evaluation
         plan = self._risk.evaluate_new_position(
             ticker=ticker,
             side=direction,
             allocation_pct=new_pos.get("allocation_pct", 6),
-            price=0,  # Will use market price via Alpaca
+            price=price,
             portfolio_value=portfolio_value,
             cash=cash,
             open_position_count=len(existing_tickers),
@@ -296,6 +305,23 @@ class LiveExecutor:
             return None
 
 
+    def _get_latest_price(self, ticker: str) -> float:
+        """Get the latest price for a ticker from Alpaca."""
+        # Try MarketData first (most reliable)
+        if self._market:
+            price = self._market.get_latest_price(ticker)
+            if price and price > 0:
+                return price
+
+        # Try from existing position
+        try:
+            pos = self._broker._client.get_open_position(ticker)
+            return float(pos.current_price)
+        except Exception:
+            pass
+
+        return 0.0
+
     def _calculate_short_exposure(self, position_tickers: list[str], portfolio_value: float) -> float:
         """Calculate total short exposure from current positions."""
         if portfolio_value <= 0:
@@ -336,15 +362,7 @@ class LiveExecutor:
         allocation_usd = portfolio_value * (allocation_pct / 100.0)
 
         # Get current underlying price
-        from src.data.market import MarketData
-        current_price = 0.0
-        try:
-            # Use broker's latest price if available
-            current_price = self._broker._client.get_open_position(ticker).current_price
-            current_price = float(current_price)
-        except Exception:
-            pass
-
+        current_price = self._get_latest_price(ticker)
         if current_price <= 0:
             logger.warning("No price for %s, cannot select options contract", ticker)
             return None

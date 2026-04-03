@@ -110,6 +110,7 @@ def main() -> None:
         broker=broker,
         risk_manager=risk_manager,
         thesis_manager=thesis_manager,
+        market_data=market_data,
         options_broker=options_broker,
         contract_selector=contract_selector,
     )

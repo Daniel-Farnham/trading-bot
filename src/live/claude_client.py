@@ -52,6 +52,7 @@ class ClaudeClient:
         system: str | None = None,
         model: str = DEFAULT_MODEL,
         tools: list[dict] | None = None,
+        tool_executor=None,
         max_tokens: int = 4096,
     ) -> dict | None:
         """Call Claude and return parsed JSON response.
@@ -61,6 +62,7 @@ class ClaudeClient:
             system: Optional system prompt.
             model: Model identifier.
             tools: Optional list of tool definitions for tool use.
+            tool_executor: Object with execute(tool_name, tool_input) -> str method.
             max_tokens: Maximum output tokens.
 
         Returns:
@@ -92,15 +94,21 @@ class ClaudeClient:
 
             # Handle tool use loop
             if tools:
-                while response.stop_reason == "tool_use":
-                    tool_results = self._process_tool_calls(response)
+                tool_call_count = 0
+                max_tool_calls = 20  # Safety limit
+                while response.stop_reason == "tool_use" and tool_call_count < max_tool_calls:
+                    tool_results = self._process_tool_calls(response, tool_executor)
                     messages.append({"role": "assistant", "content": response.content})
                     messages.append({"role": "user", "content": tool_results})
                     kwargs["messages"] = messages
+                    tool_call_count += 1
 
                     response = self._client.messages.create(**kwargs)
                     total_input_tokens += response.usage.input_tokens
                     total_output_tokens += response.usage.output_tokens
+
+                if tool_call_count > 0:
+                    logger.info("Tool use: %d tool call rounds completed", tool_call_count)
 
             # Extract text from response
             raw = ""
@@ -200,21 +208,20 @@ class ClaudeClient:
                 continue
         return total
 
-    def _process_tool_calls(self, response) -> list[dict]:
-        """Extract tool use blocks and return placeholder results.
-
-        In production, this will be wired to actual MCP tool handlers.
-        For now, returns an error message so the loop terminates gracefully.
-        """
+    def _process_tool_calls(self, response, tool_executor=None) -> list[dict]:
+        """Extract tool use blocks and execute them."""
         results = []
         for block in response.content:
             if block.type == "tool_use":
+                if tool_executor:
+                    result_str = tool_executor.execute(block.name, block.input)
+                else:
+                    result_str = json.dumps({"error": "Tool execution not configured"})
+
                 results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
-                    "content": json.dumps({
-                        "error": "Tool execution not yet configured",
-                    }),
+                    "content": result_str,
                 })
         return results
 

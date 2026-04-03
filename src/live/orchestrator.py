@@ -21,6 +21,7 @@ from src.live.health import update_status
 from src.live.executor import LiveExecutor
 from src.live.notifier import EmailNotifier
 from src.live.prompts import build_call1_prompt, build_call3_prompt
+from src.live.research_tools import RESEARCH_TOOLS, ResearchToolExecutor
 from src.live.trigger_check import TriggerCheck
 from src.live.universe import LiveUniverse
 from src.live.watchlist import LiveWatchlist
@@ -133,8 +134,18 @@ class LiveOrchestrator:
                 holdings_news=holdings_news,
             )
 
-            # Call Claude — MCP tools available for deeper exploration
-            result = self._claude.call(prompt, model="sonnet")
+            # Call Claude with research tools for deeper exploration
+            tool_executor = ResearchToolExecutor(
+                news_client=self._news,
+                market_data=self._market,
+                technical_analyzer=self._technicals,
+                fundamentals_client=self._fundamentals,
+            )
+            result = self._claude.call(
+                prompt, model="sonnet",
+                tools=RESEARCH_TOOLS,
+                tool_executor=tool_executor,
+            )
             update_status("last_call1", datetime.now().isoformat())
 
             if not result:
@@ -297,10 +308,7 @@ class LiveOrchestrator:
             self._state.call3_output = result
             self._state.save(self._state_path)
 
-            # Apply memory updates (thesis updates, lessons, themes, etc.)
-            self._engine._apply_to_memory(result, date.today().isoformat())
-
-            # Execute trades
+            # Execute trades FIRST — before writing memory
             trades = self._executor.execute_decisions(
                 response=result,
                 portfolio_value=portfolio_value,
@@ -311,6 +319,37 @@ class LiveOrchestrator:
             for trade in trades:
                 self._state.add_trade(trade)
             self._state.save(self._state_path)
+
+            # Filter result to only include trades that actually executed
+            # so memory reflects reality, not just Claude's intentions
+            executed_tickers = {t["ticker"] for t in trades}
+            filtered_result = dict(result)
+
+            # Only keep new_positions that were actually executed
+            filtered_result["new_positions"] = [
+                p for p in result.get("new_positions", [])
+                if p.get("ticker", "") in executed_tickers
+            ]
+
+            # Only keep close_positions that were actually executed
+            executed_closes = {t["ticker"] for t in trades if t.get("action") == "CLOSE"}
+            filtered_result["close_positions"] = [
+                c for c in result.get("close_positions", [])
+                if c.get("ticker", "") in executed_closes
+            ]
+
+            # Keep decision_reasoning for executed trades + non-trade actions (HOLD, thesis reviews)
+            trade_actions = {"BUY", "SELL", "SHORT", "REDUCE", "BUY_CALL", "BUY_PUT", "SELL_PUT"}
+            filtered_result["decision_reasoning"] = [
+                r for r in result.get("decision_reasoning", [])
+                if r.get("action", "").upper() not in trade_actions  # Keep HOLD, review, etc.
+                or r.get("ticker", "") in executed_tickers
+                or r.get("ticker", "") in executed_closes
+            ]
+
+            # Apply memory updates with filtered result
+            # (themes, lessons, world view are written regardless — they're observations, not trades)
+            self._engine._apply_to_memory(filtered_result, date.today().isoformat())
 
             # Update trigger check reference point
             self._trigger.set_last_call3_value(portfolio_value)
@@ -418,12 +457,22 @@ class LiveOrchestrator:
             prompt = f"""You are initializing a Druckenmiller-style macro trading bot.
 Below are 12 months of financial news headlines. Your job is to:
 
-1. Write an initial WORLD VIEW — current macro regime assessment + 12-18 month forward outlook.
-   Max 300 words.
+1. Write an initial WORLD VIEW with THREE sections:
+   a. RECENT HISTORY (1-2 sentences) — What happened in the last 6-12 months that got us here?
+      Key regime shifts, major events, structural changes.
+   b. CURRENT MACRO REGIME (1 paragraph) — What is the state of the world right now?
+      Risk-on/off, Fed policy, sector leadership, market regime.
+   c. FORWARD OUTLOOK 12-18 MONTHS (1 paragraph) — Where is the world going?
+      What should we own for the next 12-18 months? What are the positioning implications?
+   Max 400 words total.
+
 2. Identify 3-5 initial THEMES — investment themes you see in the data, scored 1-5.
+   These should reflect structural trends, not short-term noise.
+
 3. Pick an initial WATCHLIST — up to 20 stocks from the universe (or outside it) that you
    think are the most interesting right now based on the themes and headlines. These are stocks
    you want to monitor closely. Think: what would Druckenmiller be watching today?
+
 4. Note any key observations about what's working and what's not.
 
 STOCK UNIVERSE ({len(universe_tickers)} stocks):
@@ -434,7 +483,7 @@ NEWS HEADLINES (past 12 months):
 
 Respond with ONLY valid JSON:
 {{
-  "world_view": "Your macro regime assessment + forward outlook (max 300 words)",
+  "world_view": "Your world view with all three sections (recent history + current regime + forward outlook). Max 400 words.",
   "themes": [
     {{"name": "Theme Name", "score": 4, "description": "Why this theme matters"}}
   ],

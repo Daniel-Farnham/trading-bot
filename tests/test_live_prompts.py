@@ -71,12 +71,14 @@ class TestBuildCall1Prompt:
         assert "holdings_alerts" in prompt
         assert "emerging_signals" in prompt
 
-    def test_mentions_alpaca_tools(self):
+    def test_mentions_research_tools(self):
         prompt = build_call1_prompt(
             themes_md="", holdings_tickers=[], watchlist_tickers=[],
             universe_tickers=[], world_view_md="",
         )
-        assert "Alpaca" in prompt
+        assert "search_news" in prompt
+        assert "get_fundamentals" in prompt
+        assert "screen_by_theme" in prompt
 
     def test_contains_watchlist(self):
         prompt = build_call1_prompt(
