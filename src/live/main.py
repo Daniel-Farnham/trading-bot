@@ -148,10 +148,15 @@ def main() -> None:
         state_path=os.path.join(data_dir, "daily_state.json"),
     )
 
+    # Start dashboard server FIRST so Railway health check passes during startup
+    set_data_dir(data_dir)
+    set_market_data(market_data)
+    health_port = int(os.environ.get("PORT", 8080))
+    start_health_server(port=health_port)
+
     # Force fresh start if requested (set FORCE_FIRST_BOOT=true on Railway, then remove after)
     if os.environ.get("FORCE_FIRST_BOOT", "").lower() == "true":
         logger.info("FORCE_FIRST_BOOT=true — wiping state and starting fresh")
-        import shutil
         for f in Path(data_dir).glob("*"):
             if f.is_file():
                 f.unlink()
@@ -168,12 +173,6 @@ def main() -> None:
     # First boot: seed universe if empty
     if len(universe) == 0:
         orchestrator.initialize_first_boot()
-
-    # Start dashboard server
-    set_data_dir(data_dir)
-    set_market_data(market_data)
-    health_port = int(os.environ.get("PORT", 8080))
-    start_health_server(port=health_port)
 
     # Start scheduler (blocking)
     logger.info("Starting scheduler — bot is live.")
