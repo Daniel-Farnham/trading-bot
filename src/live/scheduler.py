@@ -71,15 +71,18 @@ def create_scheduler(orchestrator: LiveOrchestrator) -> BlockingScheduler:
     interval = scheduler_cfg.get("trigger_check_interval_minutes", 30)
     trigger_start = scheduler_cfg.get("trigger_check_start", "09:30")
     trigger_end = scheduler_cfg.get("trigger_check_end", "15:00")
-    start_hour, start_min = trigger_start.split(":")
+    start_hour, _ = trigger_start.split(":")
     end_hour, _ = trigger_end.split(":")
+
+    # Generate minute marks (e.g. 30 min interval → "0,30")
+    minute_marks = ",".join(str(m) for m in range(0, 60, interval))
 
     scheduler.add_job(
         _run_trigger_check,
         CronTrigger(
             day_of_week="mon-fri",
             hour=f"{start_hour}-{end_hour}",
-            minute=f"{start_min}/{interval}",
+            minute=minute_marks,
             timezone=timezone,
         ),
         args=[orchestrator],

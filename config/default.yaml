@@ -46,6 +46,14 @@ universe:
     - LNG     # LNG exports, energy security
     - OXY     # Oil + carbon capture
 
+  data_center_infrastructure:
+    - VRT     # Vertiv — data center cooling/power
+    - EQIX    # Equinix — largest data center REIT
+    - DLR     # Digital Realty — data center REIT
+    - PWR     # Quanta Services — electrical infrastructure
+    - EME     # EMCOR — data center construction
+    - ETN     # Eaton — power management for data centers
+
   finance:
     - JPM     # Largest US bank
     - GS      # Investment banking, trading
