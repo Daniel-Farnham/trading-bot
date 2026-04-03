@@ -18,7 +18,7 @@ from src.execution.broker import Broker
 from src.execution.options_broker import OptionsBroker
 from src.live.claude_client import ClaudeClient
 from src.live.executor import LiveExecutor
-from src.live.health import start_health_server, set_data_dir, set_market_data
+from src.live.health import start_health_server, set_data_dir, set_market_data, set_orchestrator
 from src.live.notifier import EmailNotifier
 from src.live.orchestrator import LiveOrchestrator
 from src.live.scheduler import create_scheduler
@@ -151,6 +151,7 @@ def main() -> None:
     # Start dashboard server FIRST so Railway health check passes during startup
     set_data_dir(data_dir)
     set_market_data(market_data)
+    set_orchestrator(orchestrator)
     health_port = int(os.environ.get("PORT", 8080))
     start_health_server(port=health_port)
 

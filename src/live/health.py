@@ -38,6 +38,7 @@ _recent_logs: deque = deque(maxlen=500)
 # Set by main.py after initialization
 _data_dir: str = "data/live"
 _market_data = None
+_orchestrator = None
 
 
 def update_status(key: str, value: str) -> None:
@@ -55,6 +56,12 @@ def set_market_data(market_data) -> None:
     """Set the MarketData client for portfolio queries."""
     global _market_data
     _market_data = market_data
+
+
+def set_orchestrator(orchestrator) -> None:
+    """Set the orchestrator for manual triggers."""
+    global _orchestrator
+    _orchestrator = orchestrator
 
 
 class _LogCaptureHandler(logging.Handler):
@@ -90,6 +97,38 @@ class _DashboardHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+
+        if path == "/trigger/call1":
+            self._trigger_call("call1")
+        elif path == "/trigger/call3":
+            self._trigger_call("call3")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def _trigger_call(self, call_type: str):
+        """Manually trigger Call 1 or Call 3 in a background thread."""
+        if not _orchestrator:
+            self._json_response({"error": "Orchestrator not configured"})
+            return
+
+        import threading
+        if call_type == "call1":
+            thread = threading.Thread(target=_orchestrator.run_call1, daemon=True)
+            thread.start()
+            self._json_response({"status": "Call 1 triggered"})
+        elif call_type == "call3":
+            thread = threading.Thread(
+                target=_orchestrator.run_call3,
+                kwargs={"review_type": "manual"},
+                daemon=True,
+            )
+            thread.start()
+            self._json_response({"status": "Call 3 triggered (manual)"})
 
     def _health(self):
         self._json_response(_status)
@@ -217,6 +256,11 @@ def _build_dashboard_html() -> str:
 </head>
 <body>
     <h1>Trading Bot <span class="pill running" id="status-pill">loading</span></h1>
+    <div style="margin: 12px 0;">
+        <button class="tab" style="background:#238636;color:#fff;" onclick="triggerCall('call1')">Run Call 1</button>
+        <button class="tab" style="background:#1f6feb;color:#fff;" onclick="triggerCall('call3')">Run Call 3</button>
+        <span id="trigger-status" style="margin-left:12px;font-size:13px;color:#8b949e;"></span>
+    </div>
     <div id="error"></div>
 
     <div class="tabs">
@@ -387,6 +431,19 @@ async function refresh() {
         if (logs) {
             document.getElementById('logs-data').textContent = logs.slice(-200).join('\\n');
         }
+    }
+}
+
+async function triggerCall(callType) {
+    const status = document.getElementById('trigger-status');
+    status.textContent = 'Triggering ' + callType + '...';
+    try {
+        const r = await fetch('/trigger/' + callType, {method: 'POST'});
+        const data = await r.json();
+        status.textContent = data.status || data.error || 'Done';
+        setTimeout(() => { status.textContent = ''; refresh(); }, 5000);
+    } catch(e) {
+        status.textContent = 'Failed: ' + e.message;
     }
 }
 

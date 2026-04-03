@@ -38,6 +38,17 @@ class Broker:
             self._api_key, self._secret_key, paper=True
         )
 
+    def _get_time_in_force(self) -> TimeInForce:
+        """DAY if market is open, OPG (market-on-open) if closed."""
+        try:
+            clock = self._client.get_clock()
+            if clock.is_open:
+                return TimeInForce.DAY
+            logger.info("Market closed — queuing order for next open (OPG)")
+            return TimeInForce.OPG
+        except Exception:
+            return TimeInForce.DAY
+
     def place_bracket_order(self, plan: PositionPlan) -> OrderResult:
         """Places a bracket order: limit entry + stop-loss + take-profit."""
         try:
@@ -79,7 +90,7 @@ class Broker:
                 symbol=ticker,
                 qty=quantity,
                 side=OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
             )
 
             result = self._client.submit_order(order)
@@ -128,7 +139,7 @@ class Broker:
                 symbol=ticker,
                 qty=quantity,
                 side=OrderSide.BUY,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
             )
 
             result = self._client.submit_order(order)
@@ -155,7 +166,7 @@ class Broker:
                 symbol=ticker,
                 qty=quantity,
                 side=OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
             )
 
             result = self._client.submit_order(order)

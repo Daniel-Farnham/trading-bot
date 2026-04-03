@@ -31,6 +31,17 @@ class OptionsBroker:
             self._api_key, self._secret_key, paper=True,
         )
 
+    def _get_time_in_force(self) -> TimeInForce:
+        """DAY if market is open, OPG (market-on-open) if closed."""
+        try:
+            clock = self._client.get_clock()
+            if clock.is_open:
+                return TimeInForce.DAY
+            logger.info("Market closed — queuing options order for next open (OPG)")
+            return TimeInForce.OPG
+        except Exception:
+            return TimeInForce.DAY
+
     def buy_to_open(self, contract_symbol: str, quantity: int) -> OrderResult:
         """Buy to open — long calls or long puts."""
         try:
@@ -38,7 +49,7 @@ class OptionsBroker:
                 symbol=contract_symbol,
                 qty=quantity,
                 side=OrderSide.BUY,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
                 position_intent=PositionIntent.BUY_TO_OPEN,
             )
             result = self._client.submit_order(order)
@@ -62,7 +73,7 @@ class OptionsBroker:
                 symbol=contract_symbol,
                 qty=quantity,
                 side=OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
                 position_intent=PositionIntent.SELL_TO_CLOSE,
             )
             result = self._client.submit_order(order)
@@ -86,7 +97,7 @@ class OptionsBroker:
                 symbol=contract_symbol,
                 qty=quantity,
                 side=OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                time_in_force=self._get_time_in_force(),
                 position_intent=PositionIntent.SELL_TO_OPEN,
             )
             result = self._client.submit_order(order)
