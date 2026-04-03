@@ -122,14 +122,30 @@ trading:
   enable_short_selling: true
   max_short_exposure_pct: 0.30
   max_short_position_pct: 0.15
-  # Core positions (high/highest) use 30% catastrophic safety net only
   catastrophic_stop_pct: 0.30
 
+# --- Live trading config (Phases 1-8) ---
+
+live:
+  data_dir: "data/live"
+
+anthropic:
+  default_model: "claude-sonnet-4-20250514"
+  call3_model: "claude-sonnet-4-20250514"  # switchable to opus
+  daily_budget_usd: 2.00
+  monthly_budget_usd: 40.00
+
+email:
+  enabled: true
+
 scheduler:
-  loop_interval_minutes: 30
-  market_open: "09:30"
-  market_close: "16:00"
-  daily_review_time: "16:30"
+  call1_time: "09:00"
+  trigger_check_start: "09:30"
+  trigger_check_end: "15:00"
+  trigger_check_interval_minutes: 30
+  call3_friday_time: "15:30"
+  eod_portfolio_time: "16:30"
+  timezone: "US/Eastern"
 
 database:
   path: "data/trading.db"

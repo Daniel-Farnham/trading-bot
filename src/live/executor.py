@@ -115,9 +115,9 @@ class LiveExecutor:
 
             action = new_pos.get("action", "BUY").upper()
 
-            # Skip options for now (Phase 9)
+            # Options — routed to options executor when available (Phase 9)
             if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
-                logger.info("OPTIONS SKIPPED %s %s — Phase 9 not yet implemented", action, ticker)
+                logger.info("OPTIONS SKIPPED %s %s — options executor not yet wired", action, ticker)
                 continue
 
             # Pyramid/upgrade on existing position
