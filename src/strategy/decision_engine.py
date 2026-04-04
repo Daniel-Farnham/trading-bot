@@ -698,11 +698,16 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             if self._use_extended_thinking:
                 cmd.extend(["--thinking", "enabled"])
             timeout = 900 if self._model == "opus" else 600
+            # Strip ANTHROPIC_API_KEY from env so Claude CLI uses Max subscription
+            # (only affects sim mode — live mode uses self._claude_client above)
+            import os as _os
+            cli_env = {k: v for k, v in _os.environ.items() if k != "ANTHROPIC_API_KEY"}
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                env=cli_env,
             )
 
             if result.returncode != 0:

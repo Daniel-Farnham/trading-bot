@@ -147,11 +147,14 @@ Respond with ONLY valid JSON:
 
     # Fallback: subprocess to Claude CLI (sim mode)
     try:
+        import os as _os
+        cli_env = {k: v for k, v in _os.environ.items() if k != "ANTHROPIC_API_KEY"}
         result = subprocess.run(
             ["claude", "-p", prompt, "--output-format", "text", "--model", "sonnet"],
             capture_output=True,
             text=True,
             timeout=120,
+            env=cli_env,
         )
 
         if result.returncode != 0:

@@ -220,9 +220,10 @@ class ResearchToolExecutor:
     def _get_price_action(self, params: dict) -> dict:
         ticker = params["ticker"].upper()
         try:
-            bars = self._market.get_bars(ticker, limit=90)
+            start = datetime.now() - timedelta(days=120)
+            bars = self._market.get_bars(ticker, start=start, limit=90)
             if bars.empty:
-                return {"ticker": ticker, "error": "No price data"}
+                return {"ticker": ticker, "error": "No price data available"}
 
             current = float(bars.iloc[-1]["close"])
             high_52w = float(bars["high"].max())
@@ -252,7 +253,8 @@ class ResearchToolExecutor:
     def _get_technicals(self, params: dict) -> dict:
         ticker = params["ticker"].upper()
         try:
-            bars = self._market.get_bars(ticker, limit=60)
+            start = datetime.now() - timedelta(days=120)
+            bars = self._market.get_bars(ticker, start=start, limit=60)
             if bars.empty or len(bars) < 20:
                 return {"ticker": ticker, "error": "Insufficient data"}
 
