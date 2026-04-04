@@ -21,6 +21,7 @@ def build_call1_prompt(
     world_view_md: str,
     prefetched_news: str = "",
     holdings_news: str = "",
+    universe_at_cap: bool = False,
 ) -> str:
     """Build the Call 1 discovery prompt.
 
@@ -69,8 +70,9 @@ CURRENT HOLDINGS:
 CURRENT WATCHLIST (Call 1 flagged as interesting, monitored for triggers):
 {watchlist_text}
 
-KNOWN UNIVERSE ({len(universe_tickers)} stocks):
+KNOWN UNIVERSE ({len(universe_tickers)} stocks, max 150):
 {universe_text}
+{"UNIVERSE AT CAP (150). To add new stocks, you MUST remove stocks with the lowest potential. Remove stocks that no longer align with themes, have poor fundamentals, or lack catalysts. Use universe_removals in your response." if universe_at_cap else ""}
 
 CURRENT THEMES:
 {themes_md}
@@ -110,6 +112,9 @@ Respond with ONLY valid JSON:
   ],
   "new_universe_additions": [
     {{"ticker": "VRT", "reason": "Data center cooling leader, 45% YoY revenue growth, aligns with AI Infra theme"}}
+  ],
+  "universe_removals": [
+    {{"ticker": "KSS", "reason": "Retail headwinds, no alignment with current themes, declining fundamentals"}}
   ],
   "holdings_alerts": [
     {{"ticker": "AVGO", "alert": "Earnings beat, raised guidance, VMware integration ahead of schedule"}}

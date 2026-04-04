@@ -89,6 +89,7 @@ class _DashboardHandler(BaseHTTPRequestHandler):
             "/spend": self._spend,
             "/memory": self._memory,
             "/logs": self._logs,
+            "/performance": self._performance,
         }
 
         handler = routes.get(path)
@@ -189,6 +190,50 @@ class _DashboardHandler(BaseHTTPRequestHandler):
     def _logs(self):
         self._json_response(list(_recent_logs))
 
+    def _performance(self):
+        """Return portfolio value vs SPY performance."""
+        if not _market_data:
+            self._json_response({"error": "Market data not configured"})
+            return
+        try:
+            account = _market_data.get_account()
+            equity = float(account.get("equity", account.get("portfolio_value", 0)))
+            cash = float(account.get("cash", 0))
+            last_equity = float(account.get("last_equity", equity))
+
+            # Get SPY price
+            spy_price = _market_data.get_latest_price("SPY")
+
+            # Get SPY 30-day return
+            spy_return_30d = None
+            try:
+                bars = _market_data.get_bars("SPY", limit=30)
+                if not bars.empty and len(bars) >= 2:
+                    start = float(bars.iloc[0]["close"])
+                    end = float(bars.iloc[-1]["close"])
+                    spy_return_30d = round(((end - start) / start) * 100, 2)
+            except Exception:
+                pass
+
+            # Daily return
+            daily_return = round(((equity - last_equity) / last_equity) * 100, 2) if last_equity > 0 else 0
+
+            # Position count
+            positions = _market_data.get_positions()
+            total_unrealized = sum(float(p.get("unrealized_pnl", 0)) for p in positions)
+
+            self._json_response({
+                "equity": equity,
+                "cash": cash,
+                "daily_return_pct": daily_return,
+                "unrealized_pnl": round(total_unrealized, 2),
+                "position_count": len(positions),
+                "spy_price": spy_price,
+                "spy_return_30d_pct": spy_return_30d,
+            })
+        except Exception as e:
+            self._json_response({"error": str(e)})
+
     def _dashboard(self):
         """Serve the HTML dashboard."""
         html = _build_dashboard_html()
@@ -275,6 +320,8 @@ def _build_dashboard_html() -> str:
 
     <div id="overview" class="section">
         <div class="grid" id="status-grid"></div>
+        <h2 style="margin-top:20px">Performance</h2>
+        <div class="grid" id="perf-grid"></div>
     </div>
 
     <div id="portfolio" class="section" style="display:none">
@@ -344,6 +391,21 @@ async function refresh() {
             <div class="card"><h3>Last Call 1</h3><div class="stat">${health.last_call1 ? new Date(health.last_call1).toLocaleTimeString() : 'Never'}</div></div>
             <div class="card"><h3>Last Call 3</h3><div class="stat">${health.last_call3 ? new Date(health.last_call3).toLocaleTimeString() : 'Never'}</div></div>
             <div class="card"><h3>Last Trigger Check</h3><div class="stat">${health.last_trigger_check ? new Date(health.last_trigger_check).toLocaleTimeString() : 'Never'}</div></div>
+        `;
+    }
+
+    const perf = await fetchJSON('/performance');
+    if (perf && !perf.error) {
+        const dailyCls = perf.daily_return_pct >= 0 ? 'green' : 'red';
+        const pnlCls = perf.unrealized_pnl >= 0 ? 'green' : 'red';
+        const spyCls = (perf.spy_return_30d_pct || 0) >= 0 ? 'green' : 'red';
+        document.getElementById('perf-grid').innerHTML = `
+            <div class="card"><h3>Portfolio Value</h3><div class="stat">$${Number(perf.equity).toLocaleString()}</div>
+                <div class="label">Cash: $${Number(perf.cash).toLocaleString()} | ${perf.position_count} positions</div></div>
+            <div class="card"><h3>Daily Return</h3><div class="stat ${dailyCls}">${perf.daily_return_pct >= 0 ? '+' : ''}${perf.daily_return_pct}%</div></div>
+            <div class="card"><h3>Unrealized P&L</h3><div class="stat ${pnlCls}">${perf.unrealized_pnl >= 0 ? '+' : ''}$${Number(perf.unrealized_pnl).toLocaleString()}</div></div>
+            <div class="card"><h3>SPY (30d)</h3><div class="stat ${spyCls}">${perf.spy_return_30d_pct !== null ? (perf.spy_return_30d_pct >= 0 ? '+' : '') + perf.spy_return_30d_pct + '%' : 'N/A'}</div>
+                <div class="label">SPY: $${perf.spy_price ? Number(perf.spy_price).toFixed(2) : 'N/A'}</div></div>
         `;
     }
 

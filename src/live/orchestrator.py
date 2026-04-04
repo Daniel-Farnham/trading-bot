@@ -132,6 +132,7 @@ class LiveOrchestrator:
                 world_view_md=world_view_md,
                 prefetched_news=prefetched_news,
                 holdings_news=holdings_news,
+                universe_at_cap=self._universe.is_at_cap(),
             )
 
             # Call Claude with research tools for deeper exploration
@@ -166,6 +167,16 @@ class LiveOrchestrator:
                 reason = flagged.get("reason", "")
                 if ticker:
                     self._watchlist.add(ticker, source="call1", reason=reason)
+
+            # Remove universe tickers Claude flagged for removal (lowest potential)
+            holdings_tickers_set = set(holdings_tickers)
+            for removal in result.get("universe_removals", []):
+                ticker = removal.get("ticker", "")
+                reason = removal.get("reason", "")
+                if ticker and ticker not in holdings_tickers_set:
+                    self._universe.remove(ticker)
+                    self._watchlist.remove(ticker)
+                    logger.info("Universe: removed %s — %s", ticker, reason[:80])
 
             # Add new universe additions
             for addition in result.get("new_universe_additions", []):

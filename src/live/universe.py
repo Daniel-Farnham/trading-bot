@@ -18,6 +18,8 @@ from src.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
+MAX_UNIVERSE = 150
+
 
 class LiveUniverse:
     def __init__(self, path: str | Path = "data/live/universe.json"):
@@ -60,6 +62,9 @@ class LiveUniverse:
     def get_entries(self) -> list[dict]:
         """Return full entry dicts (ticker, added_date, source, reason)."""
         return list(self._entries)
+
+    def is_at_cap(self) -> bool:
+        return len(self._entries) >= MAX_UNIVERSE
 
     def __len__(self) -> int:
         return len(self._entries)
