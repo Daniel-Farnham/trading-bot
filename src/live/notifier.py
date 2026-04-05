@@ -95,9 +95,9 @@ class EmailNotifier:
                 )
             lines.append("</ul>")
 
-        observation = call1_output.get("world_view_observation", "")
+        observation = call1_output.get("tactical_observation", "") or call1_output.get("world_view_observation", "")
         if observation:
-            lines.append(f"<h3>World View Observation</h3><p>{_esc(observation)}</p>")
+            lines.append(f"<h3>Tactical Observation</h3><p>{_esc(observation)}</p>")
 
         return self._send(subject, "\n".join(lines))
 

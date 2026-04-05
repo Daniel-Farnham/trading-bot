@@ -113,7 +113,24 @@ class LiveExecutor:
                     })
                     logger.info("REDUCED %s by %d shares — %s", ticker, shares_to_sell, reason[:80])
 
-        # 3. New positions (and pyramids/upgrades)
+        # 3. Pyramid positions (explicit — adds shares without overwriting thesis)
+        for pyr in response.get("pyramid_positions", []):
+            ticker = pyr.get("ticker", "")
+            if not ticker or ticker not in position_tickers:
+                continue
+            # Reformat as a new_pos-like dict for _handle_pyramid_upgrade
+            pyr_as_pos = {
+                "ticker": ticker,
+                "allocation_pct": pyr.get("new_allocation_pct", 0),
+                "confidence": "high",  # pyramids are conviction moves
+            }
+            trade = self._handle_pyramid_upgrade(
+                ticker, pyr_as_pos, positions, portfolio_value, cash,
+            )
+            if trade:
+                executed.append(trade)
+
+        # 4. New positions (and legacy pyramids/upgrades via new_positions)
         new_position_count = 0
         max_new = 3  # Max new positions per review
 

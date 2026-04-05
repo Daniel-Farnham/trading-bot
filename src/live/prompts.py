@@ -19,6 +19,7 @@ def build_call1_prompt(
     watchlist_tickers: list[str],
     universe_tickers: list[str],
     world_view_md: str,
+    tactical_view_md: str = "",
     prefetched_news: str = "",
     holdings_news: str = "",
     universe_at_cap: bool = False,
@@ -77,8 +78,11 @@ KNOWN UNIVERSE ({len(universe_tickers)} stocks, max 150):
 CURRENT THEMES:
 {themes_md}
 
-CURRENT WORLD VIEW:
+STRUCTURAL WORLD VIEW (12-18 month direction — do NOT update this):
 {world_view_md}
+
+TACTICAL VIEW (near-term catalysts — your observation appends here):
+{tactical_view_md if tactical_view_md else "(No tactical view yet)"}
 
 YOUR TASKS:
 1. MACRO ASSESSMENT — What happened overnight/this morning? 1 paragraph summary of what
@@ -125,7 +129,7 @@ Respond with ONLY valid JSON:
   "emerging_signals": [
     {{"signal": "Multiple defense contractors reporting record backlogs", "potential_theme": "Defense Supercycle"}}
   ],
-  "world_view_observation": "One-liner for today's world_view.md entry"
+  "tactical_observation": "One-liner observation for today's tactical view (near-term catalysts/risks)"
 }}"""
 
 

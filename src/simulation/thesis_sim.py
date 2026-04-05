@@ -82,6 +82,7 @@ class ThesisSimulation:
             "themes": self._data_dir / "themes.md",
             "beliefs": self._data_dir / "beliefs.md",
             "world_view": self._data_dir / "world_view.md",
+            "tactical_view": self._data_dir / "tactical_view.md",
             "journal": self._data_dir / "decision_journal.md",
         }
 
@@ -763,7 +764,7 @@ Respond with ONLY valid JSON:
 
         # Step 5: Quarterly summary check (every ~13 weeks)
         if self._weeks_elapsed > 0 and self._weeks_elapsed % 13 == 0:
-            quarter_num = (self._weeks_elapsed // 13)
+            quarter_num = (day_dt.month - 1) // 3 + 1  # Calendar quarter from date
             year = day_dt.year
             summary = response.get("weekly_summary", "No summary provided.")
             pv = self.broker.portfolio_value
@@ -911,6 +912,46 @@ Respond with ONLY valid JSON:
                 if ticker in self.broker.positions:
                     self.broker.positions[ticker].current_price = price
                 logger.info("    REDUCED %s by %d shares @ $%.2f", ticker, shares_to_sell, price)
+
+        # Pyramid positions — add shares to existing positions
+        for pyr in response.get("pyramid_positions", []):
+            ticker = pyr.get("ticker", "")
+            if not ticker or ticker not in position_tickers:
+                continue
+            existing_pos = self.broker.positions.get(ticker)
+            if not existing_pos:
+                continue
+
+            target_alloc = pyr.get("new_allocation_pct", 0) / 100.0
+            current_value = existing_pos.quantity * (existing_pos.current_price or existing_pos.entry_price)
+            current_alloc = current_value / self.broker.portfolio_value if self.broker.portfolio_value > 0 else 0
+            additional_alloc = target_alloc - current_alloc
+
+            if additional_alloc > 0.02:
+                bar = daily_bars.get(ticker)
+                price = bar["close"] if bar else existing_pos.current_price
+                if price and price > 0:
+                    additional_value = self.broker.portfolio_value * additional_alloc
+                    min_cash = self.broker.portfolio_value * self.risk._min_cash_pct
+                    available = self.broker.cash - min_cash
+                    additional_value = min(additional_value, max(0, available))
+
+                    import math
+                    add_qty = math.floor(additional_value / price)
+                    if add_qty > 0:
+                        result = self.broker.add_to_position(ticker, add_qty, price)
+                        if result.success:
+                            self.thesis_manager.update_position(
+                                ticker=ticker, side="SHORT" if existing_pos.is_short else "LONG",
+                                qty=existing_pos.quantity, entry_price=existing_pos.entry_price,
+                                current_value=existing_pos.quantity * price,
+                                date_opened=existing_pos.opened_at[:10],
+                            )
+                            logger.info(
+                                "    PYRAMIDED %s: +%d shares @ $%.2f (now %d shares, avg $%.2f, ~%.0f%% alloc)",
+                                ticker, add_qty, price, existing_pos.quantity,
+                                existing_pos.entry_price, target_alloc * 100,
+                            )
 
         # New positions (and tier upgrades) — enforce max new positions per review
         new_position_count = 0

@@ -124,12 +124,14 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.warning("Pre-fetch news failed (Claude can still use MCP tools): %s", e)
 
+            tactical_view_md = self._tm.get_tactical_view()
             prompt = build_call1_prompt(
                 themes_md=themes_md,
                 holdings_tickers=holdings_tickers,
                 watchlist_tickers=self._watchlist.get_tickers(),
                 universe_tickers=self._universe.get_tickers(),
                 world_view_md=world_view_md,
+                tactical_view_md=tactical_view_md,
                 prefetched_news=prefetched_news,
                 holdings_news=holdings_news,
                 universe_at_cap=self._universe.is_at_cap(),
@@ -186,13 +188,14 @@ class LiveOrchestrator:
                     self._universe.add(ticker, source="call1", reason=reason)
                     self._watchlist.add(ticker, source="call1_discovery", reason=reason)
 
-            # Update world view with daily observation
-            observation = result.get("world_view_observation", "")
+            # Append daily observation to tactical view (not structural)
+            observation = result.get("tactical_observation", "")
+            if not observation:
+                observation = result.get("world_view_observation", "")  # backwards compat
             if observation:
                 today = date.today().isoformat()
-                # Append observation to existing world view
-                current_wv = self._tm.get_world_view()
-                self._tm.update_world_view(f"{current_wv}\n- {today}: {observation}")
+                current_tv = self._tm.get_tactical_view()
+                self._tm.update_tactical_view(f"{current_tv}\n- {today}: {observation}")
 
             # Send email
             self._notifier.send_call1_summary(result)
@@ -582,7 +585,8 @@ Respond with ONLY valid JSON:
         """Compute SPY return % over the same period."""
         try:
             from datetime import timedelta
-            bars = self._market.get_bars("SPY", limit=30)
+            from datetime import timedelta as _td
+            bars = self._market.get_bars("SPY", start=datetime.now() - _td(days=60), limit=30)
             if not bars.empty and len(bars) >= 2:
                 start_price = float(bars.iloc[0]["close"])
                 end_price = float(bars.iloc[-1]["close"])
@@ -599,10 +603,13 @@ Respond with ONLY valid JSON:
         universe_tickers = self._universe.get_tickers()
         all_tickers = list(set(holdings_tickers + universe_tickers))
 
+        from datetime import timedelta
+        bar_start = datetime.now() - timedelta(days=120)
+
         lines = []
         for ticker in all_tickers:
             try:
-                bars = self._market.get_bars(ticker, limit=60)
+                bars = self._market.get_bars(ticker, start=bar_start, limit=60)
                 if bars.empty or len(bars) < 20:
                     continue
                 snap = self._technicals.analyze(ticker, bars)

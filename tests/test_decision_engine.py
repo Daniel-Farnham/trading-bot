@@ -20,6 +20,7 @@ def manager(tmp_path):
         "themes": tmp_path / "themes.md",
         "beliefs": tmp_path / "beliefs.md",
         "world_view": tmp_path / "world_view.md",
+        "tactical_view": tmp_path / "tactical_view.md",
         "journal": tmp_path / "decision_journal.md",
     }
     mgr._max_theses = 15

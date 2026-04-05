@@ -68,6 +68,7 @@ class ThesisManager:
             "themes": root / _mem_cfg("themes_path", "data/themes.md"),
             "beliefs": root / _mem_cfg("beliefs_path", "data/beliefs.md"),
             "world_view": root / _mem_cfg("world_view_path", "data/world_view.md"),
+            "tactical_view": root / _mem_cfg("tactical_view_path", "data/tactical_view.md"),
             "journal": root / _mem_cfg("decision_journal_path", "data/decision_journal.md"),
         }
         self._max_theses = _mem_cfg("max_active_theses", 15)
@@ -183,6 +184,25 @@ class ThesisManager:
         self._rebuild_theses(existing)
         logger.debug("Added thesis for %s", ticker)
         return True
+
+    def append_pyramid_note(self, ticker: str, note: str, new_allocation_pct: float = 0) -> bool:
+        """Append a pyramid note to an existing thesis without overwriting.
+
+        Preserves the original thesis text and date_added. Only appends
+        a timestamped note explaining why we're adding to the position.
+        """
+        ticker = ticker.upper()
+        existing = self.get_all_theses()
+        for t in existing:
+            if t["ticker"] == ticker:
+                date_str = datetime.utcnow().strftime("%Y-%m-%d")
+                alloc_str = f" → {new_allocation_pct}%" if new_allocation_pct else ""
+                pyramid_line = f" [PYRAMID {date_str}{alloc_str}] {note.strip()}"
+                t["thesis"] = t["thesis"].rstrip() + pyramid_line
+                self._rebuild_theses(existing)
+                logger.debug("Appended pyramid note to %s", ticker)
+                return True
+        return False
 
     def update_thesis(self, ticker: str, **updates) -> bool:
         """Update fields on an existing thesis."""
@@ -952,16 +972,28 @@ class ThesisManager:
         self._write("themes", "\n".join(lines))
 
     # ------------------------------------------------------------------
-    # World View (macro regime summary, updated each review)
+    # Structural View (3-5 year directional view, only updated on regime change)
     # ------------------------------------------------------------------
 
     def get_world_view(self) -> str:
-        """Return the current world view content."""
+        """Return the current structural world view content."""
         return self._read("world_view").strip()
 
     def update_world_view(self, content: str) -> None:
-        """Replace the world view with Claude's updated macro assessment."""
-        self._write("world_view", f"# World View\n\n{content.strip()}\n")
+        """Replace the structural world view — only call on regime change."""
+        self._write("world_view", f"# Structural World View\n\n{content.strip()}\n")
+
+    # ------------------------------------------------------------------
+    # Tactical View (near-term catalysts, updated each review)
+    # ------------------------------------------------------------------
+
+    def get_tactical_view(self) -> str:
+        """Return the current tactical view content."""
+        return self._read("tactical_view").strip()
+
+    def update_tactical_view(self, content: str) -> None:
+        """Replace the tactical view with near-term catalyst assessment."""
+        self._write("tactical_view", f"# Tactical View\n\n{content.strip()}\n")
 
     # ------------------------------------------------------------------
     # Decision Journal (rolling log of decisions with reasoning)
@@ -1000,9 +1032,12 @@ class ThesisManager:
         for d in decisions:
             ticker = d.get("ticker", "?")
             action = d.get("action", "?")
-            alloc = d.get("allocation_pct", "?")
+            alloc = d.get("allocation_pct")
             reasoning = d.get("reasoning", "")
-            lines.append(f"- **{action} {ticker}** ({alloc}%): {reasoning}")
+            if alloc is not None and alloc != "?":
+                lines.append(f"- **{action} {ticker}** ({alloc}%): {reasoning}")
+            else:
+                lines.append(f"- **{action} {ticker}**: {reasoning}")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -1042,12 +1077,19 @@ class ThesisManager:
         """
         sections = []
 
-        # World View (macro regime — top of context for framing)
+        # Structural View (3-5 year directional view — top of context for framing)
         world_view = self.get_world_view()
         if world_view:
-            sections.append(f"### World View (Your Macro Regime Assessment)\n{world_view}")
+            sections.append(f"### Structural World View (Where the World Is Heading — 12-18 Month)\n{world_view}")
         else:
-            sections.append("### World View\n(No world view set — write one in your response)")
+            sections.append("### Structural World View\n(No structural view set — write one in your response)")
+
+        # Tactical View (near-term catalysts and positioning)
+        tactical_view = self.get_tactical_view()
+        if tactical_view:
+            sections.append(f"### Tactical View (Near-Term Catalysts & Risks)\n{tactical_view}")
+        else:
+            sections.append("### Tactical View\n(No tactical view set — write one in your response)")
 
         # Themes
         themes = self.get_all_themes()

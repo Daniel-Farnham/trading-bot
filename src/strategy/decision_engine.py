@@ -127,8 +127,11 @@ ORIGINAL THESIS:
 INVALIDATION CRITERIA:
 {invalidation}
 
-CURRENT WORLD VIEW:
-{world_view if world_view else "(No world view on file)"}
+STRUCTURAL WORLD VIEW:
+{world_view if world_view else "(No structural view on file)"}
+
+TACTICAL VIEW:
+{self._tm.get_tactical_view() or "(No tactical view on file)"}
 
 CURRENT TECHNICALS:
 {technicals_summary}
@@ -316,16 +319,18 @@ CORE POSITIONS (high/highest confidence, YOU decide the size):
     You do NOT need to go through a scout phase first. If the thesis, technicals,
     fundamentals, and macro all align, go straight to core. Druckenmiller didn't
     "test" his best ideas with 5% — he went big immediately.
-  - PYRAMIDING (adding to winners): To add to an existing position, re-submit the ticker
-    in new_positions with the TOTAL allocation you want (not the additional amount).
-    Example: if you hold NVDA at ~10% and want to go to 25%, submit allocation_pct: 25.
+  - PYRAMIDING (adding to winners): Use pyramid_positions (NOT new_positions) to add
+    to an existing position. Specify the TOTAL allocation you want (not the additional amount).
+    Example: if you hold NVDA at ~10% and want to go to 25%, submit new_allocation_pct: 25.
+    Include a reasoning explaining WHY you're adding — this gets appended to the original thesis.
+    The original thesis is NEVER overwritten on pyramid — your entry thesis is preserved.
     ONLY pyramid into positions where thesis is STRENGTHENING and OBV is rising.
     Never pyramid into a losing position.
   - When a core position is working, ADD TO IT rather than opening new positions.
     Your biggest winners should be your biggest positions.
 
 RULES:
-- Max 8 positions at any time — prefer 3-5 concentrated bets
+- Max 7 positions at any time — prefer 3-5 concentrated bets
 - Max {max_new} NEW positions per review — be selective, not reactive
 - Keep at least 5% cash as a buffer for options and rebalancing
 - Every position MUST have a thesis with explicit invalidation conditions
@@ -419,20 +424,25 @@ If you see a "Watching" section, these are stopped-out positions with potentiall
 You can re-enter by including in new_positions. Auto-expire after 6 reviews.
 
 TASKS:
-1. UPDATE YOUR WORLD VIEW — write a concise macro regime assessment (current regime +
-   forward outlook 12-18 months + key risks). This persists between reviews and is your
-   primary source of macro continuity. Max 300 words.
-2. Review each active thesis — still valid? stronger? weakening?
-3. Should we open any new positions? (max {max_new} new per review)
-4. Should we SHORT any companies facing structural headwinds?
-5. Should we close or reduce any positions? (thesis broken?)
-6. Theme check: any themes strengthening or weakening? New themes emerging?
-7. Any new lessons learned? Be specific and actionable (include trigger conditions).
+1. STRUCTURAL WORLD VIEW — Read your existing structural view above. This is your 12-18 month
+   directional thesis on where the world is heading (e.g., "AI transforms every industry",
+   "energy transition accelerates", "demographics reshape healthcare"). Only update it if
+   you see evidence of a genuine REGIME CHANGE — a structural shift that invalidates your
+   prior view. If the structural view is intact, leave structural_view_update empty.
+   If no structural view exists yet, write one now (max 200 words).
+2. TACTICAL VIEW — Write a concise near-term catalyst assessment (next 3-6 months).
+   What macro events, earnings, policy decisions matter NOW? Max 200 words. Updated every review.
+3. Review each active thesis — still valid? stronger? weakening?
+4. Should we open any new positions? (max {max_new} new per review)
+5. Should we SHORT any companies facing structural headwinds?
+6. Should we close or reduce any positions? (thesis broken?)
+7. Theme check: any themes strengthening or weakening? New themes emerging?
+8. Any new lessons learned? Be specific and actionable (include trigger conditions).
 {lesson_update_task}
-8. For EVERY trade decision (buy, sell, short, reduce, pyramid), write a 1-2 sentence
+9. For EVERY trade decision (buy, sell, short, reduce, pyramid), write a 1-2 sentence
    reasoning in decision_reasoning. This is your decision journal — it helps you remember
    WHY you made each decision when you review it next month.
-9. OPTIONS CHECK: Review the OPTIONS STATUS section. Calls amplify winners — only buy when
+10. OPTIONS CHECK: Review the OPTIONS STATUS section. Calls amplify winners — only buy when
    OBV rising AND MACD bullish (both green) and you can name a specific catalyst + timeline.
    For open calls: is the thesis/catalyst still valid? If yes, hold regardless of short-term
    technicals. If thesis is broken or time value is near zero, close and redeploy.
@@ -446,8 +456,8 @@ Theme update rules:
 - To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
 - Only adjust themes when there's clear evidence from the news. Max ±1 per review.
 
-If no changes needed, return empty arrays. Always include world_assessment, world_view_update,
-decision_reasoning, and weekly_summary."""
+If no changes needed, return empty arrays. Always include world_assessment, tactical_view_update,
+decision_reasoning, and weekly_summary. Only include structural_view_update if the regime has changed."""
 
     def _theme_section_text(self, review_number: int) -> str:
         """Generate the theme section. First review discovers themes from news."""
@@ -501,7 +511,7 @@ Step back and reassess calmly — do not panic:
 2. For EACH position: has the thesis strengthened, weakened, or broken?
 3. If macro-driven and thesis intact, dips with OBV rising are BUYING opportunities.
 4. If company-specific and thesis broken, EXIT — don't hope for recovery.
-5. Has the macro regime changed? Update your world view if so.
+5. Has the macro regime changed? Update your structural view if so.
 This is a reassessment, not a reaction. Make deliberate decisions.
 """
 
@@ -524,14 +534,14 @@ MONTHLY THEME REVIEW:
 - If we are at or near the theme cap, evaluate whether low-scoring themes should be removed to make room for stronger emerging themes.
 - Themes at score 1 that have not been reinforced since last month are candidates for removal.
 
-FORWARD OUTLOOK (12-18 months):
-Write a brief forward outlook in your weekly_summary. Answer:
-- Based on current trends, what will the dominant macro forces be in 12-18 months?
-- Which sectors/companies are best positioned for that world?
+STRUCTURAL VIEW CHECK (12-18 months):
+Re-read your Structural World View above. Answer honestly:
+- Is the structural direction STILL correct? Has anything changed the 12-18 month trajectory?
 - Are our core positions aligned with where the world is GOING, not just where it IS?
-- What would invalidate this outlook?
-This is the most important part of the monthly review. Core positions should be aligned
-with your 12-18 month view. If they aren't, either adjust positions or update the outlook."""
+- If the structural view needs updating, write it in structural_view_update.
+- If positions are misaligned with the structural view, either adjust positions or update the view.
+This is the most important part of the monthly review. Every core position must be a bet
+on the structural direction. If it's not, it doesn't belong in the portfolio."""
 
     @staticmethod
     def _trade_discipline_text(trade_count: int) -> str:
@@ -605,6 +615,9 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
       "timing_note": "IV elevated after earnings — good premium"
     }
   ],
+  "pyramid_positions": [
+    {"ticker": "NVDA", "new_allocation_pct": 25, "reasoning": "Blackwell earnings confirmed thesis — adding aggressively"}
+  ],
   "close_positions": [
     {"ticker": "TSLA", "reason": "EV margin thesis broken by competition", "reentry_price": 0}
   ],
@@ -640,7 +653,8 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             pass
 
         base += """
-  "world_view_update": "Your updated macro regime assessment (current regime + 12-18 month forward outlook + key risks). Max 300 words. This persists between reviews.",
+  "structural_view_update": "ONLY if regime has changed — your updated 12-18 month directional view on where the world is heading. Leave EMPTY STRING if structural view is intact.",
+  "tactical_view_update": "Near-term catalyst assessment (next 3-6 months). What macro events, earnings, policy decisions matter NOW? Max 200 words. Updated every review.",
   "decision_reasoning": [
     {"ticker": "NVDA", "action": "BUY", "allocation_pct": 20, "reasoning": "AI capex confirmed by MSFT earnings, OBV rising, RSI pullback to 42 — entering core at size"},
     {"ticker": "NKE", "action": "SELL", "reasoning": "Tariff thesis broken — 25% of supply chain exposed to China tariffs, OBV falling"}
@@ -769,11 +783,17 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
 
     def _apply_to_memory(self, response: dict, sim_date: str) -> None:
         """Write Claude's decisions back to memory files."""
-        # Update world view
-        world_view = response.get("world_view_update", "")
-        if world_view and world_view.strip():
-            self._tm.update_world_view(world_view)
-            logger.info("  World view updated")
+        # Update structural view (only on regime change — usually empty)
+        structural_view = response.get("structural_view_update", "")
+        if structural_view and structural_view.strip():
+            self._tm.update_world_view(structural_view)
+            logger.info("  Structural world view updated (regime change)")
+
+        # Update tactical view (every review)
+        tactical_view = response.get("tactical_view_update", "")
+        if tactical_view and tactical_view.strip():
+            self._tm.update_tactical_view(tactical_view)
+            logger.info("  Tactical view updated")
 
         # Update decision journal
         decision_reasoning = response.get("decision_reasoning", [])
@@ -792,19 +812,33 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
                 notes=update.get("notes", ""),
             )
 
-        # Add new theses for new positions (or upgrade existing)
+        # Pyramid positions — append note to existing thesis, never overwrite
+        for pyr in response.get("pyramid_positions", []):
+            ticker = pyr.get("ticker", "")
+            if not ticker:
+                continue
+            reasoning = pyr.get("reasoning", "Adding to position")
+            new_alloc = pyr.get("new_allocation_pct", 0)
+            self._tm.append_pyramid_note(ticker, reasoning, new_alloc)
+
+        # Add new theses for genuinely NEW positions only
         for pos in response.get("new_positions", []):
             ticker = pos.get("ticker", "")
             if not ticker:
                 continue
-            # Preserve original entry price if upgrading an existing thesis
+            # If this ticker already has an active thesis, skip — use pyramid_positions instead
             existing = self._tm.get_by_ticker(ticker)
-            entry_price = existing.get("entry_price", 0.0) if existing else 0.0
+            if existing:
+                logger.warning(
+                    "  %s already has a thesis — use pyramid_positions to add. Skipping overwrite.",
+                    ticker,
+                )
+                continue
             self._tm.add_thesis(
                 ticker=ticker,
                 direction=pos.get("direction", "LONG"),
                 thesis=pos.get("thesis", ""),
-                entry_price=entry_price,
+                entry_price=0.0,
                 target_price=pos.get("target_price", 0.0),
                 stop_price=pos.get("stop_price", 0.0),
                 timeframe=pos.get("horizon", ""),
@@ -885,6 +919,7 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             "world_assessment": "",
             "thesis_updates": [],
             "new_positions": [],
+            "pyramid_positions": [],
             "close_positions": [],
             "close_options": [],
             "reduce_positions": [],
@@ -893,7 +928,8 @@ with your 12-18 month view. If they aren't, either adjust positions or update th
             "lesson_updates": [],
             "belief_updates": [],
             "lessons_to_prune": [],
-            "world_view_update": "",
+            "structural_view_update": "",
+            "tactical_view_update": "",
             "decision_reasoning": [],
             "weekly_summary": "",
         }

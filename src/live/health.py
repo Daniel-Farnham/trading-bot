@@ -207,7 +207,8 @@ class _DashboardHandler(BaseHTTPRequestHandler):
             # Get SPY 30-day return
             spy_return_30d = None
             try:
-                bars = _market_data.get_bars("SPY", limit=30)
+                from datetime import timedelta
+                bars = _market_data.get_bars("SPY", start=datetime.now() - timedelta(days=60), limit=30)
                 if not bars.empty and len(bars) >= 2:
                     start = float(bars.iloc[0]["close"])
                     end = float(bars.iloc[-1]["close"])
