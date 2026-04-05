@@ -123,7 +123,7 @@ universe:
 
 trading:
   max_position_pct: 1.0
-  max_open_positions: 8
+  max_open_positions: 7
   max_daily_loss_pct: 0.03
   max_drawdown_pct: 0.30
   min_cash_reserve_pct: 0.05
@@ -170,6 +170,7 @@ memory:
   lessons_path: "data/lessons_learned.md"
   themes_path: "data/themes.md"
   world_view_path: "data/world_view.md"
+  tactical_view_path: "data/tactical_view.md"
   decision_journal_path: "data/decision_journal.md"
   max_active_theses: 15
   max_watching_theses: 5

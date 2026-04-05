@@ -270,8 +270,22 @@ class LiveOrchestrator:
             cash = account.get("cash", 0)
             positions = self._market.get_positions()
 
+            # Fetch pending orders (e.g. OPG orders queued over weekend)
+            pending_orders = []
+            try:
+                pending_orders = self._executor._broker.get_all_orders(status="open")
+            except Exception as e:
+                logger.warning("Failed to fetch pending orders: %s", e)
+
             # Memory context
             memory_context = self._tm.get_decision_context()
+
+            # Append pending orders to memory context so Claude knows what's already queued
+            if pending_orders:
+                pending_text = "\n\nPENDING ORDERS (already submitted, awaiting fill — DO NOT duplicate):\n"
+                for o in pending_orders:
+                    pending_text += f"- {o.get('side', '').upper()} {o.get('qty', '')} {o.get('symbol', '')} ({o.get('type', '')})\n"
+                memory_context += pending_text
 
             # Technicals for full universe (like the sim)
             technicals_summary = self._build_technicals_summary()

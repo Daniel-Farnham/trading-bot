@@ -56,6 +56,16 @@ class LiveExecutor:
         executed = []
         position_tickers = [p.get("symbol", "") for p in positions]
 
+        # Fetch pending orders so we don't duplicate them (e.g. OPG orders over weekend)
+        pending_order_tickers = set()
+        try:
+            pending_orders = self._broker.get_all_orders(status="open")
+            pending_order_tickers = {o.get("symbol", "") for o in pending_orders}
+            if pending_order_tickers:
+                logger.info("Pending orders found for: %s", pending_order_tickers)
+        except Exception as e:
+            logger.warning("Failed to fetch pending orders: %s", e)
+
         # 1. Close positions
         for close in response.get("close_positions", []):
             ticker = close.get("ticker", "")
@@ -137,6 +147,11 @@ class LiveExecutor:
         for new_pos in response.get("new_positions", []):
             ticker = new_pos.get("ticker", "")
             if not ticker:
+                continue
+
+            # Skip if there's already a pending order for this ticker
+            if ticker in pending_order_tickers:
+                logger.info("SKIPPED %s — already has pending order", ticker)
                 continue
 
             action = new_pos.get("action", "BUY").upper()
