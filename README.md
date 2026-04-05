@@ -125,23 +125,55 @@ python -m src.live.status_cli memory      # All memory files
 python -m src.live.status_cli spend       # API spend log
 ```
 
-## Running the Live Bot
+## Setup
 
-### Local
+One environment supports both live and simulation — the same `.env` works for both.
+
+1. **Python 3.9+** — check with `python --version`.
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   Then fill in the keys in `.env`:
+   - `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` — paper or live, from https://app.alpaca.markets
+   - `ANTHROPIC_API_KEY` — from https://console.anthropic.com
+   - `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD` — for notifications; app password from https://myaccount.google.com/apppasswords
+4. **Verify the install:**
+   ```bash
+   pytest tests/ -q
+   ```
+
+On the very first run of the live bot (local or Railway), set `FORCE_FIRST_BOOT=true` to wipe any stale state and initialize the memory files. Remove it on subsequent runs.
+
+## Running the Bot
+
+### Live (paper / real money)
+
+**Local:**
 ```bash
-# Set up .env with API keys (see .env.example)
 python -m src.live.main
 ```
+This starts the scheduler — Call 1 runs daily at 9:00 AM ET, trigger checks every 30 min during market hours, Call 3 on Fridays at 3:30 PM or on trigger. Leave the process running.
 
-### Railway Deployment
+First ever run:
+```bash
+FORCE_FIRST_BOOT=true python -m src.live.main
+```
+
+**Railway deployment:**
 1. Connect GitHub repo to Railway
-2. Set environment variables: `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `ANTHROPIC_API_KEY`, `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`
-3. Create persistent volume at `/app/data/live`
+2. Set environment variables (same keys as `.env`): `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `ANTHROPIC_API_KEY`, `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`
+3. Create a persistent volume at `/app/data/live`
 4. Deploy — Railway auto-deploys from `main` on every push
+5. On the first deploy, set `FORCE_FIRST_BOOT=true` to initialize state, then remove it
 
-Set `FORCE_FIRST_BOOT=true` to wipe state and re-initialize (remove after).
+### Simulation (backtest)
 
-## Running Simulations
+Runs the same strategy against historical data with an in-memory broker — no Alpaca orders, no scheduler, no emails.
 
 ```bash
 python -m src.simulation.run_thesis_sim \
@@ -159,6 +191,8 @@ python -m src.simulation.run_thesis_sim \
 | `--data-dir` | data/v3_sim | Memory file directory |
 | `--output` | None | Save JSON report to file |
 
+Sims write their own memory files under `--data-dir` (default `data/v3_sim`), separate from live state in `data/live`, so the two never collide.
+
 ## Cost Estimate
 
 | Call | Frequency | Cost |
@@ -169,23 +203,3 @@ python -m src.simulation.run_thesis_sim \
 | **Monthly** | | **~$2-5** |
 
 Hard caps: $2/day, $40/month.
-
-## Requirements
-
-- Python 3.9+
-- Alpaca API keys (paper or live)
-- Anthropic API key
-- Gmail app password (for notifications)
-
-```bash
-pip install -r requirements.txt
-pytest tests/ -q
-```
-
-## Simulation Results
-
-| Period | Type | Return | SPY | Alpha | Win Rate | Trades |
-|--------|------|--------|-----|-------|----------|--------|
-| 2024 Apr-2025 Aug (17mo) | Full cycle | +25.7% | +17.7% annualized | +10%+ | — | — |
-| 2025 Jun-Nov | Bull | +17.7% | +16.3% | +1.4% | 82.6% | 23 |
-| 2022 Jan-Jun | Bear | +5.8% | -20.1% | +26.0% | 47.6% | 21 |
