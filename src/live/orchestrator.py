@@ -452,78 +452,157 @@ class LiveOrchestrator:
             logger.error("Reconcile failed: %s", e)
 
     def initialize_first_boot(self) -> None:
-        """Cold start: seed universe, fetch 12 months of headlines, build world view + themes."""
+        """Cold start: quarterly-synthesis of 12 months of news → world view + 3 themes + watchlist."""
         logger.info("=== First boot initialization ===")
 
         # Seed universe from config
         added = self._universe.seed_from_config()
         logger.info("Seeded %d tickers into universe", added)
 
-        # Fetch 12 months of headlines and synthesize world view + themes
-        logger.info("Fetching 12 months of headlines for initial world view...")
         try:
             from datetime import timedelta
-            end_date = date.today().isoformat()
-            start_date = (date.today() - timedelta(days=365)).isoformat()
 
+            # Build 4 quarters: current quarter + previous 3
+            today = date.today()
+            quarters = self._build_quarter_ranges(today)
             universe_tickers = self._universe.get_tickers()
 
-            world_state = build_world_state(
-                start_date=start_date,
-                end_date=end_date,
-                holdings=None,
-                watchlist=universe_tickers[:30],  # Top 30 to keep API calls reasonable
-                client=self._news,
-            )
+            # PHASE 1: Summarize each quarter individually
+            logger.info("Phase 1: Synthesizing 4 quarterly summaries...")
+            quarterly_summaries = []
+            for q_label, q_start, q_end, is_current in quarters:
+                logger.info("  Fetching news for %s (%s → %s)...", q_label, q_start, q_end)
+                try:
+                    q_news = build_world_state(
+                        start_date=q_start,
+                        end_date=q_end,
+                        holdings=None,
+                        watchlist=universe_tickers[:30],
+                        client=self._news,
+                    )
+                except Exception as e:
+                    logger.warning("  Failed to fetch news for %s: %s", q_label, e)
+                    continue
 
-            if not world_state:
-                logger.warning("No headlines fetched for first boot")
+                if not q_news:
+                    logger.warning("  No news for %s", q_label)
+                    continue
+
+                # Fetch SPY performance for this quarter
+                spy_return_pct, spy_regime = self._get_spy_quarter_performance(q_start, q_end)
+                spy_context = ""
+                if spy_return_pct is not None:
+                    spy_context = f"\nSPY PERFORMANCE THIS QUARTER: {spy_return_pct:+.1f}% ({spy_regime})\n"
+                    logger.info("  %s SPY: %+.1f%% (%s)", q_label, spy_return_pct, spy_regime)
+
+                current_label = " (partial, current)" if is_current else ""
+                q_prompt = f"""You are analyzing financial news from {q_label}{current_label}.
+{spy_context}
+NEWS HEADLINES FROM {q_label}:
+{q_news}
+
+Your task: Summarize what happened this quarter AND give a forward view looking out 12-18 months from THIS quarter's perspective.
+
+The SPY performance tells you the market regime this quarter — use it to contextualize the headlines.
+A bull quarter with defensive headlines is different from a bear quarter with defensive headlines.
+
+Be concise. Focus on structural shifts and persistent themes, not one-off events.
+
+Respond with ONLY valid JSON:
+{{
+  "quarter": "{q_label}",
+  "spy_return_pct": {spy_return_pct if spy_return_pct is not None else "null"},
+  "market_regime": "{spy_regime or 'unknown'}",
+  "what_happened": "2-3 sentences: key events, regime shifts, sector leadership this quarter",
+  "persistent_patterns": "1-2 sentences: what patterns were building that will likely continue",
+  "forward_view": "1-2 sentences: looking forward 12-18 months from {q_label}, where is the world heading? what positioning makes sense?"
+}}"""
+
+                q_result = self._claude.call(q_prompt, model="sonnet")
+                if q_result:
+                    # Ensure SPY data is in the result even if Claude doesn't include it
+                    if spy_return_pct is not None and "spy_return_pct" not in q_result:
+                        q_result["spy_return_pct"] = spy_return_pct
+                    if spy_regime and "market_regime" not in q_result:
+                        q_result["market_regime"] = spy_regime
+                    quarterly_summaries.append(q_result)
+                    logger.info("  %s summary: %s", q_label, q_result.get("what_happened", "")[:100])
+
+            if not quarterly_summaries:
+                logger.error("No quarterly summaries generated — first boot aborted")
                 return
 
-            # Call Claude to synthesize into world view + themes + initial watchlist
-            universe_tickers = self._universe.get_tickers()
-            prompt = f"""You are initializing a Druckenmiller-style macro trading bot.
-Below are 12 months of financial news headlines. Your job is to:
+            # PHASE 2: Synthesize 4 quarterly summaries → world view + 3 themes + watchlist
+            logger.info("Phase 2: Synthesizing final world view from %d quarterly summaries...",
+                        len(quarterly_summaries))
 
-1. Write an initial WORLD VIEW with THREE sections:
-   a. RECENT HISTORY (1-2 sentences) — What happened in the last 6-12 months that got us here?
-      Key regime shifts, major events, structural changes.
-   b. CURRENT MACRO REGIME (1 paragraph) — What is the state of the world right now?
-      Risk-on/off, Fed policy, sector leadership, market regime.
-   c. FORWARD OUTLOOK 12-18 MONTHS (1 paragraph) — Where is the world going?
-      What should we own for the next 12-18 months? What are the positioning implications?
-   Max 400 words total.
+            def _fmt_summary(s):
+                quarter = s.get("quarter", "Unknown")
+                spy_ret = s.get("spy_return_pct")
+                regime = s.get("market_regime", "unknown")
+                spy_line = f"**SPY:** {spy_ret:+.1f}% ({regime})\n" if spy_ret is not None else ""
+                return (
+                    f"### {quarter}\n"
+                    f"{spy_line}"
+                    f"**What happened:** {s.get('what_happened', '')}\n"
+                    f"**Persistent patterns:** {s.get('persistent_patterns', '')}\n"
+                    f"**Forward view from this quarter:** {s.get('forward_view', '')}"
+                )
 
-2. Identify 3-5 initial THEMES — investment themes you see in the data, scored 1-5.
-   These should reflect structural trends, not short-term noise.
+            summaries_text = "\n\n".join(_fmt_summary(s) for s in quarterly_summaries)
 
-3. Pick an initial WATCHLIST — up to 20 stocks from the universe (or outside it) that you
-   think are the most interesting right now based on the themes and headlines. These are stocks
-   you want to monitor closely. Think: what would Druckenmiller be watching today?
+            # Compute overall SPY trajectory across the 4 quarters
+            spy_trajectory = self._describe_spy_trajectory(quarterly_summaries)
 
-4. Note any key observations about what's working and what's not.
+            synth_prompt = f"""You are initializing a Druckenmiller-style macro trading bot.
+
+Below are quarterly summaries covering the last 12 months. Each quarter has equal weight —
+do not over-index on the most recent quarter just because it's freshest.
+
+MARKET TRAJECTORY (SPY performance by quarter):
+{spy_trajectory}
+
+QUARTERLY SUMMARIES:
+{summaries_text}
 
 STOCK UNIVERSE ({len(universe_tickers)} stocks):
 {', '.join(universe_tickers)}
 
-NEWS HEADLINES (past 12 months):
-{world_state}
+YOUR TASKS:
+
+1. Write an initial WORLD VIEW with three sections:
+   a. RECENT HISTORY (2-4 sentences): What happened across all 4 quarters that got us here?
+      Synthesize the progression — how did the world evolve quarter by quarter?
+   b. CURRENT MACRO REGIME (1 paragraph): What is the state of the world right now?
+   c. FORWARD OUTLOOK 12-18 MONTHS (1 paragraph): Where is the world going?
+      Weigh the forward views from each quarter — which predictions have held up,
+      which have shifted? What does the trajectory suggest?
+   Max 600 words total.
+
+2. Identify EXACTLY 3 initial THEMES — your strongest, highest-conviction ideas.
+   These should be themes with evidence across MULTIPLE quarters, not just the most recent.
+   Score 1-5 based on how strong and persistent the evidence is.
+
+3. Pick an initial WATCHLIST — up to 20 stocks from the universe (or outside it) that
+   represent your best ideas for the current environment.
+
+4. Note any key observations.
 
 Respond with ONLY valid JSON:
 {{
-  "world_view": "Your world view with all three sections (recent history + current regime + forward outlook). Max 400 words.",
+  "world_view": "Your world view with all three sections. Max 600 words.",
   "themes": [
-    {{"name": "Theme Name", "score": 4, "description": "Why this theme matters"}}
+    {{"name": "Theme Name", "score": 4, "description": "Why this theme matters — include which quarters showed evidence"}}
   ],
   "initial_watchlist": [
-    {{"ticker": "NVDA", "reason": "AI capex leader, Blackwell cycle ramping"}}
+    {{"ticker": "NVDA", "reason": "Why this stock fits the themes"}}
   ],
   "observations": "Key patterns you noticed"
 }}"""
 
-            result = self._claude.call(prompt, model="sonnet")
+            result = self._claude.call(synth_prompt, model="sonnet")
             if not result:
-                logger.warning("First boot Claude call returned no result")
+                logger.warning("Final synthesis Claude call returned no result")
                 return
 
             # Write world view
@@ -532,8 +611,8 @@ Respond with ONLY valid JSON:
                 self._tm.update_world_view(world_view)
                 logger.info("Initial world view written (%d chars)", len(world_view))
 
-            # Write themes
-            themes = result.get("themes", [])
+            # Write themes (capped at 3)
+            themes = result.get("themes", [])[:3]
             for theme in themes:
                 name = theme.get("name", "")
                 score = theme.get("score", 1)
@@ -549,7 +628,6 @@ Respond with ONLY valid JSON:
                 reason = pick.get("reason", "")
                 if ticker:
                     self._watchlist.add(ticker, source="first_boot", reason=reason)
-                    # Add to universe if not already there
                     self._universe.add(ticker, source="first_boot", reason=reason)
             logger.info("Initial watchlist: %d stocks", len(watchlist_picks))
 
@@ -559,8 +637,8 @@ Respond with ONLY valid JSON:
 
             self._notifier.send_alert(
                 "First Boot Complete",
-                f"World view initialized from 12 months of headlines. "
-                f"{len(themes)} themes discovered. {len(watchlist_picks)} stocks watchlisted.",
+                f"Quarterly synthesis complete. {len(quarterly_summaries)} quarters analyzed. "
+                f"{len(themes)} themes, {len(watchlist_picks)} stocks watchlisted.",
             )
 
         except BudgetExceededError as e:
@@ -568,6 +646,116 @@ Respond with ONLY valid JSON:
         except Exception as e:
             logger.error("First boot headline synthesis failed: %s", e)
             logger.info("Call 1 will start building context from scratch")
+
+    @staticmethod
+    def _build_quarter_ranges(today: date) -> list[tuple[str, str, str, bool]]:
+        """Build list of (label, start_date, end_date, is_current) for last 4 quarters."""
+        from datetime import timedelta
+
+        # Determine current quarter
+        current_year = today.year
+        current_q = (today.month - 1) // 3 + 1
+
+        quarters = []
+        for offset in range(3, -1, -1):  # 3 quarters back → current
+            q_num = current_q - offset
+            q_year = current_year
+            while q_num <= 0:
+                q_num += 4
+                q_year -= 1
+
+            # Quarter start/end
+            q_start_month = (q_num - 1) * 3 + 1
+            q_start = date(q_year, q_start_month, 1)
+
+            if q_num == 4:
+                q_end = date(q_year, 12, 31)
+            else:
+                next_start = date(q_year, q_start_month + 3, 1)
+                q_end = next_start - timedelta(days=1)
+
+            # Cap current quarter at today
+            is_current = (offset == 0)
+            if is_current and q_end > today:
+                q_end = today
+
+            label = f"Q{q_num} {q_year}"
+            quarters.append((label, q_start.isoformat(), q_end.isoformat(), is_current))
+
+        return quarters
+
+    def _get_spy_quarter_performance(self, q_start: str, q_end: str) -> tuple[float | None, str | None]:
+        """Fetch SPY return % for a given quarter from Alpaca bars.
+
+        Returns (return_pct, regime_label) or (None, None) on failure.
+        """
+        try:
+            from datetime import datetime as _dt
+            start_dt = _dt.fromisoformat(q_start)
+            end_dt = _dt.fromisoformat(q_end)
+
+            bars = self._market.get_bars("SPY", start=start_dt, end=end_dt, limit=100)
+            if bars.empty or len(bars) < 2:
+                return None, None
+
+            start_price = float(bars.iloc[0]["close"])
+            end_price = float(bars.iloc[-1]["close"])
+            if start_price <= 0:
+                return None, None
+
+            pct = ((end_price - start_price) / start_price) * 100
+
+            if pct >= 8:
+                regime = "strong bull"
+            elif pct >= 3:
+                regime = "bull"
+            elif pct >= -3:
+                regime = "flat"
+            elif pct >= -8:
+                regime = "bear"
+            else:
+                regime = "strong bear"
+
+            return round(pct, 1), regime
+        except Exception as e:
+            logger.debug("SPY quarter performance failed: %s", e)
+            return None, None
+
+    @staticmethod
+    def _describe_spy_trajectory(quarterly_summaries: list[dict]) -> str:
+        """Describe the overall SPY trajectory across quarters."""
+        lines = []
+        returns = []
+        for s in quarterly_summaries:
+            q = s.get("quarter", "?")
+            r = s.get("spy_return_pct")
+            regime = s.get("market_regime", "unknown")
+            if r is not None:
+                lines.append(f"- {q}: {r:+.1f}% ({regime})")
+                returns.append(r)
+            else:
+                lines.append(f"- {q}: data unavailable")
+
+        if len(returns) >= 2:
+            total = sum(returns)
+            lines.append(f"\nCumulative 4Q: {total:+.1f}%")
+
+            # Describe overall trajectory
+            if len(returns) >= 3:
+                first_half = sum(returns[:2]) / 2
+                second_half = sum(returns[-2:]) / 2
+                if second_half - first_half > 5:
+                    lines.append("Trajectory: accelerating rally (bear→bull recovery)")
+                elif first_half - second_half > 5:
+                    lines.append("Trajectory: decelerating (bull→bear transition)")
+                elif all(r > 3 for r in returns):
+                    lines.append("Trajectory: sustained bull market")
+                elif all(r < -3 for r in returns):
+                    lines.append("Trajectory: sustained bear market")
+                else:
+                    lines.append("Trajectory: choppy/sideways")
+
+        return "\n".join(lines)
 
     def _format_themes(self) -> str:
         """Format themes for prompt context."""
