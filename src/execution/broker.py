@@ -39,13 +39,13 @@ class Broker:
         )
 
     def _get_time_in_force(self) -> TimeInForce:
-        """DAY if market is open, OPG (market-on-open) if closed."""
+        """DAY if market is open, GTC (good-til-cancelled) if closed."""
         try:
             clock = self._client.get_clock()
             if clock.is_open:
                 return TimeInForce.DAY
-            logger.info("Market closed — queuing order for next open (OPG)")
-            return TimeInForce.OPG
+            logger.info("Market closed — queuing order as GTC (good-til-cancelled)")
+            return TimeInForce.GTC
         except Exception:
             return TimeInForce.DAY
 
