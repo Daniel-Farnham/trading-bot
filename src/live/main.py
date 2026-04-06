@@ -21,6 +21,7 @@ from src.live.executor import LiveExecutor
 from src.live.health import start_health_server, set_data_dir, set_market_data, set_orchestrator
 from src.live.notifier import EmailNotifier
 from src.live.orchestrator import LiveOrchestrator
+from src.live.pending_orders import PendingOrderTracker
 from src.live.scheduler import create_scheduler
 from src.live.trigger_check import TriggerCheck
 from src.live.universe import LiveUniverse
@@ -132,6 +133,11 @@ def main() -> None:
     else:
         notifier = EmailNotifier(sender="", app_password="", recipient="", enabled=False)
 
+    # Pending order tracker
+    pending_tracker = PendingOrderTracker(
+        path=os.path.join(data_dir, "pending_orders.json"),
+    )
+
     # Orchestrator — wires everything together
     orchestrator = LiveOrchestrator(
         claude_client=claude_client,
@@ -146,6 +152,7 @@ def main() -> None:
         watchlist=watchlist,
         universe=universe,
         notifier=notifier,
+        pending_tracker=pending_tracker,
         state_path=os.path.join(data_dir, "daily_state.json"),
     )
 

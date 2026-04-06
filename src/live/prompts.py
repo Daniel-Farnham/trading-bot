@@ -23,6 +23,7 @@ def build_call1_prompt(
     prefetched_news: str = "",
     holdings_news: str = "",
     universe_at_cap: bool = False,
+    alpaca_portfolio: str = "",
 ) -> str:
     """Build the Call 1 discovery prompt.
 
@@ -65,7 +66,10 @@ about memory demand, use screen_by_theme("memory") to find all memory stocks, th
 get_fundamentals on the most interesting ones. We are looking for max growth — think PLTR
 in 2024/2025. Find the next breakout before the crowd.
 {news_section}
-CURRENT HOLDINGS:
+ACTUAL PORTFOLIO (live from Alpaca — source of truth):
+{alpaca_portfolio if alpaca_portfolio else "(Not available)"}
+
+CURRENT HOLDINGS (from memory):
 {holdings_text}
 
 CURRENT WATCHLIST (Call 1 flagged as interesting, monitored for triggers):

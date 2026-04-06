@@ -213,6 +213,10 @@ class TestIsThirdFriday:
 class TestOrchestratorCall1:
     def test_call1_processes_output(self):
         orchestrator = _make_orchestrator()
+        orchestrator._market.get_account.return_value = {
+            "portfolio_value": 100000, "cash": 50000,
+        }
+        orchestrator._market.get_positions.return_value = []
         orchestrator._claude.call.return_value = {
             "macro_assessment": "Markets steady",
             "flagged_tickers_universe": [
@@ -376,4 +380,11 @@ def _make_orchestrator():
     orchestrator._state.is_current_day.return_value = True
     orchestrator._state_path = "/tmp/test_state.json"
     orchestrator._review_count = 0
+    orchestrator._pending = MagicMock()
+    orchestrator._pending.get_all.return_value = []
+    orchestrator._reconciler = MagicMock()
+    orchestrator._reconciler.reconcile.return_value = {
+        "orders_filled": [], "orders_retried": [], "orders_failed": [],
+        "ledger_synced": True, "positions_added": [], "positions_removed": [],
+    }
     return orchestrator

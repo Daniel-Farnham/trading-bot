@@ -87,6 +87,7 @@ class LiveExecutor:
                 executed.append({
                     "ticker": ticker, "action": "CLOSE",
                     "quantity": "all", "details": reason,
+                    "order_id": result.order_id,
                 })
                 logger.info("CLOSED %s — %s", ticker, reason[:80])
             else:
@@ -120,6 +121,7 @@ class LiveExecutor:
                         "ticker": ticker, "action": "REDUCE",
                         "quantity": shares_to_sell,
                         "details": f"Reduced by {shares_to_sell} shares — {reason}",
+                        "order_id": result.order_id,
                     })
                     logger.info("REDUCED %s by %d shares — %s", ticker, shares_to_sell, reason[:80])
 
@@ -243,6 +245,7 @@ class LiveExecutor:
                 "ticker": ticker, "action": "PYRAMID",
                 "quantity": add_qty,
                 "details": f"+{add_qty} shares to {target_alloc*100:.0f}% allocation",
+                "order_id": result.order_id,
             }
         else:
             logger.error("Pyramid buy failed for %s: %s", ticker, result.error)
@@ -321,8 +324,6 @@ class LiveExecutor:
                 action_label, plan.quantity, ticker, tier, confidence,
                 plan.allocation_pct,
             )
-            # Update thesis memory
-            self._tm.update_thesis(ticker, entry_price=plan.entry_price)
             return {
                 "ticker": ticker,
                 "action": action_label,
@@ -331,6 +332,9 @@ class LiveExecutor:
                     f"{tier} {confidence} — {plan.allocation_pct:.0f}% alloc — "
                     f"{new_pos.get('thesis', '')[:100]}"
                 ),
+                "order_id": result.order_id,
+                "confidence": confidence,
+                "thesis_snippet": new_pos.get("thesis", "")[:200],
             }
         else:
             logger.error("Order failed for %s: %s", ticker, result.error)
@@ -440,6 +444,7 @@ class LiveExecutor:
                     f"({selected.quantity} contracts, ${selected.total_cost:.0f} total, "
                     f"delta {selected.delta:.2f})"
                 ),
+                "order_id": result.order_id,
             }
         else:
             logger.error("Options order failed for %s: %s", ticker, result.error)

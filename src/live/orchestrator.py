@@ -20,7 +20,9 @@ from src.live.daily_state import DailyState
 from src.live.health import update_status
 from src.live.executor import LiveExecutor
 from src.live.notifier import EmailNotifier
+from src.live.pending_orders import PendingOrderTracker
 from src.live.prompts import build_call1_prompt, build_call3_prompt
+from src.live.reconciler import ReconcileManager
 from src.live.research_tools import RESEARCH_TOOLS, ResearchToolExecutor
 from src.live.trigger_check import TriggerCheck
 from src.live.universe import LiveUniverse
@@ -51,6 +53,7 @@ class LiveOrchestrator:
         watchlist: LiveWatchlist,
         universe: LiveUniverse,
         notifier: EmailNotifier,
+        pending_tracker: PendingOrderTracker | None = None,
         state_path: str = DEFAULT_STATE_PATH,
     ):
         self._claude = claude_client
@@ -69,6 +72,15 @@ class LiveOrchestrator:
         self._state = DailyState.load(state_path)
         self._review_count = 0
 
+        # Order tracking and reconciliation
+        self._pending = pending_tracker or PendingOrderTracker()
+        self._reconciler = ReconcileManager(
+            broker=executor._broker,
+            market_data=market_data,
+            thesis_manager=thesis_manager,
+            pending_tracker=self._pending,
+        )
+
         # Reset state if it's a new day
         if not self._state.is_current_day():
             self._state.reset_for_day()
@@ -84,9 +96,21 @@ class LiveOrchestrator:
             if pruned:
                 logger.info("Pruned watchlist: %s", pruned)
 
-            # Build prompt
+            # Fetch real Alpaca positions (source of truth)
+            alpaca_positions = []
+            alpaca_account = {}
+            try:
+                alpaca_account = self._market.get_account()
+                alpaca_positions = self._market.get_positions()
+            except Exception as e:
+                logger.warning("Failed to fetch Alpaca positions for Call 1: %s", e)
+
             holdings = self._tm.get_holdings()
             holdings_tickers = [h["ticker"] for h in holdings]
+            # Also include tickers from Alpaca in case memory is stale
+            alpaca_tickers = [p["ticker"] for p in alpaca_positions]
+            holdings_tickers = list(set(holdings_tickers + alpaca_tickers))
+
             themes_md = self._format_themes()
             world_view_md = self._tm.get_world_view()
 
@@ -125,6 +149,36 @@ class LiveOrchestrator:
                 logger.warning("Pre-fetch news failed (Claude can still use MCP tools): %s", e)
 
             tactical_view_md = self._tm.get_tactical_view()
+
+            # Format Alpaca portfolio context for Call 1
+            alpaca_context = ""
+            if alpaca_account or alpaca_positions:
+                parts = []
+                if alpaca_account:
+                    parts.append(
+                        f"Portfolio Value: ${alpaca_account.get('portfolio_value', 0):,.2f} | "
+                        f"Cash: ${alpaca_account.get('cash', 0):,.2f}"
+                    )
+                if alpaca_positions:
+                    parts.append("Current Positions (from Alpaca):")
+                    for p in alpaca_positions:
+                        pnl_pct = p.get("unrealized_pnl_pct", 0) * 100
+                        parts.append(
+                            f"  - {p['ticker']}: {p['qty']} shares @ ${p['avg_entry']:.2f} "
+                            f"(now ${p['current_price']:.2f}, {pnl_pct:+.1f}%)"
+                        )
+                else:
+                    parts.append("No open positions.")
+
+                # Include pending orders
+                pending = self._pending.get_all()
+                if pending:
+                    parts.append("Pending Orders (submitted, awaiting fill):")
+                    for o in pending:
+                        parts.append(f"  - {o.action} {o.qty} {o.ticker} (retry #{o.retry_count})")
+
+                alpaca_context = "\n".join(parts)
+
             prompt = build_call1_prompt(
                 themes_md=themes_md,
                 holdings_tickers=holdings_tickers,
@@ -135,6 +189,7 @@ class LiveOrchestrator:
                 prefetched_news=prefetched_news,
                 holdings_news=holdings_news,
                 universe_at_cap=self._universe.is_at_cap(),
+                alpaca_portfolio=alpaca_context,
             )
 
             # Call Claude with research tools for deeper exploration
@@ -214,6 +269,14 @@ class LiveOrchestrator:
     def run_trigger_check(self) -> None:
         """Volatility/shock check (every 30 min). No Claude call."""
         try:
+            # Step 0: Reconcile pending orders and sync ledger with Alpaca
+            try:
+                recon_summary = self._reconciler.reconcile()
+                if recon_summary.get("orders_retried") or recon_summary.get("orders_filled"):
+                    logger.info("Reconciliation actions taken: %s", recon_summary)
+            except Exception as e:
+                logger.error("Reconciliation failed: %s", e)
+
             holdings = self._tm.get_holdings()
             holdings_tickers = [h["ticker"] for h in holdings]
 
@@ -348,35 +411,52 @@ class LiveOrchestrator:
                 self._state.add_trade(trade)
             self._state.save(self._state_path)
 
-            # Filter result to only include trades that actually executed
-            # so memory reflects reality, not just Claude's intentions
-            executed_tickers = {t["ticker"] for t in trades}
+            # Track new position orders in pending_orders.json
+            # These will be confirmed via reconciliation, not assumed filled
+            new_position_actions = {"BUY (CORE)", "BUY (SCOUT)", "SHORT", "PYRAMID",
+                                    "BUY_CALL", "BUY_PUT", "SELL_PUT"}
+            pending_tickers = set()
+            for trade in trades:
+                if trade.get("action") in new_position_actions and trade.get("order_id"):
+                    self._pending.add(
+                        order_id=trade["order_id"],
+                        ticker=trade["ticker"],
+                        action=trade["action"],
+                        qty=trade.get("quantity", 0),
+                        confidence=trade.get("confidence", ""),
+                        thesis_snippet=trade.get("thesis_snippet", ""),
+                    )
+                    pending_tickers.add(trade["ticker"])
+
+            # Filter result for memory writes:
+            # - CLOSE/REDUCE: write immediately (confirmed by Alpaca)
+            # - New positions: defer until fill confirmed via reconciliation
+            executed_closes = {t["ticker"] for t in trades if t.get("action") == "CLOSE"}
+            executed_reduces = {t["ticker"] for t in trades if t.get("action") == "REDUCE"}
+            confirmed_tickers = executed_closes | executed_reduces
+
             filtered_result = dict(result)
 
-            # Only keep new_positions that were actually executed
-            filtered_result["new_positions"] = [
-                p for p in result.get("new_positions", [])
-                if p.get("ticker", "") in executed_tickers
-            ]
+            # Exclude new positions from memory — they're pending, not confirmed
+            filtered_result["new_positions"] = []
 
             # Only keep close_positions that were actually executed
-            executed_closes = {t["ticker"] for t in trades if t.get("action") == "CLOSE"}
             filtered_result["close_positions"] = [
                 c for c in result.get("close_positions", [])
                 if c.get("ticker", "") in executed_closes
             ]
 
-            # Keep decision_reasoning for executed trades + non-trade actions (HOLD, thesis reviews)
+            # Keep decision_reasoning for confirmed trades + non-trade actions (HOLD, thesis reviews)
             trade_actions = {"BUY", "SELL", "SHORT", "REDUCE", "BUY_CALL", "BUY_PUT", "SELL_PUT"}
             filtered_result["decision_reasoning"] = [
                 r for r in result.get("decision_reasoning", [])
                 if r.get("action", "").upper() not in trade_actions  # Keep HOLD, review, etc.
-                or r.get("ticker", "") in executed_tickers
-                or r.get("ticker", "") in executed_closes
+                or r.get("ticker", "") in confirmed_tickers
             ]
 
             # Apply memory updates with filtered result
             # (themes, lessons, world view are written regardless — they're observations, not trades)
+            # New positions will be written to memory when fills are confirmed by reconciler
             self._engine._apply_to_memory(filtered_result, date.today().isoformat())
 
             # Update trigger check reference point
@@ -429,20 +509,9 @@ class LiveOrchestrator:
         """Sync Alpaca positions with thesis memory on startup."""
         logger.info("=== Reconcile on startup ===")
         try:
-            positions = self._market.get_positions()
-            alpaca_tickers = {p["ticker"] for p in positions}
-            memory_tickers = {h["ticker"] for h in self._tm.get_holdings()}
-
-            # Tickers in Alpaca but not in memory
-            for ticker in alpaca_tickers - memory_tickers:
-                logger.warning("RECONCILE: %s in Alpaca but not in memory — manual review needed", ticker)
-
-            # Tickers in memory but not in Alpaca
-            for ticker in memory_tickers - alpaca_tickers:
-                logger.warning("RECONCILE: %s in memory but not in Alpaca — may have been closed externally", ticker)
-
-            if alpaca_tickers == memory_tickers:
-                logger.info("Reconcile: positions match.")
+            # Run full reconciliation (pending orders + ledger sync)
+            summary = self._reconciler.reconcile()
+            logger.info("Startup reconciliation: %s", summary)
 
             # Set trigger check reference
             account = self._market.get_account()
