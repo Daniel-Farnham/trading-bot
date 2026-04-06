@@ -102,6 +102,12 @@ YOUR TASKS:
    - If it's worth tracking, add it to new_universe_additions
    - We are looking for max growth, think PLTR in 2024 / 2025.
 
+   IMPORTANT: Quality over quantity. Do NOT add stocks to the watchlist or universe just
+   to fill space. The watchlist should contain only our highest-conviction ideas. Only add
+   a new stock if you genuinely believe it has greater upside potential than what's already
+   there. If the current watchlist is strong, leave it alone. If you find something better,
+   replace the weakest existing entry — don't just keep adding.
+
 4. HOLDINGS ALERTS — Any news or fundamental changes affecting our current positions?
    Earnings surprises, guidance changes, regulatory actions, competitor moves.
 
