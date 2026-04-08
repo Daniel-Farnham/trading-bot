@@ -89,12 +89,19 @@ class TriggerCheck:
         tickers: list[str],
         current_prices: dict[str, float],
         portfolio_value: float,
-        atr_multiple: float = 3.0,
+        atr_multiple: float = 2.0,
         portfolio_threshold: float = -0.05,
     ) -> TriggerResult | None:
-        """Check for intraday shocks on holdings + watchlist."""
+        """Check for intraday shocks on holdings + watchlist.
+
+        Compares current price to previous close (not just last 30-min check)
+        so overnight gaps are always caught, even after bot restarts.
+        """
+        # On first check, fetch previous close as reference
         if not self._prev_prices:
-            return None  # First check of the day, no reference
+            self._prev_prices = self._fetch_previous_closes(tickers)
+            if not self._prev_prices:
+                return None
 
         triggered_tickers = []
 
@@ -203,6 +210,24 @@ class TriggerCheck:
 
         self._spy_hv_prev = spy_hv
         return None
+
+    def _fetch_previous_closes(self, tickers: list[str]) -> dict[str, float]:
+        """Fetch previous day's closing prices from Alpaca bars.
+
+        Used as the reference point on the first check of the day so that
+        overnight gaps are always caught, even after bot restarts.
+        """
+        closes = {}
+        for ticker in tickers:
+            try:
+                bars = self._market.get_bars(ticker, start=datetime.now() - timedelta(days=5), limit=2)
+                if not bars.empty and len(bars) >= 1:
+                    closes[ticker] = float(bars.iloc[-1]["close"])
+            except Exception:
+                continue
+        if closes:
+            logger.info("Loaded previous closes for %d tickers as trigger reference", len(closes))
+        return closes
 
     def _get_atr_pct(self, ticker: str) -> float | None:
         """Compute ATR% from live Alpaca bars."""
