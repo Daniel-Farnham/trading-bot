@@ -498,6 +498,13 @@ class LiveOrchestrator:
                     "unrealized_plpc": p.get("unrealized_pnl_pct", 0),
                 })
 
+            # Sync ledger with closing prices so memory is fresh for next day
+            try:
+                self._reconciler.reconcile()
+                logger.info("EOD ledger synced with Alpaca closing prices.")
+            except Exception as e:
+                logger.error("EOD ledger sync failed: %s", e)
+
             memory_dir = str(self._tm._paths.get("theses", Path("data/live")).parent)
             self._notifier.send_eod_portfolio(account, formatted_positions, memory_dir)
 
