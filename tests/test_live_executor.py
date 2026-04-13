@@ -245,7 +245,9 @@ class TestNewPositions:
 class TestPyramidUpgrade:
     def test_pyramid_adds_shares(self, executor, broker, risk):
         risk.is_core_position.return_value = True
-        broker.place_market_buy.return_value = OrderResult(success=True)
+        broker.place_market_buy.return_value = OrderResult(
+            success=True, order_id="pyramid-order-1",
+        )
 
         response = {
             "new_positions": [{

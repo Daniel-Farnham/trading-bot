@@ -28,6 +28,11 @@ class PendingOrder:
     submitted_at: str  # ISO timestamp
     retry_count: int = 0
     last_status: str = "new"  # new, partially_filled, expired, cancelled, filled, failed
+    # Pyramid-only metadata: written to MU's thesis as a [PYRAMID] note when
+    # the order actually fills (not when it's merely accepted by the broker).
+    # Defaults preserve backward compat with pre-existing pending_orders.json.
+    pyramid_reasoning: str = ""
+    pyramid_new_alloc_pct: float = 0.0
 
     @property
     def can_retry(self) -> bool:
@@ -65,6 +70,8 @@ class PendingOrderTracker:
         qty: int,
         confidence: str = "",
         thesis_snippet: str = "",
+        pyramid_reasoning: str = "",
+        pyramid_new_alloc_pct: float = 0.0,
     ) -> None:
         self._orders.append(PendingOrder(
             order_id=order_id,
@@ -74,6 +81,8 @@ class PendingOrderTracker:
             confidence=confidence,
             thesis_snippet=thesis_snippet,
             submitted_at=datetime.now().isoformat(),
+            pyramid_reasoning=pyramid_reasoning,
+            pyramid_new_alloc_pct=pyramid_new_alloc_pct,
         ))
         self._save()
         logger.info("Tracking pending order: %s %d %s [%s]", action, qty, ticker, order_id)

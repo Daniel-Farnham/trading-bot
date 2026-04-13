@@ -369,6 +369,7 @@ class LiveOrchestrator:
             fresh_news = self._build_fresh_news(
                 tickers=candidate_tickers | holdings_tickers,
             )
+            options_context = self._build_options_context(portfolio_value)
 
             # Performance vs SPY
             bot_return_pct = self._compute_bot_return(portfolio_value)
@@ -391,7 +392,7 @@ class LiveOrchestrator:
                 review_number=self._review_count,
                 review_type=review_type,
                 trade_count=self._engine._get_trade_count() if hasattr(self._engine, '_get_trade_count') else 0,
-                options_context="",  # Phase 9
+                options_context=options_context,
                 call1_output=call1_output,
                 candidate_prices=candidate_prices,
                 fresh_news=fresh_news,
@@ -438,6 +439,11 @@ class LiveOrchestrator:
                         qty=trade.get("quantity", 0),
                         confidence=trade.get("confidence", ""),
                         thesis_snippet=trade.get("thesis_snippet", ""),
+                        # Pyramid-only — empty for everything else. The reconciler
+                        # uses these to write the [PYRAMID] thesis note when the
+                        # market buy actually fills (not when it's just queued).
+                        pyramid_reasoning=trade.get("pyramid_reasoning", ""),
+                        pyramid_new_alloc_pct=trade.get("pyramid_new_alloc_pct", 0),
                     )
                     pending_tickers.add(trade["ticker"])
 
@@ -453,6 +459,13 @@ class LiveOrchestrator:
             # Exclude new positions from memory — they're pending, not confirmed
             filtered_result["new_positions"] = []
 
+            # Exclude pyramids from memory too — the reconciler will append the
+            # [PYRAMID] thesis note when the market buy actually fills, not
+            # when it's merely accepted by the broker. Otherwise an order that
+            # queues GTC over the weekend (or fails Monday) leaves a stale
+            # pyramid note in the thesis with no way to undo it.
+            filtered_result["pyramid_positions"] = []
+
             # Only keep close_positions that were actually executed
             filtered_result["close_positions"] = [
                 c for c in result.get("close_positions", [])
@@ -460,7 +473,12 @@ class LiveOrchestrator:
             ]
 
             # Keep decision_reasoning for confirmed trades + non-trade actions (HOLD, thesis reviews)
-            trade_actions = {"BUY", "SELL", "SHORT", "REDUCE", "BUY_CALL", "BUY_PUT", "SELL_PUT"}
+            # PYRAMID is a trade action — its reasoning waits for fill confirmation
+            # via the reconciler, same as the pyramid note itself.
+            trade_actions = {
+                "BUY", "SELL", "SHORT", "REDUCE", "PYRAMID",
+                "BUY_CALL", "BUY_PUT", "SELL_PUT",
+            }
             filtered_result["decision_reasoning"] = [
                 r for r in result.get("decision_reasoning", [])
                 if r.get("action", "").upper() not in trade_actions  # Keep HOLD, review, etc.
@@ -979,6 +997,114 @@ Respond with ONLY valid JSON:
             return ""
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         return f"CANDIDATE LIVE PRICES (as of {ts}):\n" + "\n".join(lines)
+
+    def _build_options_context(self, portfolio_value: float) -> str:
+        """Live options context for Claude's prompt.
+
+        Always returns content — even when no options are open, surface the
+        budget so Claude knows the lever is available. Mirrors the sim's
+        _build_options_context shape, adapted for what Alpaca exposes
+        directly (no per-contract Greeks, no HV percentile).
+        """
+        max_premium_pct = 0.25
+        budget_cap = portfolio_value * max_premium_pct
+
+        options_positions: list[dict] = []
+        if self._executor and self._executor._options_broker:
+            try:
+                options_positions = self._executor._options_broker.get_options_positions()
+            except Exception as e:
+                logger.warning("Failed to fetch options positions for prompt: %s", e)
+                options_positions = []
+
+        current_options_value = sum(
+            abs(float(p.get("market_value", 0))) for p in options_positions
+        )
+        budget = max(0.0, budget_cap - current_options_value)
+
+        lines = ["", "OPTIONS STATUS:"]
+
+        if options_positions:
+            lines.append(
+                "  Open Option Positions (use contract symbol in close_options to exit early):"
+            )
+            for opt in options_positions:
+                symbol = opt.get("symbol", "?")
+                qty = int(opt.get("qty", 0))
+                avg_entry = float(opt.get("avg_entry_price", 0))
+                current = float(opt.get("current_price", 0))
+                pnl = float(opt.get("unrealized_pl", 0))
+                pnl_pct = float(opt.get("unrealized_plpc", 0)) * 100
+                side = opt.get("side", "").upper()
+
+                # OCC symbol parse: e.g. NVDA250620C00200000 →
+                # ticker=NVDA, expiry=2025-06-20, type=C, strike=200.00
+                parsed = self._parse_occ_symbol(symbol)
+                if parsed:
+                    ticker, expiry, opt_type, strike = parsed
+                    days_left = self._days_until(expiry)
+                    dte_str = f"{days_left}d left" if days_left is not None else expiry
+                    lines.append(
+                        f"    [{symbol}] {side} {ticker} {opt_type} ${strike:.0f} "
+                        f"x{qty} | ${avg_entry:.2f}→${current:.2f} ({pnl_pct:+.0f}%) | "
+                        f"P&L ${pnl:+,.0f} | {dte_str}"
+                    )
+                else:
+                    lines.append(
+                        f"    [{symbol}] {side} x{qty} | "
+                        f"${avg_entry:.2f}→${current:.2f} ({pnl_pct:+.0f}%) | P&L ${pnl:+,.0f}"
+                    )
+            lines.append(f"  Total Options Value: ${current_options_value:,.0f}")
+        else:
+            lines.append("  Open Options: None")
+
+        lines.append(
+            f"  Options Budget Available: ${budget:,.0f} "
+            f"(25% cap = ${budget_cap:,.0f})"
+        )
+        lines.append(
+            "  Use BUY_CALL/BUY_PUT/SELL_PUT in new_positions to enter. "
+            "strike_selection (ATM/OTM/ITM) and expiry_months are picked by "
+            "the contract selector — you specify intent, not exact contract."
+        )
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _parse_occ_symbol(symbol: str) -> tuple[str, str, str, float] | None:
+        """Parse Alpaca/OCC option symbol → (ticker, expiry_iso, type, strike).
+
+        Format: <TICKER><YYMMDD><C|P><STRIKE×1000 zero-padded to 8>
+        Example: NVDA250620C00200000 → (NVDA, 2025-06-20, CALL, 200.00)
+        """
+        if len(symbol) < 15:
+            return None
+        try:
+            # Strike is the last 8 chars
+            strike = int(symbol[-8:]) / 1000
+            opt_char = symbol[-9]
+            if opt_char not in ("C", "P"):
+                return None
+            opt_type = "CALL" if opt_char == "C" else "PUT"
+            # Date is 6 chars before opt_char
+            date_str = symbol[-15:-9]
+            year = 2000 + int(date_str[:2])
+            month = int(date_str[2:4])
+            day = int(date_str[4:6])
+            expiry = f"{year:04d}-{month:02d}-{day:02d}"
+            ticker = symbol[:-15]
+            return ticker, expiry, opt_type, strike
+        except (ValueError, IndexError):
+            return None
+
+    @staticmethod
+    def _days_until(iso_date: str) -> int | None:
+        """Days from today until iso_date (YYYY-MM-DD). None on parse error."""
+        try:
+            target = date.fromisoformat(iso_date)
+            return max(0, (target - date.today()).days)
+        except ValueError:
+            return None
 
     def _build_fresh_news(self, tickers: set[str]) -> str:
         """News for holdings + candidates over the last few hours.

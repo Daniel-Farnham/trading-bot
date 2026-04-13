@@ -105,12 +105,22 @@ class ReconcileManager:
             # else: still open, no fills yet — keep tracking
 
     def _handle_filled(self, order: PendingOrder, alpaca_order: dict, summary: dict) -> None:
-        """Order fully filled — remove from pending, log success."""
+        """Order fully filled — remove from pending, log success.
+
+        For PYRAMID orders, also write the deferred memory updates: append
+        the [PYRAMID] note to the thesis and add a journal entry. Doing
+        these here (not at submission time) means an order that queues GTC
+        and later cancels/fails never leaves a stale pyramid note behind.
+        """
         fill_price = alpaca_order.get("filled_avg_price", 0)
         logger.info(
             "ORDER FILLED: %s %d %s @ $%.2f",
             order.action, order.qty, order.ticker, fill_price or 0,
         )
+
+        if order.action == "PYRAMID":
+            self._apply_pyramid_memory_updates(order, fill_price)
+
         self._pending.remove(order.order_id)
         summary["orders_filled"].append({
             "ticker": order.ticker,
@@ -118,6 +128,37 @@ class ReconcileManager:
             "qty": order.qty,
             "fill_price": fill_price,
         })
+
+    def _apply_pyramid_memory_updates(
+        self, order: PendingOrder, fill_price: float,
+    ) -> None:
+        """Write the deferred pyramid memory updates after a confirmed fill."""
+        reasoning = order.pyramid_reasoning or "Adding to position"
+        new_alloc = order.pyramid_new_alloc_pct or 0
+
+        if self._tm.append_pyramid_note(order.ticker, reasoning, new_alloc):
+            logger.info(
+                "PYRAMID note appended to %s thesis (target %.0f%% alloc)",
+                order.ticker, new_alloc,
+            )
+        else:
+            logger.warning(
+                "PYRAMID fill confirmed for %s but no thesis found to annotate",
+                order.ticker,
+            )
+
+        try:
+            self._tm.append_journal_entry(
+                date.today().isoformat(),
+                [{
+                    "ticker": order.ticker,
+                    "action": "PYRAMID",
+                    "allocation_pct": new_alloc,
+                    "reasoning": reasoning,
+                }],
+            )
+        except Exception as e:
+            logger.warning("Failed to journal pyramid fill for %s: %s", order.ticker, e)
 
     def _handle_partial_then_expired(
         self,

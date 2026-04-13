@@ -128,7 +128,13 @@ class LiveExecutor:
         # 3. Pyramid positions (explicit — adds shares without overwriting thesis)
         for pyr in response.get("pyramid_positions", []):
             ticker = pyr.get("ticker", "")
-            if not ticker or ticker not in position_tickers:
+            if not ticker:
+                logger.info("PYRAMID SKIPPED: missing ticker in %s", pyr)
+                continue
+            if ticker not in position_tickers:
+                logger.info(
+                    "PYRAMID SKIPPED %s: ticker not in current positions", ticker,
+                )
                 continue
             # Reformat as a new_pos-like dict for _handle_pyramid_upgrade
             pyr_as_pos = {
@@ -140,6 +146,11 @@ class LiveExecutor:
                 ticker, pyr_as_pos, positions, portfolio_value, cash,
             )
             if trade:
+                # Carry pyramid metadata so the orchestrator can stash it on the
+                # pending order — the reconciler will write the thesis note when
+                # the order actually fills, not when it's merely accepted.
+                trade["pyramid_reasoning"] = pyr.get("reasoning", "")
+                trade["pyramid_new_alloc_pct"] = pyr.get("new_allocation_pct", 0)
                 executed.append(trade)
 
         # 4. New positions (and legacy pyramids/upgrades via new_positions)
@@ -203,11 +214,18 @@ class LiveExecutor:
         """Handle pyramid (add shares) or scout→core upgrade."""
         pos = _find_position(positions, ticker)
         if not pos:
+            logger.info(
+                "PYRAMID SKIPPED %s: no Alpaca position found (memory may be stale)",
+                ticker,
+            )
             return None
 
         current_qty = int(float(pos.get("qty", 0)))
         current_price = float(pos.get("current_price", 0))
         if current_price <= 0:
+            logger.info(
+                "PYRAMID SKIPPED %s: no valid current price from Alpaca", ticker,
+            )
             return None
 
         confidence = new_pos.get("confidence", "medium")
@@ -224,7 +242,12 @@ class LiveExecutor:
         additional_alloc = target_alloc - current_alloc
 
         if additional_alloc <= 0.02:
-            return None  # Not enough to pyramid
+            logger.info(
+                "PYRAMID SKIPPED %s: target alloc %.1f%% only +%.1fpp above "
+                "current %.1f%% (need >2pp delta to act)",
+                ticker, target_alloc * 100, additional_alloc * 100, current_alloc * 100,
+            )
+            return None
 
         additional_value = portfolio_value * additional_alloc
         min_cash = portfolio_value * 0.05  # Keep 5% cash buffer
@@ -233,10 +256,15 @@ class LiveExecutor:
 
         add_qty = math.floor(additional_value / current_price)
         if add_qty <= 0:
+            logger.info(
+                "PYRAMID SKIPPED %s: cash %.2f after 5%% buffer (%.2f) buys "
+                "0 shares at $%.2f",
+                ticker, cash, min_cash, current_price,
+            )
             return None
 
         result = self._broker.place_market_buy(ticker, add_qty)
-        if result.success:
+        if result.success and result.order_id:
             logger.info(
                 "PYRAMIDED %s: +%d shares @ ~$%.2f (target %.0f%% alloc)",
                 ticker, add_qty, current_price, target_alloc * 100,
@@ -248,7 +276,10 @@ class LiveExecutor:
                 "order_id": result.order_id,
             }
         else:
-            logger.error("Pyramid buy failed for %s: %s", ticker, result.error)
+            logger.error(
+                "Pyramid buy failed for %s: %s",
+                ticker, result.error or "broker returned no order_id",
+            )
             return None
 
     def _handle_new_position(
