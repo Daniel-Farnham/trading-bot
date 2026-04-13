@@ -928,7 +928,11 @@ Respond with ONLY valid JSON:
                 if line:
                     lines.append(line)
             except Exception as e:
-                logger.debug("Technicals failed for %s: %s", ticker, e)
+                # WARNING, not DEBUG — a silent failure here means Claude sees
+                # "(No technical data available)" for this ticker, and we need
+                # to surface that, not bury it. Burning one log line per ticker
+                # that errors is worth it.
+                logger.warning("Technicals failed for %s: %s", ticker, e)
                 continue
 
         return "\n".join(lines) if lines else "(No technical data available)"
@@ -989,7 +993,9 @@ Respond with ONLY valid JSON:
             try:
                 price = self._market.get_latest_price(ticker)
             except Exception as e:
-                logger.debug("Latest price failed for %s: %s", ticker, e)
+                # Warning because a missing candidate price is the exact thing
+                # that caused the AEHR incident — keep it visible.
+                logger.warning("Latest price failed for %s: %s", ticker, e)
                 continue
             if price and price > 0:
                 lines.append(f"  {ticker}: ${price:.2f}")
@@ -1149,17 +1155,27 @@ Respond with ONLY valid JSON:
 
     @staticmethod
     def _format_snapshot(snap, is_holding: bool = False) -> str:
-        """Format a TechnicalSnapshot for the prompt."""
-        prefix = "[HELD] " if is_holding else ""
-        parts = [f"{prefix}{snap.ticker}: ${snap.close:.2f}"]
+        """Format a TechnicalSnapshot for the prompt.
 
-        if snap.rsi is not None:
-            parts.append(f"RSI={snap.rsi:.0f}")
-        if snap.macd_signal is not None:
-            signal = "bullish" if snap.macd_signal == "bullish" else "bearish"
-            parts.append(f"MACD={signal}")
-        if snap.sma50 is not None:
-            above = "above" if snap.close > snap.sma50 else "below"
+        Uses the actual dataclass fields (current_price, rsi_14, sma_50,
+        is_macd_bullish/bearish). An earlier version of this referenced
+        attributes that don't exist (close, rsi, sma50, macd_signal as a
+        string) — every call threw AttributeError, was silently caught
+        upstream, and Claude ended up seeing `(No technical data available)`
+        for the life of live trading. Correct fields below.
+        """
+        prefix = "[HELD] " if is_holding else ""
+        parts = [f"{prefix}{snap.ticker}: ${snap.current_price:.2f}"]
+
+        if snap.rsi_14 is not None:
+            parts.append(f"RSI={snap.rsi_14:.0f}")
+        # macd_signal is a float line value; use the properties for direction.
+        if snap.is_macd_bullish:
+            parts.append("MACD=bullish")
+        elif snap.is_macd_bearish:
+            parts.append("MACD=bearish")
+        if snap.sma_50 is not None:
+            above = "above" if snap.current_price > snap.sma_50 else "below"
             parts.append(f"SMA50={above}")
         if snap.obv_trend is not None:
             parts.append(f"OBV={snap.obv_trend}")
@@ -1167,5 +1183,7 @@ Respond with ONLY valid JSON:
             parts.append(f"ATR={snap.atr_pct:.1f}%")
         if snap.hv_percentile is not None:
             parts.append(f"HV={snap.hv_percentile:.0f}pctl")
+        if snap.adx_14 is not None:
+            parts.append(f"ADX={snap.adx_14:.0f}")
 
         return " | ".join(parts)
