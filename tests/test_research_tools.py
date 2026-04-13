@@ -141,24 +141,29 @@ class TestGetTechnicals:
         }, index=dates)
         executor._market.get_bars.return_value = bars
 
+        # Mock the actual dataclass fields (not the old wrong names).
         mock_snap = MagicMock()
-        mock_snap.close = 150.0
-        mock_snap.rsi = 55.0
-        mock_snap.macd_signal = "bullish"
-        mock_snap.sma50 = 130.0
+        mock_snap.current_price = 150.0
+        mock_snap.rsi_14 = 55.0
+        mock_snap.is_macd_bullish = True
+        mock_snap.is_macd_bearish = False
+        mock_snap.sma_50 = 130.0
         mock_snap.obv_trend = "rising"
         mock_snap.atr_pct = 2.5
         mock_snap.hv_percentile = 45.0
-        mock_snap.adx = 28.0
+        mock_snap.adx_14 = 28.0
         executor._technicals.analyze.return_value = mock_snap
 
         result = json.loads(executor.execute("get_technicals", {"ticker": "NVDA"}))
 
         assert result["ticker"] == "NVDA"
+        assert result["price"] == 150.0
         assert result["rsi"] == 55.0
         assert result["macd"] == "bullish"
         assert result["obv_trend"] == "rising"
         assert result["above_sma50"] is True
+        assert result["sma50"] == 130.0
+        assert result["adx"] == 28.0
 
 
 class TestScreenByTheme:

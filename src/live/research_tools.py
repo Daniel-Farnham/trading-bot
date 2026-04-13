@@ -260,25 +260,32 @@ class ResearchToolExecutor:
 
             snap = self._technicals.analyze(ticker, bars)
 
-            result = {"ticker": ticker, "price": round(snap.close, 2)}
-            if snap.rsi is not None:
-                result["rsi"] = round(snap.rsi, 1)
-            if snap.macd_signal is not None:
-                result["macd"] = snap.macd_signal
-            if snap.sma50 is not None:
-                result["sma50"] = round(snap.sma50, 2)
-                result["above_sma50"] = snap.close > snap.sma50
+            # Use the actual dataclass fields (current_price, rsi_14, sma_50,
+            # is_macd_bullish/bearish, adx_14). An earlier version of this
+            # used non-existent attributes (close, rsi, sma50, adx) so every
+            # call threw AttributeError and Claude got an error blob back.
+            result: dict = {"ticker": ticker, "price": round(snap.current_price, 2)}
+            if snap.rsi_14 is not None:
+                result["rsi"] = round(snap.rsi_14, 1)
+            if snap.is_macd_bullish:
+                result["macd"] = "bullish"
+            elif snap.is_macd_bearish:
+                result["macd"] = "bearish"
+            if snap.sma_50 is not None:
+                result["sma50"] = round(snap.sma_50, 2)
+                result["above_sma50"] = snap.current_price > snap.sma_50
             if snap.obv_trend is not None:
                 result["obv_trend"] = snap.obv_trend
             if snap.atr_pct is not None:
                 result["atr_pct"] = round(snap.atr_pct, 1)
             if snap.hv_percentile is not None:
                 result["hv_percentile"] = round(snap.hv_percentile, 0)
-            if snap.adx is not None:
-                result["adx"] = round(snap.adx, 1)
+            if snap.adx_14 is not None:
+                result["adx"] = round(snap.adx_14, 1)
 
             return result
         except Exception as e:
+            logger.warning("get_technicals tool failed for %s: %s", ticker, e)
             return {"ticker": ticker, "error": str(e)}
 
     def _screen_by_theme(self, params: dict) -> dict:
