@@ -159,16 +159,21 @@ def build_call3_prompt(
     trade_count: int = 0,
     options_context: str = "",
     call1_output: dict | None = None,
+    candidate_prices: str = "",
+    fresh_news: str = "",
 ) -> str:
     """Build the Call 3 decision prompt.
 
     Delegates to the existing DecisionEngine._build_prompt() which contains
-    the full proven prompt structure from the sim. Prepends Call 1 output
-    as a "TODAY'S DISCOVERY" section if available.
+    the full proven prompt structure from the sim. Prepends a pre-flight
+    refresh block (Call 1 discovery, live candidate prices, news since
+    last discovery) so Claude reasons from the freshest possible data.
 
     Args:
         decision_engine: DecisionEngine instance (used for _build_prompt).
         call1_output: Output from today's Call 1, if available.
+        candidate_prices: Live-price block for tickers Claude might trade.
+        fresh_news: News headlines since the last Call 1 ran.
         All other args: passed through to _build_prompt().
     """
     # Build the core prompt using the proven sim prompt builder
@@ -188,20 +193,28 @@ def build_call3_prompt(
         options_context=options_context,
     )
 
-    if not call1_output:
+    # Assemble the pre-flight refresh block: discovery → prices → fresh news.
+    sections: list[str] = []
+    if call1_output:
+        sections.append(_format_call1_for_call3(call1_output))
+    if candidate_prices:
+        sections.append(candidate_prices)
+    if fresh_news:
+        sections.append(fresh_news)
+
+    if not sections:
         return base_prompt
 
-    # Prepend Call 1 discovery context
-    discovery_section = _format_call1_for_call3(call1_output)
+    refresh_block = "\n\n".join(sections)
 
-    # Insert after the date/role preamble, before PORTFOLIO STATE
+    # Insert before PORTFOLIO STATE so the freshest data is right above the
+    # decision context Claude reads next.
     insertion_point = "PORTFOLIO STATE:"
     if insertion_point in base_prompt:
         parts = base_prompt.split(insertion_point, 1)
-        return parts[0] + discovery_section + "\n\n" + insertion_point + parts[1]
+        return parts[0] + refresh_block + "\n\n" + insertion_point + parts[1]
 
-    # Fallback: prepend
-    return discovery_section + "\n\n" + base_prompt
+    return refresh_block + "\n\n" + base_prompt
 
 
 def _format_call1_for_call3(call1_output: dict) -> str:

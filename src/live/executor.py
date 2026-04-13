@@ -314,6 +314,20 @@ class LiveExecutor:
                 risk_pct=0,
                 is_short=is_short,
             )
+
+            # Safety rail: refuse to forward a bracket whose levels are inverted
+            # against the live price (Alpaca rejects with code 42210000). This
+            # catches stale-target hallucinations from upstream.
+            valid, reason = self._validate_bracket_levels(bracket_plan, price)
+            if not valid:
+                logger.error(
+                    "Bracket levels rejected for %s: %s "
+                    "(live=%.2f, target=%.2f, stop=%.2f)",
+                    ticker, reason, price,
+                    bracket_plan.take_profit, bracket_plan.stop_loss,
+                )
+                return None
+
             result = self._broker.place_bracket_order(bracket_plan)
             action_label = "BUY (SCOUT)"
 
@@ -357,6 +371,40 @@ class LiveExecutor:
             pass
 
         return 0.0
+
+    @staticmethod
+    def _validate_bracket_levels(
+        plan: PositionPlan, live_price: float,
+    ) -> tuple[bool, str]:
+        """Check that a LONG bracket's target/stop are sane vs the live price.
+
+        Alpaca enforces take_profit > base_price + 0.01 and stop < base_price.
+        Validating here means we never burn an API call on Claude's stale
+        narrative-anchored levels (e.g. $45 target on a stock at $71.75).
+        Returns (True, "") if valid, else (False, reason).
+        """
+        if plan.is_short:
+            # Shorts don't use place_bracket_order today; if that ever changes,
+            # the inequality flips and this needs a SHORT branch.
+            return True, ""
+        if live_price <= 0:
+            return False, "no live price available"
+        if plan.take_profit <= live_price + 0.01:
+            return False, (
+                f"take_profit {plan.take_profit:.2f} not above live price "
+                f"{live_price:.2f} (likely stale target — stock has moved)"
+            )
+        if plan.stop_loss >= live_price - 0.01:
+            return False, (
+                f"stop_loss {plan.stop_loss:.2f} not below live price "
+                f"{live_price:.2f} (would trigger immediately)"
+            )
+        if plan.take_profit <= plan.stop_loss:
+            return False, (
+                f"take_profit {plan.take_profit:.2f} <= stop_loss "
+                f"{plan.stop_loss:.2f} (inverted)"
+            )
+        return True, ""
 
     def _calculate_short_exposure(self, position_tickers: list[str], portfolio_value: float) -> float:
         """Calculate total short exposure from current positions."""

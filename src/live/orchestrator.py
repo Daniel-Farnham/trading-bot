@@ -350,14 +350,25 @@ class LiveOrchestrator:
                     pending_text += f"- {o.get('side', '').upper()} {o.get('qty', '')} {o.get('symbol', '')} ({o.get('type', '')})\n"
                 memory_context += pending_text
 
-            # Technicals for full universe (like the sim)
-            technicals_summary = self._build_technicals_summary()
-
-            # Fundamentals for holdings + universe
-            fundamentals_summary = self._build_fundamentals_summary()
-
             # World state (Call 1 output if available)
             call1_output = self._state.call1_output
+
+            # Pre-flight refresh: pull every ticker Claude could reason about
+            # (holdings + universe + Call 1 candidates) so technicals,
+            # fundamentals, prices, and news are all current at decision time.
+            candidate_tickers = self._collect_candidate_tickers(call1_output)
+            holdings_tickers = {h["ticker"] for h in self._tm.get_holdings()}
+
+            technicals_summary = self._build_technicals_summary(
+                extra_tickers=candidate_tickers,
+            )
+            fundamentals_summary = self._build_fundamentals_summary(
+                extra_tickers=candidate_tickers,
+            )
+            candidate_prices = self._build_candidate_prices(candidate_tickers)
+            fresh_news = self._build_fresh_news(
+                tickers=candidate_tickers | holdings_tickers,
+            )
 
             # Performance vs SPY
             bot_return_pct = self._compute_bot_return(portfolio_value)
@@ -382,6 +393,8 @@ class LiveOrchestrator:
                 trade_count=self._engine._get_trade_count() if hasattr(self._engine, '_get_trade_count') else 0,
                 options_context="",  # Phase 9
                 call1_output=call1_output,
+                candidate_prices=candidate_prices,
+                fresh_news=fresh_news,
             )
 
             # Call Claude
@@ -874,12 +887,14 @@ Respond with ONLY valid JSON:
             pass
         return 0.0
 
-    def _build_technicals_summary(self) -> str:
-        """Build technicals for holdings + universe from live Alpaca bars."""
+    def _build_technicals_summary(self, extra_tickers: set[str] | None = None) -> str:
+        """Build technicals for holdings + universe + extras from live Alpaca bars."""
         holdings = self._tm.get_holdings()
         holdings_tickers = [h["ticker"] for h in holdings]
         universe_tickers = self._universe.get_tickers()
-        all_tickers = list(set(holdings_tickers + universe_tickers))
+        all_tickers = set(holdings_tickers) | set(universe_tickers)
+        if extra_tickers:
+            all_tickers |= {t.upper() for t in extra_tickers if t}
 
         from datetime import timedelta
         bar_start = datetime.now() - timedelta(days=120)
@@ -900,12 +915,15 @@ Respond with ONLY valid JSON:
 
         return "\n".join(lines) if lines else "(No technical data available)"
 
-    def _build_fundamentals_summary(self) -> str:
-        """Build fundamentals for holdings + universe."""
+    def _build_fundamentals_summary(self, extra_tickers: set[str] | None = None) -> str:
+        """Build fundamentals for holdings + universe + extras."""
         holdings = self._tm.get_holdings()
         holdings_tickers = [h["ticker"] for h in holdings]
         universe_tickers = self._universe.get_tickers()
-        all_tickers = list(set(holdings_tickers + universe_tickers))
+        all_tickers_set = set(holdings_tickers) | set(universe_tickers)
+        if extra_tickers:
+            all_tickers_set |= {t.upper() for t in extra_tickers if t}
+        all_tickers = list(all_tickers_set)
 
         try:
             from src.research.fundamentals import build_fundamentals_prompt_section
@@ -915,6 +933,93 @@ Respond with ONLY valid JSON:
         except Exception as e:
             logger.warning("Fundamentals summary failed: %s", e)
             return "(No fundamental data available)"
+
+    @staticmethod
+    def _collect_candidate_tickers(call1_output: dict | None) -> set[str]:
+        """Extract every ticker mentioned in the latest Call 1 output.
+
+        Used to widen the Call 3 data refresh beyond just holdings + universe,
+        so Claude has fresh prices/technicals/fundamentals for anything Call 1
+        flagged this morning — even if it's not in the universe yet.
+        """
+        if not call1_output:
+            return set()
+        tickers: set[str] = set()
+        for key in (
+            "flagged_tickers_universe",
+            "new_universe_additions",
+            "watchlist_alerts",
+            "holdings_alerts",
+        ):
+            for item in call1_output.get(key, []) or []:
+                t = (item.get("ticker") or "").strip().upper()
+                if t:
+                    tickers.add(t)
+        return tickers
+
+    def _build_candidate_prices(self, candidate_tickers: set[str]) -> str:
+        """Explicit live-price block for every candidate ticker.
+
+        Prevents Claude from anchoring to stale narrative prices (e.g. setting
+        a $45 target on a stock that has already run to $71). Empty if no
+        candidates or no prices available.
+        """
+        if not candidate_tickers:
+            return ""
+        lines: list[str] = []
+        for ticker in sorted(candidate_tickers):
+            try:
+                price = self._market.get_latest_price(ticker)
+            except Exception as e:
+                logger.debug("Latest price failed for %s: %s", ticker, e)
+                continue
+            if price and price > 0:
+                lines.append(f"  {ticker}: ${price:.2f}")
+        if not lines:
+            return ""
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return f"CANDIDATE LIVE PRICES (as of {ts}):\n" + "\n".join(lines)
+
+    def _build_fresh_news(self, tickers: set[str]) -> str:
+        """News for holdings + candidates over the last few hours.
+
+        Closes the gap between Call 1 (morning) and Call 3 (afternoon /
+        trigger): anything that broke in between is otherwise invisible.
+        Defaults to a 6-hour window — wide enough for an afternoon Call 3
+        to catch intraday news, narrow enough not to duplicate Call 1.
+        """
+        if not tickers:
+            return ""
+        try:
+            from datetime import timedelta
+            now = datetime.now()
+            since = now - timedelta(hours=6)
+            articles = self._news.get_news(
+                symbols=sorted(tickers),
+                start_date=since.strftime("%Y-%m-%d"),
+                end_date=now.strftime("%Y-%m-%d"),
+                limit=30,
+            )
+        except Exception as e:
+            logger.warning("Fresh news fetch failed: %s", e)
+            return ""
+
+        if not articles:
+            return ""
+
+        # Filter to articles published within the window (the API is day-granular,
+        # so we get a day's worth back and tighten here).
+        cutoff = since.isoformat()
+        recent = [a for a in articles if (a.get("publishedDate") or "") >= cutoff]
+        if not recent:
+            return ""
+
+        lines = [
+            f"- [{a.get('publishedDate', '')[:16].replace('T', ' ')}] "
+            f"[{', '.join(a.get('tickers', [])[:3])}] {a.get('title', '')}"
+            for a in recent
+        ]
+        return "NEWS SINCE LAST DISCOVERY (last 6 hours):\n" + "\n".join(lines)
 
     @staticmethod
     def _format_snapshot(snap, is_holding: bool = False) -> str:

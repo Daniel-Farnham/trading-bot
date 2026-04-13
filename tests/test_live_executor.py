@@ -128,7 +128,11 @@ class TestNewPositions:
                 "target_price": 250.0,
             }],
         }
-        trades = executor.execute_decisions(response, 100000, 30000, [])
+        # Bracket validator now requires a coherent live price (between stop
+        # and target). Without market_data on the fixture, _get_latest_price
+        # would otherwise return MagicMock's default float (1.0).
+        with patch.object(executor, "_get_latest_price", return_value=200.0):
+            trades = executor.execute_decisions(response, 100000, 30000, [])
 
         broker.place_bracket_order.assert_called_once()
         assert len(trades) == 1
@@ -218,7 +222,9 @@ class TestNewPositions:
                 for i in range(5)
             ],
         }
-        trades = executor.execute_decisions(response, 100000, 50000, [])
+        # Bracket validator needs a coherent live price between stop and target.
+        with patch.object(executor, "_get_latest_price", return_value=100.0):
+            trades = executor.execute_decisions(response, 100000, 50000, [])
 
         # Max 3 new positions
         assert len(trades) == 3
