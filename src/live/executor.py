@@ -128,7 +128,13 @@ class LiveExecutor:
         # 3. Pyramid positions (explicit — adds shares without overwriting thesis)
         for pyr in response.get("pyramid_positions", []):
             ticker = pyr.get("ticker", "")
-            if not ticker or ticker not in position_tickers:
+            if not ticker:
+                logger.info("PYRAMID SKIPPED: missing ticker in %s", pyr)
+                continue
+            if ticker not in position_tickers:
+                logger.info(
+                    "PYRAMID SKIPPED %s: ticker not in current positions", ticker,
+                )
                 continue
             # Reformat as a new_pos-like dict for _handle_pyramid_upgrade
             pyr_as_pos = {
@@ -140,6 +146,11 @@ class LiveExecutor:
                 ticker, pyr_as_pos, positions, portfolio_value, cash,
             )
             if trade:
+                # Carry pyramid metadata so the orchestrator can stash it on the
+                # pending order — the reconciler will write the thesis note when
+                # the order actually fills, not when it's merely accepted.
+                trade["pyramid_reasoning"] = pyr.get("reasoning", "")
+                trade["pyramid_new_alloc_pct"] = pyr.get("new_allocation_pct", 0)
                 executed.append(trade)
 
         # 4. New positions (and legacy pyramids/upgrades via new_positions)
@@ -203,11 +214,18 @@ class LiveExecutor:
         """Handle pyramid (add shares) or scout→core upgrade."""
         pos = _find_position(positions, ticker)
         if not pos:
+            logger.info(
+                "PYRAMID SKIPPED %s: no Alpaca position found (memory may be stale)",
+                ticker,
+            )
             return None
 
         current_qty = int(float(pos.get("qty", 0)))
         current_price = float(pos.get("current_price", 0))
         if current_price <= 0:
+            logger.info(
+                "PYRAMID SKIPPED %s: no valid current price from Alpaca", ticker,
+            )
             return None
 
         confidence = new_pos.get("confidence", "medium")
@@ -224,7 +242,12 @@ class LiveExecutor:
         additional_alloc = target_alloc - current_alloc
 
         if additional_alloc <= 0.02:
-            return None  # Not enough to pyramid
+            logger.info(
+                "PYRAMID SKIPPED %s: target alloc %.1f%% only +%.1fpp above "
+                "current %.1f%% (need >2pp delta to act)",
+                ticker, target_alloc * 100, additional_alloc * 100, current_alloc * 100,
+            )
+            return None
 
         additional_value = portfolio_value * additional_alloc
         min_cash = portfolio_value * 0.05  # Keep 5% cash buffer
@@ -233,10 +256,15 @@ class LiveExecutor:
 
         add_qty = math.floor(additional_value / current_price)
         if add_qty <= 0:
+            logger.info(
+                "PYRAMID SKIPPED %s: cash %.2f after 5%% buffer (%.2f) buys "
+                "0 shares at $%.2f",
+                ticker, cash, min_cash, current_price,
+            )
             return None
 
         result = self._broker.place_market_buy(ticker, add_qty)
-        if result.success:
+        if result.success and result.order_id:
             logger.info(
                 "PYRAMIDED %s: +%d shares @ ~$%.2f (target %.0f%% alloc)",
                 ticker, add_qty, current_price, target_alloc * 100,
@@ -248,7 +276,10 @@ class LiveExecutor:
                 "order_id": result.order_id,
             }
         else:
-            logger.error("Pyramid buy failed for %s: %s", ticker, result.error)
+            logger.error(
+                "Pyramid buy failed for %s: %s",
+                ticker, result.error or "broker returned no order_id",
+            )
             return None
 
     def _handle_new_position(
@@ -314,6 +345,20 @@ class LiveExecutor:
                 risk_pct=0,
                 is_short=is_short,
             )
+
+            # Safety rail: refuse to forward a bracket whose levels are inverted
+            # against the live price (Alpaca rejects with code 42210000). This
+            # catches stale-target hallucinations from upstream.
+            valid, reason = self._validate_bracket_levels(bracket_plan, price)
+            if not valid:
+                logger.error(
+                    "Bracket levels rejected for %s: %s "
+                    "(live=%.2f, target=%.2f, stop=%.2f)",
+                    ticker, reason, price,
+                    bracket_plan.take_profit, bracket_plan.stop_loss,
+                )
+                return None
+
             result = self._broker.place_bracket_order(bracket_plan)
             action_label = "BUY (SCOUT)"
 
@@ -357,6 +402,40 @@ class LiveExecutor:
             pass
 
         return 0.0
+
+    @staticmethod
+    def _validate_bracket_levels(
+        plan: PositionPlan, live_price: float,
+    ) -> tuple[bool, str]:
+        """Check that a LONG bracket's target/stop are sane vs the live price.
+
+        Alpaca enforces take_profit > base_price + 0.01 and stop < base_price.
+        Validating here means we never burn an API call on Claude's stale
+        narrative-anchored levels (e.g. $45 target on a stock at $71.75).
+        Returns (True, "") if valid, else (False, reason).
+        """
+        if plan.is_short:
+            # Shorts don't use place_bracket_order today; if that ever changes,
+            # the inequality flips and this needs a SHORT branch.
+            return True, ""
+        if live_price <= 0:
+            return False, "no live price available"
+        if plan.take_profit <= live_price + 0.01:
+            return False, (
+                f"take_profit {plan.take_profit:.2f} not above live price "
+                f"{live_price:.2f} (likely stale target — stock has moved)"
+            )
+        if plan.stop_loss >= live_price - 0.01:
+            return False, (
+                f"stop_loss {plan.stop_loss:.2f} not below live price "
+                f"{live_price:.2f} (would trigger immediately)"
+            )
+        if plan.take_profit <= plan.stop_loss:
+            return False, (
+                f"take_profit {plan.take_profit:.2f} <= stop_loss "
+                f"{plan.stop_loss:.2f} (inverted)"
+            )
+        return True, ""
 
     def _calculate_short_exposure(self, position_tickers: list[str], portfolio_value: float) -> float:
         """Calculate total short exposure from current positions."""
