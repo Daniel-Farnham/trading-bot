@@ -160,15 +160,15 @@ def remove_pyramid_note(ticker: str, date_str: str, apply: bool) -> None:
         r"[^\[\n]*",
     )
 
-    # Split theses file into per-ticker blocks. Each block starts with
-    # `### <TICKER> ...` (adjust if your format differs).
-    block_re = re.compile(r"(?=^###\s+\S+)", flags=re.MULTILINE)
+    # Split theses file into per-ticker blocks. ThesisManager writes headers
+    # as `## <TICKER> — <DIRECTION>`, so we match 2-or-3 `#` to be tolerant.
+    block_re = re.compile(r"(?=^#{2,3}\s+\S+)", flags=re.MULTILINE)
     blocks = block_re.split(original)
     rebuilt: list[str] = []
     touched = False
 
     for block in blocks:
-        header_match = re.match(r"^###\s+(\S+)", block)
+        header_match = re.match(r"^#{2,3}\s+(\S+)", block)
         if not header_match or header_match.group(1).upper() != ticker_u:
             rebuilt.append(block)
             continue
