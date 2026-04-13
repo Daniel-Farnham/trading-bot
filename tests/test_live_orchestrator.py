@@ -23,10 +23,17 @@ def trigger():
 
 
 class TestIntradayShock:
+    """Tests pre-seed both _prev_prices and _prev_prices_date so the per-day
+    refresh helper doesn't clobber the manually-set fixture. In production,
+    both fields are always set together by _refresh_previous_closes_if_needed.
+    """
+
     def test_shock_on_large_drop(self, trigger):
         trigger._prev_prices = {"NVDA": 150.0}
+        trigger._prev_prices_date = date.today()
         trigger._market.get_latest_prices.return_value = {"NVDA": 120.0, "SPY": 500.0}
-        # Mock ATR to return None so fallback threshold (-10%) is used
+        # Mock ATR to return None so fallback threshold (10%) is used.
+        # 150 -> 120 is -20%, well over both the fallback and a 1.5x ATR.
         trigger._get_atr_pct = MagicMock(return_value=None)
         trigger._get_spy_hv_percentile = MagicMock(return_value=50.0)
 
@@ -42,6 +49,7 @@ class TestIntradayShock:
 
     def test_no_shock_on_small_move(self, trigger):
         trigger._prev_prices = {"NVDA": 150.0}
+        trigger._prev_prices_date = date.today()
         trigger._market.get_latest_prices.return_value = {"NVDA": 148.0, "SPY": 500.0}
         trigger._get_atr_pct = MagicMock(return_value=None)
         trigger._get_spy_hv_percentile = MagicMock(return_value=50.0)
@@ -56,6 +64,7 @@ class TestIntradayShock:
 
     def test_shock_on_watchlist_ticker(self, trigger):
         trigger._prev_prices = {"CEG": 200.0}
+        trigger._prev_prices_date = date.today()
         trigger._market.get_latest_prices.return_value = {"CEG": 160.0, "SPY": 500.0}
         trigger._get_atr_pct = MagicMock(return_value=None)
         trigger._get_spy_hv_percentile = MagicMock(return_value=50.0)
@@ -69,7 +78,28 @@ class TestIntradayShock:
         assert result is not None
         assert "CEG" in result.triggered_tickers
 
+    def test_shock_on_large_rally(self, trigger):
+        """Intraday shock is bidirectional — a big rally is a review signal."""
+        trigger._prev_prices = {"NVDA": 150.0}
+        trigger._prev_prices_date = date.today()
+        trigger._market.get_latest_prices.return_value = {"NVDA": 180.0, "SPY": 500.0}
+        trigger._get_atr_pct = MagicMock(return_value=None)
+        trigger._get_spy_hv_percentile = MagicMock(return_value=50.0)
+
+        result = trigger.check(
+            holdings_tickers=["NVDA"],
+            watchlist_tickers=[],
+            portfolio_value=100000,
+        )
+
+        assert result is not None
+        assert result.trigger_type == "intraday_shock"
+        assert "NVDA" in result.triggered_tickers
+
     def test_first_check_no_prev_prices(self, trigger):
+        # No _prev_prices_date set → refresh helper will try to fetch closes.
+        # Mock it to return empty so there's nothing to compare against.
+        trigger._fetch_previous_closes = MagicMock(return_value={})
         trigger._market.get_latest_prices.return_value = {"NVDA": 150.0, "SPY": 500.0}
         trigger._get_spy_hv_percentile = MagicMock(return_value=50.0)
 
@@ -84,6 +114,7 @@ class TestIntradayShock:
 
     def test_portfolio_drop_triggers(self, trigger):
         trigger._prev_prices = {"NVDA": 150.0}
+        trigger._prev_prices_date = date.today()
         trigger._last_call3_portfolio_value = 100000
         trigger._market.get_latest_prices.return_value = {"NVDA": 148.0, "SPY": 500.0}
         trigger._get_atr_pct = MagicMock(return_value=None)
