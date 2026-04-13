@@ -429,9 +429,19 @@ class LiveOrchestrator:
             # These will be confirmed via reconciliation, not assumed filled
             new_position_actions = {"BUY (CORE)", "BUY (SCOUT)", "SHORT", "PYRAMID",
                                     "BUY_CALL", "BUY_PUT", "SELL_PUT"}
+
+            # Build a lookup for Claude's short-form journal reasoning keyed
+            # by ticker, so the reconciler can write the journal entry with
+            # the exact text Claude chose (not the long-form thesis).
+            reasoning_by_ticker: dict[str, str] = {
+                (r.get("ticker") or "").upper(): r.get("reasoning", "")
+                for r in (result.get("decision_reasoning") or [])
+            }
+
             pending_tickers = set()
             for trade in trades:
                 if trade.get("action") in new_position_actions and trade.get("order_id"):
+                    ticker_u = trade["ticker"].upper()
                     self._pending.add(
                         order_id=trade["order_id"],
                         ticker=trade["ticker"],
@@ -439,11 +449,19 @@ class LiveOrchestrator:
                         qty=trade.get("quantity", 0),
                         confidence=trade.get("confidence", ""),
                         thesis_snippet=trade.get("thesis_snippet", ""),
-                        # Pyramid-only — empty for everything else. The reconciler
-                        # uses these to write the [PYRAMID] thesis note when the
-                        # market buy actually fills (not when it's just queued).
+                        # Pyramid-only — empty for everything else.
                         pyramid_reasoning=trade.get("pyramid_reasoning", ""),
                         pyramid_new_alloc_pct=trade.get("pyramid_new_alloc_pct", 0),
+                        # New-position metadata — reconciler writes thesis +
+                        # journal entry from these when the order fills.
+                        thesis=trade.get("thesis", ""),
+                        direction=trade.get("direction", "LONG"),
+                        target_price=trade.get("target_price", 0.0),
+                        stop_price=trade.get("stop_price", 0.0),
+                        horizon=trade.get("horizon", ""),
+                        invalidation=trade.get("invalidation", ""),
+                        allocation_pct=trade.get("allocation_pct", 0.0),
+                        decision_reasoning=reasoning_by_ticker.get(ticker_u, ""),
                     )
                     pending_tickers.add(trade["ticker"])
 

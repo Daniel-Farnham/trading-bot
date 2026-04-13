@@ -104,13 +104,22 @@ class ReconcileManager:
                 )
             # else: still open, no fills yet — keep tracking
 
+    # Actions whose memory writes are deferred until the broker confirms
+    # a fill. The orchestrator strips these out of _apply_to_memory on
+    # submit; the reconciler writes them here once Alpaca says they filled.
+    NEW_POSITION_ACTIONS = {"BUY (CORE)", "BUY (SCOUT)", "SHORT"}
+
     def _handle_filled(self, order: PendingOrder, alpaca_order: dict, summary: dict) -> None:
         """Order fully filled — remove from pending, log success.
 
-        For PYRAMID orders, also write the deferred memory updates: append
-        the [PYRAMID] note to the thesis and add a journal entry. Doing
-        these here (not at submission time) means an order that queues GTC
-        and later cancels/fails never leaves a stale pyramid note behind.
+        Deferred memory writes happen here so an order that queues GTC over
+        the weekend and later cancels/fails never leaves a phantom thesis
+        or a fictional journal entry behind.
+
+        - PYRAMID      → append [PYRAMID] note + journal entry
+        - BUY (CORE/SCOUT) / SHORT → add new thesis + journal entry
+        - Options (BUY_CALL etc.)  → no thesis/journal write yet; options
+          live in their own position list and don't have the thesis shape.
         """
         fill_price = alpaca_order.get("filled_avg_price", 0)
         logger.info(
@@ -120,6 +129,8 @@ class ReconcileManager:
 
         if order.action == "PYRAMID":
             self._apply_pyramid_memory_updates(order, fill_price)
+        elif order.action in self.NEW_POSITION_ACTIONS:
+            self._apply_new_position_memory_updates(order, fill_price)
 
         self._pending.remove(order.order_id)
         summary["orders_filled"].append({
@@ -128,6 +139,73 @@ class ReconcileManager:
             "qty": order.qty,
             "fill_price": fill_price,
         })
+
+    def _apply_new_position_memory_updates(
+        self, order: PendingOrder, fill_price: float,
+    ) -> None:
+        """Write thesis + journal entry after a new position's fill confirms.
+
+        Uses Claude's decision metadata carried on the PendingOrder. If the
+        metadata is empty (e.g. a PendingOrder written by an older bot
+        version before this pipeline existed), we skip silently rather than
+        write a degraded thesis — the user can backfill manually.
+        """
+        if not order.thesis:
+            logger.warning(
+                "FILL %s has no thesis metadata on pending order — memory not "
+                "updated. Likely a pre-upgrade order; backfill manually if needed.",
+                order.ticker,
+            )
+            return
+
+        added = self._tm.add_thesis(
+            ticker=order.ticker,
+            direction=order.direction or "LONG",
+            thesis=order.thesis,
+            entry_price=float(fill_price or 0),
+            target_price=order.target_price,
+            stop_price=order.stop_price,
+            timeframe=order.horizon,
+            confidence=order.confidence or "medium",
+        )
+        if added:
+            logger.info(
+                "Thesis written for %s after fill (%s, target=%.2f, stop=%.2f)",
+                order.ticker, order.confidence or "medium",
+                order.target_price, order.stop_price,
+            )
+        else:
+            logger.warning(
+                "Fill confirmed for %s but add_thesis returned False "
+                "(at max capacity or already present)", order.ticker,
+            )
+
+        # Journal entry uses Claude's short-form reasoning if present,
+        # otherwise falls back to the first sentence of the thesis.
+        journal_reasoning = order.decision_reasoning or (
+            order.thesis.split(".")[0] if order.thesis else ""
+        )
+        # Journal entries historically use integer percents ("12%", not
+        # "12.0%") — match the style so the file renders uniformly.
+        alloc_for_journal = (
+            int(round(order.allocation_pct))
+            if order.allocation_pct else None
+        )
+        try:
+            self._tm.append_journal_entry(
+                date.today().isoformat(),
+                [{
+                    "ticker": order.ticker,
+                    # Journal action label stays simple (BUY/SHORT) — strip
+                    # the (CORE)/(SCOUT) tier annotation that only matters
+                    # for execution routing.
+                    "action": "SHORT" if order.action == "SHORT" else "BUY",
+                    "allocation_pct": alloc_for_journal,
+                    "reasoning": journal_reasoning,
+                }],
+            )
+        except Exception as e:
+            logger.warning("Failed to journal new position for %s: %s", order.ticker, e)
 
     def _apply_pyramid_memory_updates(
         self, order: PendingOrder, fill_price: float,

@@ -28,11 +28,23 @@ class PendingOrder:
     submitted_at: str  # ISO timestamp
     retry_count: int = 0
     last_status: str = "new"  # new, partially_filled, expired, cancelled, filled, failed
-    # Pyramid-only metadata: written to MU's thesis as a [PYRAMID] note when
-    # the order actually fills (not when it's merely accepted by the broker).
-    # Defaults preserve backward compat with pre-existing pending_orders.json.
+    # Pyramid-only metadata: written to the existing thesis as a [PYRAMID]
+    # note when the order fills (not when it's merely accepted by the broker).
     pyramid_reasoning: str = ""
     pyramid_new_alloc_pct: float = 0.0
+    # New-position metadata (BUY CORE / BUY SCOUT / SHORT): the reconciler
+    # writes these to active_theses.md + decision_journal.md ONLY after the
+    # order actually fills. Writing at submit time would leave phantom theses
+    # for orders that cancel overnight. Defaults keep backward compat with
+    # pending_orders.json files written by older versions.
+    thesis: str = ""
+    direction: str = "LONG"
+    target_price: float = 0.0
+    stop_price: float = 0.0
+    horizon: str = ""
+    invalidation: str = ""
+    allocation_pct: float = 0.0
+    decision_reasoning: str = ""
 
     @property
     def can_retry(self) -> bool:
@@ -72,6 +84,14 @@ class PendingOrderTracker:
         thesis_snippet: str = "",
         pyramid_reasoning: str = "",
         pyramid_new_alloc_pct: float = 0.0,
+        thesis: str = "",
+        direction: str = "LONG",
+        target_price: float = 0.0,
+        stop_price: float = 0.0,
+        horizon: str = "",
+        invalidation: str = "",
+        allocation_pct: float = 0.0,
+        decision_reasoning: str = "",
     ) -> None:
         self._orders.append(PendingOrder(
             order_id=order_id,
@@ -83,6 +103,14 @@ class PendingOrderTracker:
             submitted_at=datetime.now().isoformat(),
             pyramid_reasoning=pyramid_reasoning,
             pyramid_new_alloc_pct=pyramid_new_alloc_pct,
+            thesis=thesis,
+            direction=direction,
+            target_price=target_price,
+            stop_price=stop_price,
+            horizon=horizon,
+            invalidation=invalidation,
+            allocation_pct=allocation_pct,
+            decision_reasoning=decision_reasoning,
         ))
         self._save()
         logger.info("Tracking pending order: %s %d %s [%s]", action, qty, ticker, order_id)

@@ -75,6 +75,97 @@ class TestFilledOrders:
         assert summary["orders_filled"][0]["ticker"] == "NVDA"
 
 
+class TestNewPositionMemoryWrites:
+    """On confirmed fill, the reconciler should write thesis + journal
+    entry for new-position orders (BUY CORE/SCOUT, SHORT). These writes
+    are deferred from submit time so that orders that cancel overnight
+    don't leave phantom theses behind.
+    """
+
+    @staticmethod
+    def _fill(broker, order_id="o1", fill_price=58.41):
+        broker.get_order.return_value = {
+            "id": order_id, "status": "filled", "symbol": "OXY",
+            "qty": "212", "filled_qty": "212", "filled_avg_price": fill_price,
+            "side": "buy", "type": "market",
+        }
+
+    def test_buy_core_fill_writes_thesis_and_journal(
+        self, reconciler, broker, pending_tracker, thesis_manager,
+    ):
+        pending_tracker.add(
+            order_id="o1", ticker="OXY", action="BUY (CORE)", qty=212,
+            confidence="high",
+            thesis="Energy security crisis escalating with Iran controlling Hormuz. OXY has 148.9% revenue growth.",
+            direction="LONG", target_price=75.0, stop_price=50.0,
+            horizon="6-12 months", allocation_pct=12.0,
+            decision_reasoning="Iran blockade + 148.9% revenue growth + strong technicals",
+        )
+        self._fill(broker, "o1")
+
+        reconciler._reconcile_pending_orders(
+            {"orders_filled": [], "orders_retried": [], "orders_failed": []}
+        )
+
+        # Thesis written with full metadata + actual fill price as entry
+        thesis_manager.add_thesis.assert_called_once()
+        kwargs = thesis_manager.add_thesis.call_args.kwargs
+        assert kwargs["ticker"] == "OXY"
+        assert kwargs["direction"] == "LONG"
+        assert kwargs["entry_price"] == 58.41
+        assert kwargs["target_price"] == 75.0
+        assert kwargs["stop_price"] == 50.0
+        assert kwargs["confidence"] == "high"
+
+        # Journal entry written with Claude's short-form reasoning + integer alloc
+        thesis_manager.append_journal_entry.assert_called_once()
+        entries = thesis_manager.append_journal_entry.call_args.args[1]
+        assert len(entries) == 1
+        assert entries[0]["ticker"] == "OXY"
+        assert entries[0]["action"] == "BUY"
+        assert entries[0]["allocation_pct"] == 12  # int, not 12.0
+        assert "Iran blockade" in entries[0]["reasoning"]
+
+    def test_buy_scout_fill_writes_thesis(
+        self, reconciler, broker, pending_tracker, thesis_manager,
+    ):
+        pending_tracker.add(
+            order_id="o1", ticker="OXY", action="BUY (SCOUT)", qty=50,
+            confidence="medium",
+            thesis="Scout entry on emerging theme",
+            direction="LONG", target_price=75.0, stop_price=50.0,
+            allocation_pct=5.0,
+        )
+        self._fill(broker, "o1")
+
+        reconciler._reconcile_pending_orders(
+            {"orders_filled": [], "orders_retried": [], "orders_failed": []}
+        )
+
+        thesis_manager.add_thesis.assert_called_once()
+        thesis_manager.append_journal_entry.assert_called_once()
+
+    def test_pre_upgrade_order_missing_thesis_is_skipped(
+        self, reconciler, broker, pending_tracker, thesis_manager,
+    ):
+        # Simulates a PendingOrder written by an older bot version before
+        # this metadata existed. Skip memory writes rather than fabricate
+        # a degraded thesis.
+        pending_tracker.add(
+            order_id="o1", ticker="OXY", action="BUY (CORE)", qty=212,
+            confidence="high", thesis_snippet="short snippet only",
+            # thesis, direction, target_price, etc. all default/empty
+        )
+        self._fill(broker, "o1")
+
+        reconciler._reconcile_pending_orders(
+            {"orders_filled": [], "orders_retried": [], "orders_failed": []}
+        )
+
+        thesis_manager.add_thesis.assert_not_called()
+        thesis_manager.append_journal_entry.assert_not_called()
+
+
 class TestExpiredOrders:
     def test_expired_order_retried(self, reconciler, broker, pending_tracker):
         pending_tracker.add("order-1", "NVDA", "BUY (CORE)", 50)
