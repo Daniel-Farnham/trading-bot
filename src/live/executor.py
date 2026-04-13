@@ -380,6 +380,15 @@ class LiveExecutor:
                 "order_id": result.order_id,
                 "confidence": confidence,
                 "thesis_snippet": new_pos.get("thesis", "")[:200],
+                # Full metadata — orchestrator forwards these to the pending
+                # tracker, reconciler writes them to memory on confirmed fill.
+                "thesis": new_pos.get("thesis", ""),
+                "direction": direction,
+                "target_price": float(new_pos.get("target_price") or 0),
+                "stop_price": float(new_pos.get("stop_price") or 0),
+                "horizon": new_pos.get("horizon", ""),
+                "invalidation": new_pos.get("invalidation", ""),
+                "allocation_pct": float(new_pos.get("allocation_pct") or 0),
             }
         else:
             logger.error("Order failed for %s: %s", ticker, result.error)
