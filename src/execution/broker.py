@@ -198,15 +198,20 @@ class Broker:
             }
             request = GetOrdersRequest(status=status_map.get(status, QueryOrderStatus.OPEN))
             orders = self._client.get_orders(filter=request)
+            # Same enum-normalisation as get_order — raw str() on an
+            # alpaca enum gives "OrderStatus.NEW" which breaks every
+            # downstream comparison.
+            def _val(x):
+                return x.value if hasattr(x, "value") else str(x)
             return [
                 {
                     "id": str(o.id),
-                    "status": str(o.status),
+                    "status": _val(o.status),
                     "symbol": o.symbol,
                     "qty": str(o.qty),
                     "filled_qty": str(o.filled_qty),
-                    "side": str(o.side),
-                    "type": str(o.type),
+                    "side": _val(o.side),
+                    "type": _val(o.type),
                 }
                 for o in orders
             ]
@@ -215,18 +220,30 @@ class Broker:
             return []
 
     def get_order(self, order_id: str) -> dict | None:
-        """Gets the current state of an order."""
+        """Gets the current state of an order.
+
+        Normalises Alpaca enum fields (OrderStatus, OrderSide, OrderType)
+        down to their underlying string values. The earlier version used
+        str(order.status) which produces "OrderStatus.FILLED" for an enum
+        — the reconciler then compared lowercased "orderstatus.filled"
+        against {"filled"} and never matched, so filled orders were
+        silently stranded in pending_orders.json forever.
+        """
+        def _val(x):
+            # Alpaca's enums subclass str but __str__ returns "Class.MEMBER".
+            # .value gives the underlying string ("filled", "buy", "market").
+            return x.value if hasattr(x, "value") else str(x)
         try:
             order = self._client.get_order_by_id(order_id)
             return {
                 "id": str(order.id),
-                "status": str(order.status),
+                "status": _val(order.status),
                 "symbol": order.symbol,
                 "qty": str(order.qty),
                 "filled_qty": str(order.filled_qty),
                 "filled_avg_price": float(order.filled_avg_price) if order.filled_avg_price else None,
-                "side": str(order.side),
-                "type": str(order.type),
+                "side": _val(order.side),
+                "type": _val(order.type),
             }
         except Exception:
             return None

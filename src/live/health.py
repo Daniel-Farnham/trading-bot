@@ -321,7 +321,7 @@ def _build_dashboard_html() -> str:
     <h1>Trading Bot <span class="pill running" id="status-pill">loading</span></h1>
     <div style="margin: 12px 0;">
         <button class="tab" style="background:#238636;color:#fff;" onclick="triggerCall('call1')">Run Call 1</button>
-        <button class="tab" style="background:#1f6feb;color:#fff;" onclick="triggerCall('call3')">Run Call 3</button>
+        <button class="tab" style="background:#da3633;color:#fff;" onclick="triggerCall('call3')">Run Call 3</button>
         <span id="trigger-status" style="margin-left:12px;font-size:13px;color:#8b949e;"></span>
     </div>
     <div id="error"></div>
