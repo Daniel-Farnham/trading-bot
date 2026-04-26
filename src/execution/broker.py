@@ -27,16 +27,32 @@ class OrderResult:
 
 
 class Broker:
-    def __init__(self, api_key: str | None = None, secret_key: str | None = None):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        secret_key: str | None = None,
+        paper: bool = True,
+    ):
         if api_key and secret_key:
             self._api_key = api_key
             self._secret_key = secret_key
         else:
             self._api_key, self._secret_key = get_alpaca_keys()
 
+        self._paper = paper
         self._client = TradingClient(
-            self._api_key, self._secret_key, paper=True
+            self._api_key, self._secret_key, paper=paper
         )
+
+    @property
+    def is_paper(self) -> bool:
+        """True iff this broker is connected to Alpaca paper-trading.
+
+        Used as a safety guard before any destructive bulk operation
+        (e.g. close_all_positions) so a misconfigured live account can't
+        be liquidated by an accidental FORCE_FIRST_BOOT.
+        """
+        return self._paper
 
     def _get_time_in_force(self) -> TimeInForce:
         """DAY if market is open, GTC (good-til-cancelled) if closed."""
@@ -130,6 +146,35 @@ class Broker:
             return True
         except Exception as e:
             logger.error("Cancel all orders failed: %s", str(e))
+            return False
+
+    def close_all_positions(self, cancel_orders: bool = True) -> bool:
+        """Close every open position. Optionally cancel pending orders first.
+
+        Used by the FORCE_FIRST_BOOT reset path. Refuses to run on a non-paper
+        account as a defense-in-depth guard against accidental liquidation
+        of real funds.
+
+        Returns True if Alpaca accepted the request, False on error or if
+        called against a live account.
+        """
+        if not self._paper:
+            logger.error(
+                "close_all_positions REFUSED: broker is connected to a "
+                "live account, not paper. This call would liquidate real "
+                "positions. Aborting.",
+            )
+            return False
+        try:
+            self._client.close_all_positions(cancel_orders=cancel_orders)
+            logger.warning(
+                "All positions closed (cancel_orders=%s) — paper account "
+                "reset in progress",
+                cancel_orders,
+            )
+            return True
+        except Exception as e:
+            logger.error("close_all_positions failed: %s", e)
             return False
 
     def place_market_buy(self, ticker: str, quantity: int) -> OrderResult:

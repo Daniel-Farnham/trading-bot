@@ -134,3 +134,40 @@ class TestBroker:
 
         broker = self._make_broker(mock_client_cls)
         assert broker.get_order("bad_id") is None
+
+    def test_is_paper_default(self, mock_client_cls):
+        broker = self._make_broker(mock_client_cls)
+        assert broker.is_paper is True
+
+    def test_is_paper_false_when_live(self, mock_client_cls):
+        broker = Broker(api_key="k", secret_key="s", paper=False)
+        assert broker.is_paper is False
+
+    def test_close_all_positions_calls_sdk(self, mock_client_cls):
+        broker = self._make_broker(mock_client_cls)
+        ok = broker.close_all_positions(cancel_orders=True)
+        assert ok is True
+        mock_client_cls.return_value.close_all_positions.assert_called_once_with(
+            cancel_orders=True,
+        )
+
+    def test_close_all_positions_default_cancels_orders(self, mock_client_cls):
+        broker = self._make_broker(mock_client_cls)
+        broker.close_all_positions()
+        # Default arg is cancel_orders=True
+        mock_client_cls.return_value.close_all_positions.assert_called_once_with(
+            cancel_orders=True,
+        )
+
+    def test_close_all_positions_refused_on_live_account(self, mock_client_cls):
+        broker = Broker(api_key="k", secret_key="s", paper=False)
+        ok = broker.close_all_positions(cancel_orders=True)
+        assert ok is False
+        # SDK never invoked when paper=False — defense in depth
+        mock_client_cls.return_value.close_all_positions.assert_not_called()
+
+    def test_close_all_positions_handles_sdk_error(self, mock_client_cls):
+        mock_client_cls.return_value.close_all_positions.side_effect = Exception("API down")
+        broker = self._make_broker(mock_client_cls)
+        ok = broker.close_all_positions()
+        assert ok is False
