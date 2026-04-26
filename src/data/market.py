@@ -41,31 +41,12 @@ class MarketData:
 
     def get_positions(self) -> list[dict]:
         positions = self._trading_client.get_all_positions()
-        return [
-            {
-                "ticker": p.symbol,
-                "qty": int(p.qty),
-                "avg_entry": float(p.avg_entry_price),
-                "current_price": float(p.current_price),
-                "market_value": float(p.market_value),
-                "unrealized_pnl": float(p.unrealized_pl),
-                "unrealized_pnl_pct": float(p.unrealized_plpc),
-            }
-            for p in positions
-        ]
+        return [_position_to_dict(p) for p in positions]
 
     def get_position(self, ticker: str) -> dict | None:
         try:
             p = self._trading_client.get_open_position(ticker)
-            return {
-                "ticker": p.symbol,
-                "qty": int(p.qty),
-                "avg_entry": float(p.avg_entry_price),
-                "current_price": float(p.current_price),
-                "market_value": float(p.market_value),
-                "unrealized_pnl": float(p.unrealized_pl),
-                "unrealized_pnl_pct": float(p.unrealized_plpc),
-            }
+            return _position_to_dict(p)
         except Exception:
             return None
 
@@ -121,3 +102,22 @@ class MarketData:
     def is_market_open(self) -> bool:
         clock = self._trading_client.get_clock()
         return clock.is_open
+
+
+def _position_to_dict(p) -> dict:
+    side = getattr(p, "side", None)
+    side_str = str(side).split(".")[-1].lower() if side else "long"
+    return {
+        "ticker": p.symbol,
+        "qty": int(p.qty),
+        "avg_entry": float(p.avg_entry_price),
+        "current_price": float(p.current_price),
+        "lastday_price": float(p.lastday_price) if getattr(p, "lastday_price", None) else None,
+        "market_value": float(p.market_value),
+        "unrealized_pnl": float(p.unrealized_pl),
+        "unrealized_pnl_pct": float(p.unrealized_plpc),
+        "unrealized_intraday_pnl": float(getattr(p, "unrealized_intraday_pl", 0) or 0),
+        "unrealized_intraday_pnl_pct": float(getattr(p, "unrealized_intraday_plpc", 0) or 0),
+        "change_today_pct": float(getattr(p, "change_today", 0) or 0),
+        "side": side_str,
+    }

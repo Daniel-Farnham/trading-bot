@@ -21,6 +21,7 @@ from src.live.health import update_status
 from src.live.executor import LiveExecutor
 from src.live.notifier import EmailNotifier
 from src.live.pending_orders import PendingOrderTracker
+from src.live.portfolio_state import build_portfolio_snapshot
 from src.live.prompts import build_call1_prompt, build_call3_prompt
 from src.live.reconciler import ReconcileManager
 from src.live.research_tools import RESEARCH_TOOLS, ResearchToolExecutor
@@ -333,6 +334,20 @@ class LiveOrchestrator:
             cash = account.get("cash", 0)
             positions = self._market.get_positions()
 
+            # Live portfolio snapshot — single source of truth for what
+            # Claude sees in the prompt and what the executor's atomic
+            # cash-math validator will compare against. Pulls max_positions
+            # and min_cash_pct from the active risk manager so prompt
+            # constraints match what's enforced.
+            risk = self._executor._risk
+            data_dir = Path(self._state_path).parent
+            snapshot = build_portfolio_snapshot(
+                market_data=self._market,
+                data_dir=data_dir,
+                max_positions=risk._max_positions,
+                min_cash_pct=risk._min_cash_pct,
+            )
+
             # Fetch pending orders (e.g. OPG orders queued over weekend)
             pending_orders = []
             try:
@@ -396,6 +411,7 @@ class LiveOrchestrator:
                 call1_output=call1_output,
                 candidate_prices=candidate_prices,
                 fresh_news=fresh_news,
+                portfolio_snapshot=snapshot,
             )
 
             # Call Claude
@@ -419,6 +435,7 @@ class LiveOrchestrator:
                 portfolio_value=portfolio_value,
                 cash=cash,
                 positions=positions,
+                snapshot=snapshot,
             )
 
             for trade in trades:

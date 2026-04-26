@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.live.portfolio_state import PortfolioSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -161,19 +165,24 @@ def build_call3_prompt(
     call1_output: dict | None = None,
     candidate_prices: str = "",
     fresh_news: str = "",
+    portfolio_snapshot: "PortfolioSnapshot | None" = None,
 ) -> str:
     """Build the Call 3 decision prompt.
 
     Delegates to the existing DecisionEngine._build_prompt() which contains
-    the full proven prompt structure from the sim. Prepends a pre-flight
-    refresh block (Call 1 discovery, live candidate prices, news since
-    last discovery) so Claude reasons from the freshest possible data.
+    the full proven prompt structure from the sim. Prepends a live portfolio
+    block (Alpaca state + hard constraints) and a pre-flight refresh block
+    (Call 1 discovery, live candidate prices, news since last discovery) so
+    Claude reasons from the freshest possible data.
 
     Args:
         decision_engine: DecisionEngine instance (used for _build_prompt).
         call1_output: Output from today's Call 1, if available.
         candidate_prices: Live-price block for tickers Claude might trade.
         fresh_news: News headlines since the last Call 1 ran.
+        portfolio_snapshot: Live Alpaca-derived portfolio + constraints.
+            If provided, becomes the authoritative state shown to Claude
+            (positions table, cash math, max-position rules).
         All other args: passed through to _build_prompt().
     """
     # Build the core prompt using the proven sim prompt builder
@@ -193,8 +202,11 @@ def build_call3_prompt(
         options_context=options_context,
     )
 
-    # Assemble the pre-flight refresh block: discovery → prices → fresh news.
+    # Assemble pre-flight blocks: live portfolio (authoritative) →
+    # discovery → prices → fresh news.
     sections: list[str] = []
+    if portfolio_snapshot is not None:
+        sections.append(format_portfolio_block(portfolio_snapshot))
     if call1_output:
         sections.append(_format_call1_for_call3(call1_output))
     if candidate_prices:
@@ -215,6 +227,102 @@ def build_call3_prompt(
         return parts[0] + refresh_block + "\n\n" + insertion_point + parts[1]
 
     return refresh_block + "\n\n" + base_prompt
+
+
+def format_portfolio_block(snapshot: "PortfolioSnapshot") -> str:
+    """Format a portfolio snapshot as the live state + hard constraints block.
+
+    Adapts to state:
+    - over limit → top-priority close instructions, no new BUYs allowed
+    - at limit → BUYs allowed only if matched by CLOSE/REDUCE
+    - under limit → enumerate slots available
+    """
+    a = snapshot.account
+    p = snapshot.performance
+
+    lines: list[str] = []
+    lines.append("## CURRENT PORTFOLIO STATE (LIVE FROM ALPACA — source of truth)")
+
+    # Account header
+    lines.append(
+        f"Equity: ${a.equity:,.2f}  |  Cash: ${a.cash:,.2f}  |  "
+        f"Cash reserve required: ${a.cash_reserve:,.2f} ({a.min_cash_pct * 100:.0f}% of equity)"
+    )
+    lines.append(f"Buying power for new buys: ${a.available_for_new_buys:,.2f}")
+
+    pos_str = f"Positions: {a.position_count}/{a.max_positions}"
+    if a.over_limit > 0:
+        pos_str += f"  (OVER LIMIT by {a.over_limit})"
+    elif a.at_max_positions:
+        pos_str += "  (AT LIMIT)"
+    lines.append(pos_str)
+
+    # Performance vs SPY
+    spy_disp = f"{p.spy_return_pct:+.2f}%" if p.spy_return_pct is not None else "N/A"
+    delta_disp = f"{p.return_vs_spy:+.2f}pp" if p.return_vs_spy is not None else "N/A"
+    lines.append(
+        f"Total return since {p.inception_date}: {p.total_return_pct:+.2f}%  |  "
+        f"SPY: {spy_disp}  |  vs SPY: {delta_disp}"
+    )
+    lines.append(f"Total unrealized P&L: ${p.unrealized_pnl:+,.2f}")
+
+    # Position table
+    if snapshot.positions:
+        lines.append("")
+        lines.append("| Ticker | Side | Qty | Entry | Current | Day Δ | Unrealized P&L | % of Portfolio |")
+        lines.append("|--------|------|-----|-------|---------|-------|----------------|----------------|")
+        for r in snapshot.positions:
+            lines.append(
+                f"| {r.ticker} | {r.side} | {r.qty} | ${r.avg_entry:.2f} | "
+                f"${r.current_price:.2f} | {r.day_change_pct:+.2f}% | "
+                f"${r.unrealized_pnl:+,.2f} ({r.unrealized_pnl_pct:+.1f}%) | "
+                f"{r.pct_of_portfolio:.1f}% |"
+            )
+
+    # Hard constraints — adapt to state
+    lines.append("")
+    lines.append("## HARD CONSTRAINTS — you MUST honor these")
+
+    if a.over_limit > 0:
+        lines.append(
+            f"- ⚠️ OVER POSITION LIMIT: You are at {a.position_count}/{a.max_positions} positions. "
+            f"Your TOP PRIORITY this call is proposing CLOSE on at least "
+            f"{a.over_limit} position(s) to bring count down to ≤ {a.max_positions}. "
+            f"Do NOT propose any new BUY or PYRAMID this call."
+        )
+    elif a.at_max_positions:
+        lines.append(
+            f"- AT POSITION LIMIT ({a.position_count}/{a.max_positions}). "
+            f"You may NOT propose new BUYs unless you also propose a matching "
+            f"CLOSE/REDUCE in the same response to free a slot."
+        )
+    else:
+        slots = a.max_positions - a.position_count
+        lines.append(
+            f"- Position slots available: {slots} "
+            f"({a.position_count}/{a.max_positions}). "
+            f"You may add up to {slots} new position(s)."
+        )
+
+    lines.append(
+        f"- Min cash reserve: ${a.cash_reserve:,.2f} "
+        f"({a.min_cash_pct * 100:.0f}% of equity). Cash AFTER your proposed "
+        f"trades must remain ≥ this reserve."
+    )
+    lines.append("- No margin: do NOT propose trades that would require negative cash.")
+    lines.append(
+        f"- Cash math: sum(BUY $) - sum(CLOSE proceeds + REDUCE proceeds) "
+        f"MUST be ≤ ${a.available_for_new_buys:,.2f}. If a BUY would breach "
+        f"this, you MUST include matching CLOSE/REDUCE in the SAME response "
+        f"to free funds. Closes execute before buys."
+    )
+    lines.append(
+        "- Include a one-line cash math summary in `decision_reasoning` "
+        "showing freed minus used ≥ 0 (e.g. \"freed $8,200 from CLOSE MU, "
+        "spending $7,000 on BUY INTC, net +$1,200\")."
+    )
+
+    return "\n".join(lines)
 
 
 def _format_call1_for_call3(call1_output: dict) -> str:

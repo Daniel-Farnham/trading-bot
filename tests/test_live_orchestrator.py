@@ -400,6 +400,9 @@ def _make_orchestrator():
     orchestrator._trigger.check.return_value = None
     orchestrator._executor = MagicMock()
     orchestrator._executor.execute_decisions.return_value = []
+    # Risk-manager params used by build_portfolio_snapshot
+    orchestrator._executor._risk._max_positions = 8
+    orchestrator._executor._risk._min_cash_pct = 0.05
     orchestrator._watchlist = MagicMock()
     orchestrator._watchlist.get_tickers.return_value = []
     orchestrator._watchlist.prune.return_value = []
