@@ -326,32 +326,50 @@ class TestBudgetCaps:
 
 
 class TestParseJsonResponse:
-    def test_plain_json(self):
-        result = ClaudeClient._parse_json_response('{"key": "value"}')
-        assert result == {"key": "value"}
+    def test_plain_json(self, client):
+        assert client._parse_json_response('{"key": "value"}') == {"key": "value"}
 
-    def test_json_code_fence(self):
-        result = ClaudeClient._parse_json_response('```json\n{"key": "value"}\n```')
-        assert result == {"key": "value"}
+    def test_json_code_fence(self, client):
+        assert client._parse_json_response('```json\n{"key": "value"}\n```') == {"key": "value"}
 
-    def test_bare_code_fence(self):
-        result = ClaudeClient._parse_json_response('```\n{"key": "value"}\n```')
-        assert result == {"key": "value"}
+    def test_bare_code_fence(self, client):
+        assert client._parse_json_response('```\n{"key": "value"}\n```') == {"key": "value"}
 
-    def test_text_before_fence(self):
-        result = ClaudeClient._parse_json_response(
+    def test_text_before_fence(self, client):
+        assert client._parse_json_response(
             'Here is the response:\n```json\n{"key": "value"}\n```'
-        )
-        assert result == {"key": "value"}
+        ) == {"key": "value"}
 
-    def test_empty_string(self):
-        assert ClaudeClient._parse_json_response("") is None
+    def test_empty_string(self, client):
+        assert client._parse_json_response("") is None
 
-    def test_invalid_json(self):
-        assert ClaudeClient._parse_json_response("not json") is None
+    def test_invalid_json(self, client):
+        assert client._parse_json_response("not json") is None
 
-    def test_empty_after_fence_strip(self):
-        assert ClaudeClient._parse_json_response("```json\n\n```") is None
+    def test_empty_after_fence_strip(self, client):
+        assert client._parse_json_response("```json\n\n```") is None
+
+    def test_repairs_missing_comma(self, client):
+        """The exact failure mode from prod: Claude omits a comma between fields."""
+        malformed = '{"a": 1 "b": 2}'  # missing comma
+        result = client._parse_json_response(malformed)
+        assert result == {"a": 1, "b": 2}
+
+    def test_repairs_trailing_comma(self, client):
+        result = client._parse_json_response('{"a": 1, "b": 2,}')
+        assert result == {"a": 1, "b": 2}
+
+    def test_save_failed_response_writes_file(self, client, spend_log):
+        """The save helper itself writes to data/.../failed_responses/."""
+        client._save_failed_response("stripped text", "raw text", ValueError("test error"))
+        failed_dir = spend_log.parent / "failed_responses"
+        assert failed_dir.exists()
+        files = list(failed_dir.glob("*.txt"))
+        assert len(files) == 1
+        content = files[0].read_text()
+        assert "stripped text" in content
+        assert "raw text" in content
+        assert "test error" in content
 
 
 class TestDecisionEngineSDKDelegation:

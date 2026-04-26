@@ -240,9 +240,17 @@ class ClaudeClient:
                 })
         return results
 
-    @staticmethod
-    def _parse_json_response(raw: str) -> dict | None:
-        """Strip markdown code fences and parse JSON."""
+    def _parse_json_response(self, raw: str) -> dict | None:
+        """Strip markdown code fences and parse JSON.
+
+        Strategy:
+          1. Strict json.loads — happy path.
+          2. On failure, fall back to json_repair (handles missing commas,
+             unescaped quotes, trailing commas — the common Claude failures
+             on large multi-section responses).
+          3. If both fail, save the full response to disk for inspection
+             and log the surrounding text from the error position.
+        """
         text = raw
         if "```json" in text:
             text = text.split("```json", 1)[1]
@@ -259,11 +267,59 @@ class ClaudeClient:
             )
             return None
 
+        # 1. Strict parse — happy path
+        strict_err: json.JSONDecodeError | None = None
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
-            logger.error(
-                "Failed to parse JSON: %s\n  Text (first 1000): %s",
-                e, text[:1000],
+            strict_err = e
+
+        # 2. Fallback — try repair
+        try:
+            from json_repair import repair_json
+            repaired = repair_json(text, return_objects=True)
+            if isinstance(repaired, dict) and repaired:
+                logger.warning(
+                    "JSON was malformed but recovered via json_repair "
+                    "(strict error: %s)",
+                    strict_err,
+                )
+                return repaired
+        except ImportError:
+            logger.warning(
+                "json_repair not installed — strict-parse failure cannot "
+                "be auto-recovered. Install via: pip install json-repair"
             )
-            return None
+        except Exception as repair_err:
+            logger.warning("json_repair also failed: %s", repair_err)
+
+        # 3. Both failed — diagnose
+        self._save_failed_response(text, raw, strict_err)
+        position = getattr(strict_err, "pos", 0)
+        ctx_start = max(0, position - 200)
+        ctx_end = min(len(text), position + 200)
+        logger.error(
+            "Failed to parse JSON: %s\n"
+            "  Length: %d chars, error at position %d\n"
+            "  Context: ...%s[<<HERE>>]%s...",
+            strict_err, len(text), position,
+            text[ctx_start:position], text[position:ctx_end],
+        )
+        return None
+
+    def _save_failed_response(self, stripped: str, raw: str, error: Exception) -> None:
+        """Persist a malformed Claude response to disk for inspection."""
+        try:
+            dir_path = self._spend_log.parent / "failed_responses"
+            dir_path.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = dir_path / f"{stamp}_parse_failed.txt"
+            path.write_text(
+                f"# JSON parse failure: {error}\n"
+                f"# Stripped length: {len(stripped)} | Raw length: {len(raw)}\n"
+                f"\n=== STRIPPED TEXT (what we tried to parse) ===\n{stripped}\n"
+                f"\n=== RAW RESPONSE ===\n{raw}\n"
+            )
+            logger.info("Saved failed response: %s", path)
+        except Exception as save_err:
+            logger.warning("Could not save failed response: %s", save_err)
