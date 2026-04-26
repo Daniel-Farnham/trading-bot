@@ -241,14 +241,17 @@ class LiveOrchestrator:
                     self._universe.add(ticker, source="call1", reason=reason)
                     self._watchlist.add(ticker, source="call1_discovery", reason=reason)
 
-            # Append daily observation to tactical view (not structural)
+            # Append daily observation to the tactical log. Call 1 owns
+            # this file: Call 3 only reads it. The log caps at 14 entries
+            # so a rolling two-week window of daily observations is what
+            # Claude sees.
             observation = result.get("tactical_observation", "")
             if not observation:
                 observation = result.get("world_view_observation", "")  # backwards compat
             if observation:
-                today = date.today().isoformat()
-                current_tv = self._tm.get_tactical_view()
-                self._tm.update_tactical_view(f"{current_tv}\n- {today}: {observation}")
+                self._tm.append_tactical_observation(
+                    date.today().isoformat(), observation,
+                )
 
             # Send email
             self._notifier.send_call1_summary(result)

@@ -473,7 +473,7 @@ TASKS:
 Respond with ONLY valid JSON:
 {json_schema}
 
-If no changes needed, return empty arrays. Always include world_assessment, tactical_view_update,
+If no changes needed, return empty arrays. Always include world_assessment,
 decision_reasoning, and weekly_summary. Only include structural_view_update if the regime has changed."""
 
     def _theme_section_text(self, review_number: int) -> str:
@@ -717,7 +717,6 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
 
         base += """
   "structural_view_update": "ONLY if regime has changed — your updated 12-18 month directional view on where the world is heading. Leave EMPTY STRING if structural view is intact.",
-  "tactical_view_update": "Near-term catalyst assessment (next 3-6 months). What macro events, earnings, policy decisions matter NOW? Max 200 words. Updated every review.",
   "decision_reasoning": [
     {"ticker": "NVDA", "action": "BUY", "allocation_pct": 20, "reasoning": "AI capex confirmed by MSFT earnings, OBV rising, RSI pullback to 42 — entering core at size"},
     {"ticker": "NKE", "action": "SELL", "reasoning": "Tariff thesis broken — 25% of supply chain exposed to China tariffs, OBV falling"}
@@ -853,11 +852,10 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
             self._tm.update_world_view(structural_view)
             logger.info("  Structural world view updated (regime change)")
 
-        # Update tactical view (every review)
-        tactical_view = response.get("tactical_view_update", "")
-        if tactical_view and tactical_view.strip():
-            self._tm.update_tactical_view(tactical_view)
-            logger.info("  Tactical view updated")
+        # Tactical view is now Call 1's running log (rolling 14 daily
+        # observations). Call 3 reads it but does not write — letting Call 3
+        # rewrite the file every review wiped the multi-day narrative arc
+        # we want preserved (e.g. how an Iran-war story evolves day to day).
 
         # Update decision journal
         decision_reasoning = response.get("decision_reasoning", [])
@@ -993,7 +991,6 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
             "belief_updates": [],
             "lessons_to_prune": [],
             "structural_view_update": "",
-            "tactical_view_update": "",
             "decision_reasoning": [],
             "weekly_summary": "",
         }

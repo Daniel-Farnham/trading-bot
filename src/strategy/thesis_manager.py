@@ -987,13 +987,55 @@ class ThesisManager:
     # Tactical View (near-term catalysts, updated each review)
     # ------------------------------------------------------------------
 
+    # Tactical view is a rolling log of daily one-line observations. Each
+    # entry is "- YYYY-MM-DD: <text>". Owned by Call 1 (live); see
+    # src/live/orchestrator.py:run_call1. The cap below keeps the log to a
+    # rolling two-week window so Claude can see how the news cycle has
+    # shifted (e.g. an Iran-war narrative across multiple days).
+    TACTICAL_LOG_DEFAULT_CAP = 14
+
     def get_tactical_view(self) -> str:
-        """Return the current tactical view content."""
+        """Return the current tactical view content (raw, with header)."""
         return self._read("tactical_view").strip()
 
     def update_tactical_view(self, content: str) -> None:
-        """Replace the tactical view with near-term catalyst assessment."""
+        """Replace the tactical view file wholesale.
+
+        Kept for the simulation path. The live path should prefer
+        `append_tactical_observation` so the file stays a rolling log
+        rather than oscillating between log and paragraph.
+        """
         self._write("tactical_view", f"# Tactical View\n\n{content.strip()}\n")
+
+    def append_tactical_observation(
+        self,
+        date_str: str,
+        observation: str,
+        max_entries: int = TACTICAL_LOG_DEFAULT_CAP,
+    ) -> None:
+        """Append a dated one-liner; trim to the last `max_entries` entries.
+
+        Parses existing log entries (lines beginning with "- "), drops any
+        non-entry chrome (stale headers, blank lines), appends the new
+        entry, and rewrites the file with a single header. This both caps
+        log length and self-heals the duplicate-header artifact left by
+        the old append-the-whole-file pattern.
+        """
+        observation = (observation or "").strip()
+        if not observation:
+            return
+        new_entry = f"- {date_str}: {observation}"
+
+        existing = [
+            line.rstrip()
+            for line in self._read("tactical_view").splitlines()
+            if line.startswith("- ")
+        ]
+        existing.append(new_entry)
+        # Keep only the most recent `max_entries`.
+        trimmed = existing[-max_entries:]
+        body = "\n".join(trimmed)
+        self._write("tactical_view", f"# Tactical View\n\n{body}\n")
 
     # ------------------------------------------------------------------
     # Decision Journal (rolling log of decisions with reasoning)
@@ -1092,12 +1134,21 @@ class ThesisManager:
         else:
             sections.append("### Structural World View\n(No structural view set — write one in your response)")
 
-        # Tactical View (near-term catalysts and positioning)
+        # Tactical Log (rolling 14-day daily observations from Call 1).
+        # Use this to see how the macro / news cycle has shifted across
+        # the last two weeks — a multi-day arc (e.g. an Iran-war narrative)
+        # is more useful than a single point-in-time paragraph.
         tactical_view = self.get_tactical_view()
         if tactical_view:
-            sections.append(f"### Tactical View (Near-Term Catalysts & Risks)\n{tactical_view}")
+            sections.append(
+                "### Tactical Log (rolling 14-day daily observations from Call 1 — read-only here)\n"
+                f"{tactical_view}"
+            )
         else:
-            sections.append("### Tactical View\n(No tactical view set — write one in your response)")
+            sections.append(
+                "### Tactical Log\n"
+                "(Empty — Call 1's daily observations populate this. Read-only from Call 3.)"
+            )
 
         # Themes
         themes = self.get_all_themes()
