@@ -377,6 +377,63 @@ class TestReconcile:
         orchestrator._trigger.set_last_call3_value.assert_called_with(100000)
 
 
+class TestBuildFreshNews:
+    """_build_fresh_news: 48h ticker-filtered + 24h broader market, deduped."""
+
+    def _article(self, title: str, ts: str, tickers: list[str] | None = None) -> dict:
+        return {
+            "title": title,
+            "publishedDate": ts,
+            "tickers": tickers or [],
+            "source": "Benzinga",
+        }
+
+    def test_empty_when_no_articles_either_pass(self):
+        orch = _make_orchestrator()
+        orch._news.get_news.return_value = []
+        result = orch._build_fresh_news(tickers={"MU", "MSFT"})
+        assert result == ""
+
+    def test_renders_both_sections_when_both_have_articles(self):
+        orch = _make_orchestrator()
+        future_ts = (datetime.now()).isoformat()
+        # Two passes: ticker-filtered call, then broad call. Side effect by call order.
+        orch._news.get_news.side_effect = [
+            [self._article("MU strike continues", future_ts, ["MU"])],
+            [self._article("Fed surprise hike", future_ts, [])],
+        ]
+        result = orch._build_fresh_news(tickers={"MU"})
+        assert "RECENT NEWS:" in result
+        assert "Holdings & flagged tickers (last 48h):" in result
+        assert "MU strike continues" in result
+        assert "Broader market (last 24h, macro):" in result
+        assert "Fed surprise hike" in result
+        # Untagged broad article shows the [macro] fallback label
+        assert "[macro]" in result
+
+    def test_dedupes_broad_against_ticker_pass(self):
+        orch = _make_orchestrator()
+        future_ts = (datetime.now()).isoformat()
+        # Same article appears in both passes (it's tagged with MU which is held)
+        same = self._article("Fed cuts rates", future_ts, ["MU", "SPY"])
+        orch._news.get_news.side_effect = [
+            [same],            # ticker pass
+            [same],            # broad pass returns it too
+        ]
+        result = orch._build_fresh_news(tickers={"MU"})
+        # Only appears once
+        assert result.count("Fed cuts rates") == 1
+
+    def test_works_with_no_tickers(self):
+        """Even if Call 1 didn't run and we have no holdings, broad pass still works."""
+        orch = _make_orchestrator()
+        future_ts = (datetime.now()).isoformat()
+        orch._news.get_news.return_value = [self._article("Fed news", future_ts, [])]
+        result = orch._build_fresh_news(tickers=set())
+        assert "Broader market" in result
+        assert "Fed news" in result
+
+
 def _make_orchestrator():
     """Create an orchestrator with all dependencies mocked."""
     from src.live.orchestrator import LiveOrchestrator

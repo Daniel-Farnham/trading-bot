@@ -141,8 +141,8 @@ live:
   data_dir: "data/live"
 
 anthropic:
-  default_model: "claude-sonnet-4-20250514"
-  call3_model: "claude-sonnet-4-20250514"  # switchable to opus
+  default_model: "claude-sonnet-4-6"
+  call3_model: "claude-sonnet-4-6"  # switchable to opus
   daily_budget_usd: 2.00
   monthly_budget_usd: 40.00
 

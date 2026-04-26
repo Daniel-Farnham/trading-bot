@@ -448,7 +448,17 @@ class LiveOrchestrator:
             self._save_call3_prompt(prompt, review_type)
 
             # Call Claude
-            result = self._claude.call(prompt, model="sonnet")
+            # Call 3 is reasoning-heavy: portfolio analysis, thesis synthesis,
+            # multi-step decision-making. Adaptive thinking lets Claude decide
+            # depth per request; high effort matches the autonomous-decision
+            # workload (per the model migration guide). max_tokens widened so
+            # thinking tokens have headroom before the JSON response.
+            result = self._claude.call(
+                prompt, model="sonnet",
+                thinking="adaptive",
+                effort="high",
+                max_tokens=12000,
+            )
             update_status("last_call3", datetime.now().isoformat())
 
             if not result:
@@ -1235,45 +1245,93 @@ Respond with ONLY valid JSON:
             return None
 
     def _build_fresh_news(self, tickers: set[str]) -> str:
-        """News for holdings + candidates over the last few hours.
+        """Two-pass recent-news block for Call 3.
 
-        Closes the gap between Call 1 (morning) and Call 3 (afternoon /
-        trigger): anything that broke in between is otherwise invisible.
-        Defaults to a 6-hour window — wide enough for an afternoon Call 3
-        to catch intraday news, narrow enough not to duplicate Call 1.
+        Pass 1 — Holdings + Call 1 candidates, last 48 hours: catches news
+        directly tagged with our positions or flagged tickers.
+
+        Pass 2 — Broader market, last 24 hours, no symbol filter: catches
+        macro events (Fed, geopolitics, policy) that may not tag any of
+        our specific tickers but matter for regime calls. Deduped against
+        Pass 1 so a Fed announcement tagged with a holding doesn't appear
+        twice.
+
+        Either pass empty is OK; the section is omitted entirely if both
+        passes return nothing.
         """
-        if not tickers:
-            return ""
-        try:
-            from datetime import timedelta
-            now = datetime.now()
-            since = now - timedelta(hours=6)
-            articles = self._news.get_news(
+        from datetime import timedelta
+        now = datetime.now()
+
+        # Skip the ticker pass entirely if no tickers — calling get_news with
+        # symbols=None would just duplicate the broad pass.
+        ticker_articles: list[dict] = []
+        if tickers:
+            ticker_articles = self._fetch_recent_articles(
+                since=now - timedelta(hours=48), end=now,
                 symbols=sorted(tickers),
-                start_date=since.strftime("%Y-%m-%d"),
-                end_date=now.strftime("%Y-%m-%d"),
                 limit=30,
             )
-        except Exception as e:
-            logger.warning("Fresh news fetch failed: %s", e)
-            return ""
 
-        if not articles:
-            return ""
+        broad_articles = self._fetch_recent_articles(
+            since=now - timedelta(hours=24), end=now,
+            symbols=None,  # no filter — broad/macro
+            limit=15,
+        )
 
-        # Filter to articles published within the window (the API is day-granular,
-        # so we get a day's worth back and tighten here).
-        cutoff = since.isoformat()
-        recent = [a for a in articles if (a.get("publishedDate") or "") >= cutoff]
-        if not recent:
-            return ""
-
-        lines = [
-            f"- [{a.get('publishedDate', '')[:16].replace('T', ' ')}] "
-            f"[{', '.join(a.get('tickers', [])[:3])}] {a.get('title', '')}"
-            for a in recent
+        # Dedup broad against ticker (a Fed headline tagged with one of our
+        # holdings would otherwise appear in both blocks).
+        ticker_keys = {
+            (a.get("title", ""), a.get("publishedDate", ""))
+            for a in ticker_articles
+        }
+        broad_articles = [
+            a for a in broad_articles
+            if (a.get("title", ""), a.get("publishedDate", "")) not in ticker_keys
         ]
-        return "NEWS SINCE LAST DISCOVERY (last 6 hours):\n" + "\n".join(lines)
+
+        if not ticker_articles and not broad_articles:
+            return ""
+
+        out: list[str] = ["RECENT NEWS:"]
+        if ticker_articles:
+            out.append("\nHoldings & flagged tickers (last 48h):")
+            for a in ticker_articles:
+                out.append(self._format_news_line(a, fallback_label=""))
+        if broad_articles:
+            out.append("\nBroader market (last 24h, macro):")
+            for a in broad_articles:
+                out.append(self._format_news_line(a, fallback_label="macro"))
+        return "\n".join(out)
+
+    def _fetch_recent_articles(
+        self,
+        since: datetime,
+        end: datetime,
+        symbols: list[str] | None,
+        limit: int,
+    ) -> list[dict]:
+        """Fetch articles and filter to the window. Returns [] on any error."""
+        try:
+            articles = self._news.get_news(
+                symbols=symbols,
+                start_date=since.strftime("%Y-%m-%d"),
+                end_date=end.strftime("%Y-%m-%d"),
+                limit=limit,
+            )
+        except Exception as e:
+            logger.warning("News fetch failed (symbols=%s): %s", symbols, e)
+            return []
+        cutoff = since.isoformat()
+        return [a for a in articles if (a.get("publishedDate") or "") >= cutoff]
+
+    @staticmethod
+    def _format_news_line(article: dict, fallback_label: str = "") -> str:
+        ts = (article.get("publishedDate") or "")[:16].replace("T", " ")
+        tickers_str = ", ".join((article.get("tickers") or [])[:3])
+        bracket = f"[{tickers_str}]" if tickers_str else (
+            f"[{fallback_label}]" if fallback_label else "[]"
+        )
+        return f"- [{ts}] {bracket} {article.get('title', '')}"
 
     @staticmethod
     def _format_snapshot(snap, is_holding: bool = False) -> str:
