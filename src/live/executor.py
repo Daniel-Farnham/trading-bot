@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
+from typing import TYPE_CHECKING
 
 from src.data.market import MarketData
 from src.execution.broker import Broker, OrderResult
@@ -14,6 +15,9 @@ from src.execution.options_broker import OptionsBroker
 from src.strategy.contract_selector import ContractSelector
 from src.strategy.risk_v3 import RiskManagerV3, V3RiskVeto, PositionPlan
 from src.strategy.thesis_manager import ThesisManager
+
+if TYPE_CHECKING:
+    from src.live.portfolio_state import PortfolioSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -41,14 +45,28 @@ class LiveExecutor:
         portfolio_value: float,
         cash: float,
         positions: list[dict],
+        snapshot: "PortfolioSnapshot | None" = None,
     ) -> list[dict]:
         """Execute Claude's trade decisions against real Alpaca.
+
+        Order of operations is atomic by phase:
+          1. Closes execute first (frees cash, frees position slots).
+          2. Reduces execute next (frees cash).
+          3. Cash-math validator runs against expected funds AFTER stages 1-2.
+             If sum(BUY $) > available_for_new_buys + freed, ALL BUYs and
+             PYRAMIDs are dropped — closes/reduces still go through so the
+             next call has more cash.
+          4. Pyramids + new positions execute, with a running cash counter
+             decremented per iteration as defense in depth.
 
         Args:
             response: Claude's Call 3 JSON output.
             portfolio_value: Current portfolio value from Alpaca.
             cash: Current cash from Alpaca.
             positions: Current Alpaca positions list.
+            snapshot: Live portfolio snapshot. Required for atomic cash math —
+                if None, the validator is skipped (back-compat for callers
+                that haven't been migrated).
 
         Returns:
             List of executed trade dicts for logging/email.
@@ -76,7 +94,9 @@ class LiveExecutor:
             result = self._broker.close_position(ticker)
             if result.success:
                 reason = close.get("reason", "thesis invalidated")
-                self._tm.remove_position(ticker)
+                # Note: no ledger remove — live no longer writes the position
+                # ledger; Alpaca is the source of truth and the close above
+                # will reflect there. We only update the narrative below.
                 reentry_price = close.get("reentry_price")
                 if reentry_price == 0:
                     reentry_price = None
@@ -125,6 +145,37 @@ class LiveExecutor:
                     })
                     logger.info("REDUCED %s by %d shares — %s", ticker, shares_to_sell, reason[:80])
 
+        # 2.5 Atomic cash-math validator — runs AFTER closes/reduces have
+        # been submitted, BEFORE any buys are evaluated. Compares Claude's
+        # proposed buy spend against the cash that will be available given
+        # the closes/reduces. If overshoots, drop all BUYs/PYRAMIDs for
+        # this call; closes/reduces still stand so the next call has room.
+        skip_buys = False
+        if snapshot is not None:
+            ok, reason = self._validate_cash_math(response, positions, portfolio_value, snapshot)
+            if not ok:
+                logger.warning("CASH MATH FAIL: %s — dropping new BUYs and PYRAMIDs for this call", reason)
+                skip_buys = True
+
+        # If over the position limit, only honor closes/reduces — never add
+        # capacity (BUYs or PYRAMIDs) when we're already over the cap.
+        if snapshot is not None and snapshot.account.over_limit > 0:
+            if not skip_buys:
+                logger.warning(
+                    "OVER POSITION LIMIT (%d/%d) — dropping new BUYs and PYRAMIDs for this call",
+                    snapshot.account.position_count, snapshot.account.max_positions,
+                )
+            skip_buys = True
+
+        if skip_buys:
+            return executed
+
+        # Running cash counter for defense in depth — even though the
+        # validator above checks the response as a whole, decrement per
+        # iteration so risk_v3's per-trade cash-reserve check evaluates
+        # against the correct remaining balance.
+        running_cash = cash
+
         # 3. Pyramid positions (explicit — adds shares without overwriting thesis)
         for pyr in response.get("pyramid_positions", []):
             ticker = pyr.get("ticker", "")
@@ -143,7 +194,7 @@ class LiveExecutor:
                 "confidence": "high",  # pyramids are conviction moves
             }
             trade = self._handle_pyramid_upgrade(
-                ticker, pyr_as_pos, positions, portfolio_value, cash,
+                ticker, pyr_as_pos, positions, portfolio_value, running_cash,
             )
             if trade:
                 # Carry pyramid metadata so the orchestrator can stash it on the
@@ -152,6 +203,7 @@ class LiveExecutor:
                 trade["pyramid_reasoning"] = pyr.get("reasoning", "")
                 trade["pyramid_new_alloc_pct"] = pyr.get("new_allocation_pct", 0)
                 executed.append(trade)
+                running_cash -= trade.get("position_value", 0)
 
         # 4. New positions (and legacy pyramids/upgrades via new_positions)
         new_position_count = 0
@@ -182,10 +234,11 @@ class LiveExecutor:
             # Pyramid/upgrade on existing position
             if ticker in position_tickers:
                 trade = self._handle_pyramid_upgrade(
-                    ticker, new_pos, positions, portfolio_value, cash,
+                    ticker, new_pos, positions, portfolio_value, running_cash,
                 )
                 if trade:
                     executed.append(trade)
+                    running_cash -= trade.get("position_value", 0)
                 continue
 
             # New position — enforce cap
@@ -195,11 +248,12 @@ class LiveExecutor:
             new_position_count += 1
 
             trade = self._handle_new_position(
-                new_pos, portfolio_value, cash, position_tickers,
+                new_pos, portfolio_value, running_cash, position_tickers,
             )
             if trade:
                 executed.append(trade)
                 position_tickers.append(ticker)
+                running_cash -= trade.get("position_value", 0)
 
         return executed
 
@@ -274,6 +328,7 @@ class LiveExecutor:
                 "quantity": add_qty,
                 "details": f"+{add_qty} shares to {target_alloc*100:.0f}% allocation",
                 "order_id": result.order_id,
+                "position_value": float(add_qty * current_price),
             }
         else:
             logger.error(
@@ -380,6 +435,7 @@ class LiveExecutor:
                 "order_id": result.order_id,
                 "confidence": confidence,
                 "thesis_snippet": new_pos.get("thesis", "")[:200],
+                "position_value": float(plan.position_value),
                 # Full metadata — orchestrator forwards these to the pending
                 # tracker, reconciler writes them to memory on confirmed fill.
                 "thesis": new_pos.get("thesis", ""),
@@ -411,6 +467,101 @@ class LiveExecutor:
             pass
 
         return 0.0
+
+    def _validate_cash_math(
+        self,
+        response: dict,
+        positions: list[dict],
+        portfolio_value: float,
+        snapshot: "PortfolioSnapshot",
+    ) -> tuple[bool, str]:
+        """Atomic cash check: do Claude's BUYs fit, given his proposed CLOSEs/REDUCEs?
+
+        Returns (True, "") if buys fit; (False, reason) otherwise.
+
+        funds_freed  = market value of proposed closes + value released by proposed reduces
+        funds_used   = sum of BUY allocations + pyramid deltas (in $)
+        Must satisfy: available_for_new_buys + funds_freed - funds_used >= 0.
+
+        Pyramid delta = (target_alloc - current_alloc) * portfolio_value, floored at 0.
+        We use Alpaca-derived `market_value` and `current_price` from the
+        snapshot/positions list — same numbers risk_v3 will see.
+        """
+        if portfolio_value <= 0:
+            return False, "portfolio_value is 0 — cannot evaluate"
+
+        held_by_ticker = {p.get("symbol", ""): p for p in positions}
+
+        # Funds freed by closes
+        funds_freed = 0.0
+        for close in response.get("close_positions", []):
+            ticker = close.get("ticker", "")
+            pos = held_by_ticker.get(ticker)
+            if pos:
+                funds_freed += float(pos.get("market_value", 0))
+
+        # Funds freed by reduces
+        for reduce in response.get("reduce_positions", []):
+            ticker = reduce.get("ticker", "")
+            pos = held_by_ticker.get(ticker)
+            if not pos:
+                continue
+            current_qty = int(float(pos.get("qty", 0)))
+            current_price = float(pos.get("current_price", 0))
+            if current_qty <= 0 or current_price <= 0:
+                continue
+            new_alloc = float(reduce.get("new_allocation_pct", 0)) / 100.0
+            target_value = portfolio_value * new_alloc
+            target_qty = math.floor(target_value / current_price)
+            shares_sold = max(0, current_qty - target_qty)
+            funds_freed += shares_sold * current_price
+
+        # Funds used by buys (new positions excluding existing-ticker pyramids)
+        # and by pyramid_positions
+        funds_used = 0.0
+        held_tickers = {p.get("symbol", "") for p in positions}
+
+        for new_pos in response.get("new_positions", []):
+            ticker = new_pos.get("ticker", "")
+            action = (new_pos.get("action") or "BUY").upper()
+            # Options handled separately via options broker; skip for cash math.
+            if action in ("BUY_CALL", "BUY_PUT", "SELL_PUT"):
+                continue
+            # Shorts don't consume long cash.
+            if (new_pos.get("direction") or "LONG").upper() == "SHORT":
+                continue
+            alloc = float(new_pos.get("allocation_pct") or 0) / 100.0
+            if ticker in held_tickers:
+                # Routed as an implicit pyramid by the new_positions loop —
+                # delta against current allocation
+                pos = held_by_ticker.get(ticker, {})
+                current_value = float(pos.get("market_value", 0))
+                current_alloc = current_value / portfolio_value
+                delta = max(0.0, alloc - current_alloc)
+                funds_used += delta * portfolio_value
+            else:
+                funds_used += alloc * portfolio_value
+
+        for pyr in response.get("pyramid_positions", []):
+            ticker = pyr.get("ticker", "")
+            pos = held_by_ticker.get(ticker)
+            if not pos:
+                continue
+            current_value = float(pos.get("market_value", 0))
+            current_alloc = current_value / portfolio_value
+            target_alloc = float(pyr.get("new_allocation_pct") or 0) / 100.0
+            delta = max(0.0, target_alloc - current_alloc)
+            funds_used += delta * portfolio_value
+
+        net = snapshot.account.available_for_new_buys + funds_freed - funds_used
+
+        if net < 0:
+            return False, (
+                f"buys ${funds_used:,.0f} exceed available "
+                f"${snapshot.account.available_for_new_buys:,.0f} + freed "
+                f"${funds_freed:,.0f} (short ${-net:,.0f})"
+            )
+        return True, ""
 
     @staticmethod
     def _validate_bracket_levels(

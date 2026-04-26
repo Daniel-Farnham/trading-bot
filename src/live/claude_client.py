@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 # Pricing per million tokens (input, output)
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-20250514": (3.0, 15.0),
-    "claude-opus-4-20250514": (15.0, 75.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-6": (5.0, 25.0),
     # Aliases
     "sonnet": (3.0, 15.0),
-    "opus": (15.0, 75.0),
+    "opus": (5.0, 25.0),
 }
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
 class BudgetExceededError(Exception):
@@ -54,6 +54,8 @@ class ClaudeClient:
         tools: list[dict] | None = None,
         tool_executor=None,
         max_tokens: int = 4096,
+        thinking: str | None = None,
+        effort: str | None = None,
     ) -> dict | None:
         """Call Claude and return parsed JSON response.
 
@@ -63,7 +65,16 @@ class ClaudeClient:
             model: Model identifier.
             tools: Optional list of tool definitions for tool use.
             tool_executor: Object with execute(tool_name, tool_input) -> str method.
-            max_tokens: Maximum output tokens.
+            max_tokens: Maximum output tokens (includes thinking tokens — give
+                adaptive-thinking calls extra headroom).
+            thinking: "adaptive" enables adaptive thinking (Claude decides
+                depth per request). None (default) disables thinking entirely.
+                Only set for reasoning-heavy calls — research/tool-use calls
+                don't benefit and add latency/cost.
+            effort: Output effort level: "low" | "medium" | "high". Controls
+                response thoroughness and token spend. None defaults to
+                Sonnet 4.6's built-in default ("high"). Note: "max" is
+                Opus-tier only — passing it on Sonnet returns 400.
 
         Returns:
             Parsed JSON dict from Claude's response, or None on failure.
@@ -83,6 +94,10 @@ class ClaudeClient:
             kwargs["system"] = system
         if tools:
             kwargs["tools"] = tools
+        if thinking == "adaptive":
+            kwargs["thinking"] = {"type": "adaptive"}
+        if effort:
+            kwargs["output_config"] = {"effort": effort}
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -165,8 +180,8 @@ class ClaudeClient:
 
     def _resolve_model(self, model: str) -> str:
         aliases = {
-            "sonnet": "claude-sonnet-4-20250514",
-            "opus": "claude-opus-4-20250514",
+            "sonnet": "claude-sonnet-4-6",
+            "opus": "claude-opus-4-6",
         }
         return aliases.get(model, model)
 

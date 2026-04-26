@@ -251,7 +251,15 @@ class TestPartialFill:
 
 
 class TestLedgerSync:
-    def test_syncs_ledger_from_alpaca(self, reconciler, market_data, thesis_manager, pending_tracker):
+    """Drift detection between Alpaca positions and active theses.
+
+    After the ledger refactor, _sync_ledger_from_alpaca no longer writes
+    portfolio_ledger.md — Alpaca is the sole source of truth for live
+    position numbers. The method now surfaces drift between Alpaca-held
+    tickers and the active-theses store.
+    """
+
+    def test_flags_alpaca_position_without_thesis(self, reconciler, market_data, thesis_manager, pending_tracker):
         market_data.get_positions.return_value = [
             {
                 "ticker": "NVDA", "qty": 80, "avg_entry": 125.0,
@@ -259,7 +267,7 @@ class TestLedgerSync:
                 "unrealized_pnl": 2400.0, "unrealized_pnl_pct": 0.24,
             },
         ]
-        thesis_manager.get_holdings.return_value = []
+        thesis_manager.get_all_theses.return_value = []  # no thesis yet
 
         summary = {
             "orders_filled": [], "orders_retried": [], "orders_failed": [],
@@ -269,13 +277,14 @@ class TestLedgerSync:
 
         assert summary["ledger_synced"] is True
         assert "NVDA" in summary["positions_added"]
-        thesis_manager._rebuild_ledger.assert_called_once()
+        # No more ledger rebuild.
+        thesis_manager._rebuild_ledger.assert_not_called()
 
-    def test_removes_stale_positions(self, reconciler, market_data, thesis_manager, pending_tracker):
-        market_data.get_positions.return_value = []  # Nothing in Alpaca
-        thesis_manager.get_holdings.return_value = [
-            {"ticker": "FAKE", "side": "LONG", "qty": 100, "entry_price": 50.0,
-             "current_value": 5000.0, "date_opened": "2025-01-01"},
+    def test_flags_orphan_thesis(self, reconciler, market_data, thesis_manager, pending_tracker):
+        """A thesis exists but no Alpaca position for it → flagged as removed."""
+        market_data.get_positions.return_value = []
+        thesis_manager.get_all_theses.return_value = [
+            {"ticker": "FAKE", "direction": "LONG", "thesis": "..."},
         ]
 
         summary = {
@@ -287,12 +296,11 @@ class TestLedgerSync:
         assert "FAKE" in summary["positions_removed"]
 
     def test_pending_orders_not_counted_as_removed(self, reconciler, market_data, thesis_manager, pending_tracker):
-        """If a ticker is in memory but not Alpaca, and has a pending order, don't mark as removed."""
+        """A thesis whose position is mid-fill (pending order) shouldn't be flagged."""
         pending_tracker.add("order-1", "LNG", "BUY (CORE)", 42)
         market_data.get_positions.return_value = []
-        thesis_manager.get_holdings.return_value = [
-            {"ticker": "LNG", "side": "LONG", "qty": 42, "entry_price": 200.0,
-             "current_value": 8400.0, "date_opened": "2025-04-06"},
+        thesis_manager.get_all_theses.return_value = [
+            {"ticker": "LNG", "direction": "LONG", "thesis": "..."},
         ]
 
         summary = {

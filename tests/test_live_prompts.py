@@ -7,8 +7,38 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.live.prompts import build_call1_prompt, build_call3_prompt, _format_call1_for_call3
+from src.live.portfolio_state import (
+    AccountState, Performance, PortfolioSnapshot, PositionRow,
+)
+from src.live.prompts import (
+    build_call1_prompt, build_call3_prompt, format_portfolio_block,
+    _format_call1_for_call3,
+)
 from src.live.daily_state import DailyState
+
+
+def _snapshot(
+    *, equity=100000.0, cash=30000.0, position_count=3, max_positions=8,
+    min_cash_pct=0.05, positions=None,
+) -> PortfolioSnapshot:
+    """Build a snapshot with sensible defaults; pass overrides to test branches."""
+    cash_reserve = round(equity * min_cash_pct, 2)
+    available = max(0.0, round(cash - cash_reserve, 2))
+    return PortfolioSnapshot(
+        account=AccountState(
+            equity=equity, cash=cash, cash_reserve=cash_reserve,
+            available_for_new_buys=available, position_count=position_count,
+            max_positions=max_positions, min_cash_pct=min_cash_pct,
+            at_max_positions=position_count >= max_positions,
+            over_limit=max(0, position_count - max_positions),
+        ),
+        performance=Performance(
+            total_return_pct=8.0, spy_return_pct=2.0, return_vs_spy=6.0,
+            unrealized_pnl=1500.0, inception_date="2026-04-05",
+            initial_value=100000.0, spy_price=510.0,
+        ),
+        positions=positions or [],
+    )
 
 
 class TestBuildCall1Prompt:
@@ -182,6 +212,161 @@ class TestBuildCall3Prompt:
 
         kwargs = engine._build_prompt.call_args
         assert "NVDA call expiring" in str(kwargs)
+
+
+class TestFormatPortfolioBlock:
+    def test_under_limit_shows_slots_available(self):
+        snap = _snapshot(position_count=5, max_positions=8, cash=30000.0)
+        block = format_portfolio_block(snap)
+        assert "Position slots available: 3" in block
+        assert "OVER POSITION LIMIT" not in block
+        assert "AT POSITION LIMIT" not in block
+
+    def test_at_limit_blocks_unmatched_buys(self):
+        snap = _snapshot(position_count=8, max_positions=8, cash=30000.0)
+        block = format_portfolio_block(snap)
+        assert "AT POSITION LIMIT" in block
+        assert "matching CLOSE/REDUCE in the same response" in block
+        assert "OVER POSITION LIMIT" not in block
+
+    def test_over_limit_priority_addendum(self):
+        # Reproduces the user's actual state: 10/8 positions
+        snap = _snapshot(position_count=10, max_positions=8, cash=-24000.0)
+        block = format_portfolio_block(snap)
+        assert "OVER POSITION LIMIT" in block
+        assert "10/8" in block
+        assert "TOP PRIORITY" in block
+        assert "at least 2 position(s)" in block
+        assert "Do NOT propose any new BUY or PYRAMID" in block
+
+    def test_negative_cash_shows_zero_buying_power(self):
+        snap = _snapshot(equity=108384.53, cash=-24144.61, position_count=10)
+        block = format_portfolio_block(snap)
+        assert "Buying power for new buys: $0.00" in block
+        assert "Cash: $-24,144.61" in block
+
+    def test_cash_reserve_line_present(self):
+        snap = _snapshot(equity=100000.0, min_cash_pct=0.05)
+        block = format_portfolio_block(snap)
+        assert "Cash reserve required: $5,000.00 (5% of equity)" in block
+        assert "Min cash reserve: $5,000.00" in block
+
+    def test_position_table_includes_day_change_and_pnl(self):
+        snap = _snapshot(
+            equity=100000.0, cash=30000.0, position_count=1,
+            positions=[PositionRow(
+                ticker="MU", side="long", qty=50,
+                avg_entry=400.0, current_price=487.0, market_value=24350.0,
+                day_change_pct=1.2, unrealized_pnl=4350.0,
+                unrealized_pnl_pct=21.75, pct_of_portfolio=24.35,
+            )],
+        )
+        block = format_portfolio_block(snap)
+        assert "MU" in block
+        assert "+1.20%" in block  # day change
+        assert "+15.9%" not in block  # not a fake number
+        assert "+21.8%" in block or "+21.75%" in block  # unrealized P&L %
+        assert "24.4%" in block or "24.3%" in block or "24.35%" in block
+
+    def test_spy_comparison_present(self):
+        snap = _snapshot(equity=100000.0, cash=30000.0)
+        # Default Performance: bot +8%, SPY +2%, vs SPY +6pp
+        block = format_portfolio_block(snap)
+        assert "+8.00%" in block
+        assert "SPY: +2.00%" in block
+        assert "vs SPY: +6.00pp" in block
+
+    def test_hard_constraints_section_always_present(self):
+        snap = _snapshot()
+        block = format_portfolio_block(snap)
+        assert "## HARD CONSTRAINTS — you MUST honor these" in block
+        assert "No margin: do NOT propose trades that would require negative cash." in block
+        assert "Cash math:" in block
+        assert "decision_reasoning" in block
+
+
+class TestBuildCall3PromptWithSnapshot:
+    def test_portfolio_block_inserted_above_portfolio_state(self):
+        engine = MagicMock()
+        engine._build_prompt.return_value = (
+            "You are the CIO...\n\nPORTFOLIO STATE:\n- Value: $100k"
+        )
+        snap = _snapshot(position_count=10, max_positions=8, cash=-24000.0)
+
+        result = build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=-24000,
+            portfolio_snapshot=snap,
+        )
+
+        assert "CURRENT PORTFOLIO STATE (LIVE FROM ALPACA" in result
+        assert "OVER POSITION LIMIT" in result
+        # The new block must come BEFORE the engine's PORTFOLIO STATE marker
+        block_pos = result.index("CURRENT PORTFOLIO STATE (LIVE FROM ALPACA")
+        portfolio_pos = result.index("PORTFOLIO STATE:")
+        assert block_pos < portfolio_pos
+
+    def test_no_snapshot_means_no_block(self):
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+        result = build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+            portfolio_snapshot=None,
+        )
+        assert "CURRENT PORTFOLIO STATE (LIVE FROM ALPACA" not in result
+
+    def test_snapshot_and_call1_both_present(self):
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+        snap = _snapshot(position_count=3, max_positions=8, cash=30000.0)
+
+        result = build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+            call1_output={"macro_assessment": "Risk-on macro"},
+            portfolio_snapshot=snap,
+        )
+
+        # Both sections present, both before the PORTFOLIO STATE marker
+        assert "CURRENT PORTFOLIO STATE (LIVE FROM ALPACA" in result
+        assert "TODAY'S DISCOVERY" in result
+        assert result.index("CURRENT PORTFOLIO STATE") < result.index("PORTFOLIO STATE:")
+        assert result.index("TODAY'S DISCOVERY") < result.index("PORTFOLIO STATE:")
+
+    def test_holdings_count_and_invested_value_forwarded(self):
+        """Live callers pass Alpaca-derived stats; engine should receive them."""
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+
+        build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+            holdings_count=10, invested_value=85000.0,
+        )
+
+        kwargs = engine._build_prompt.call_args.kwargs
+        assert kwargs["holdings_count"] == 10
+        assert kwargs["invested_value"] == 85000.0
+
+    def test_holdings_stats_default_none_when_omitted(self):
+        """Sim callers omit these; engine falls back to memory ledger internally."""
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+
+        build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+        )
+
+        kwargs = engine._build_prompt.call_args.kwargs
+        assert kwargs["holdings_count"] is None
+        assert kwargs["invested_value"] is None
 
 
 class TestFormatCall1ForCall3:

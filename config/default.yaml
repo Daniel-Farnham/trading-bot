@@ -123,7 +123,10 @@ universe:
 
 trading:
   max_position_pct: 1.0
-  max_open_positions: 7
+  # max_positions is read by RiskManagerV3 (src/strategy/risk_v3.py:60).
+  # The previous key max_open_positions was unread and silently fell back to
+  # the default of 8 — harmonized here so config matches enforced behavior.
+  max_positions: 8
   max_daily_loss_pct: 0.03
   max_drawdown_pct: 0.30
   min_cash_reserve_pct: 0.05
@@ -138,8 +141,8 @@ live:
   data_dir: "data/live"
 
 anthropic:
-  default_model: "claude-sonnet-4-20250514"
-  call3_model: "claude-sonnet-4-20250514"  # switchable to opus
+  default_model: "claude-sonnet-4-6"
+  call3_model: "claude-sonnet-4-6"  # switchable to opus
   daily_budget_usd: 2.00
   monthly_budget_usd: 40.00
 

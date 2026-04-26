@@ -175,8 +175,8 @@ class _DashboardHandler(BaseHTTPRequestHandler):
         memory_dir = Path(_data_dir)
         md_files = [
             "active_theses.md", "portfolio_ledger.md", "themes.md",
-            "world_view.md", "beliefs.md", "lessons_learned.md",
-            "decision_journal.md",
+            "world_view.md", "tactical_view.md", "beliefs.md",
+            "lessons_learned.md", "decision_journal.md",
         ]
         result = {}
         for filename in md_files:
@@ -196,47 +196,17 @@ class _DashboardHandler(BaseHTTPRequestHandler):
             self._json_response({"error": "Market data not configured"})
             return
         try:
-            account = _market_data.get_account()
-            equity = float(account.get("equity", account.get("portfolio_value", 0)))
-            cash = float(account.get("cash", 0))
+            from src.live.portfolio_state import build_portfolio_snapshot
+            from src.strategy.risk_v3 import RiskManagerV3
 
-            # Inception data
-            inception = _load_inception()
-            initial_value = inception["initial_value"]
-            inception_date = inception["start_date"]
-
-            # Total return since inception
-            total_return_pct = round(((equity - initial_value) / initial_value) * 100, 2)
-
-            # SPY return since inception
-            spy_price = _market_data.get_latest_price("SPY")
-            spy_return_pct = None
-            try:
-                from datetime import timedelta
-                inception_dt = datetime.fromisoformat(inception_date)
-                bars = _market_data.get_bars("SPY", start=inception_dt, limit=200)
-                if not bars.empty and len(bars) >= 2:
-                    start = float(bars.iloc[0]["close"])
-                    end = float(bars.iloc[-1]["close"])
-                    spy_return_pct = round(((end - start) / start) * 100, 2)
-            except Exception:
-                pass
-
-            # Position count + unrealized P&L
-            positions = _market_data.get_positions()
-            total_unrealized = sum(float(p.get("unrealized_pnl", 0)) for p in positions)
-
-            self._json_response({
-                "equity": equity,
-                "cash": cash,
-                "total_return_pct": total_return_pct,
-                "unrealized_pnl": round(total_unrealized, 2),
-                "position_count": len(positions),
-                "spy_price": spy_price,
-                "spy_return_pct": spy_return_pct,
-                "inception_date": inception_date,
-                "initial_value": initial_value,
-            })
+            risk = RiskManagerV3()
+            snapshot = build_portfolio_snapshot(
+                market_data=_market_data,
+                data_dir=_data_dir,
+                max_positions=risk._max_positions,
+                min_cash_pct=risk._min_cash_pct,
+            )
+            self._json_response(snapshot.to_dashboard_dict())
         except Exception as e:
             self._json_response({"error": str(e)})
 
@@ -267,18 +237,6 @@ class _DashboardHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass
-
-
-def _load_inception() -> dict:
-    """Load inception data (start date + initial value)."""
-    inception_path = Path(_data_dir) / "inception.json"
-    if inception_path.exists():
-        try:
-            return json.loads(inception_path.read_text())
-        except Exception:
-            pass
-    # Default: $100,000 starting Apr 5 2026
-    return {"start_date": "2026-04-05", "initial_value": 100000}
 
 
 def _build_dashboard_html() -> str:

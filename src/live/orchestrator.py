@@ -21,6 +21,7 @@ from src.live.health import update_status
 from src.live.executor import LiveExecutor
 from src.live.notifier import EmailNotifier
 from src.live.pending_orders import PendingOrderTracker
+from src.live.portfolio_state import build_portfolio_snapshot
 from src.live.prompts import build_call1_prompt, build_call3_prompt
 from src.live.reconciler import ReconcileManager
 from src.live.research_tools import RESEARCH_TOOLS, ResearchToolExecutor
@@ -105,11 +106,8 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.warning("Failed to fetch Alpaca positions for Call 1: %s", e)
 
-            holdings = self._tm.get_holdings()
-            holdings_tickers = [h["ticker"] for h in holdings]
-            # Also include tickers from Alpaca in case memory is stale
-            alpaca_tickers = [p["ticker"] for p in alpaca_positions]
-            holdings_tickers = list(set(holdings_tickers + alpaca_tickers))
+            # Alpaca is the source of truth for current positions.
+            holdings_tickers = [p["ticker"] for p in alpaca_positions]
 
             themes_md = self._format_themes()
             world_view_md = self._tm.get_world_view()
@@ -243,14 +241,17 @@ class LiveOrchestrator:
                     self._universe.add(ticker, source="call1", reason=reason)
                     self._watchlist.add(ticker, source="call1_discovery", reason=reason)
 
-            # Append daily observation to tactical view (not structural)
+            # Append daily observation to the tactical log. Call 1 owns
+            # this file: Call 3 only reads it. The log caps at 14 entries
+            # so a rolling two-week window of daily observations is what
+            # Claude sees.
             observation = result.get("tactical_observation", "")
             if not observation:
                 observation = result.get("world_view_observation", "")  # backwards compat
             if observation:
-                today = date.today().isoformat()
-                current_tv = self._tm.get_tactical_view()
-                self._tm.update_tactical_view(f"{current_tv}\n- {today}: {observation}")
+                self._tm.append_tactical_observation(
+                    date.today().isoformat(), observation,
+                )
 
             # Send email
             self._notifier.send_call1_summary(result)
@@ -277,8 +278,13 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.error("Reconciliation failed: %s", e)
 
-            holdings = self._tm.get_holdings()
-            holdings_tickers = [h["ticker"] for h in holdings]
+            # Alpaca is the source of truth for current positions.
+            try:
+                positions = self._market.get_positions()
+                holdings_tickers = [p["ticker"] for p in positions]
+            except Exception as e:
+                logger.warning("Failed to fetch Alpaca positions for trigger check: %s", e)
+                holdings_tickers = []
 
             account = self._market.get_account()
             portfolio_value = account.get("portfolio_value", 0)
@@ -333,6 +339,20 @@ class LiveOrchestrator:
             cash = account.get("cash", 0)
             positions = self._market.get_positions()
 
+            # Live portfolio snapshot — single source of truth for what
+            # Claude sees in the prompt and what the executor's atomic
+            # cash-math validator will compare against. Pulls max_positions
+            # and min_cash_pct from the active risk manager so prompt
+            # constraints match what's enforced.
+            risk = self._executor._risk
+            data_dir = Path(self._state_path).parent
+            snapshot = build_portfolio_snapshot(
+                market_data=self._market,
+                data_dir=data_dir,
+                max_positions=risk._max_positions,
+                min_cash_pct=risk._min_cash_pct,
+            )
+
             # Fetch pending orders (e.g. OPG orders queued over weekend)
             pending_orders = []
             try:
@@ -340,8 +360,12 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.warning("Failed to fetch pending orders: %s", e)
 
-            # Memory context
-            memory_context = self._tm.get_decision_context()
+            # Memory context — narrative only (themes, theses, journal,
+            # lessons, beliefs, world view, tactical view). Position numbers
+            # come from the Alpaca snapshot via format_portfolio_block, so
+            # we exclude the ledger section here to avoid duplicating (or
+            # contradicting) the live numbers.
+            memory_context = self._tm.get_decision_context(include_ledger=False)
 
             # Append pending orders to memory context so Claude knows what's already queued
             if pending_orders:
@@ -354,26 +378,41 @@ class LiveOrchestrator:
             call1_output = self._state.call1_output
 
             # Pre-flight refresh: pull every ticker Claude could reason about
-            # (holdings + universe + Call 1 candidates) so technicals,
+            # (Alpaca holdings + universe + Call 1 candidates) so technicals,
             # fundamentals, prices, and news are all current at decision time.
             candidate_tickers = self._collect_candidate_tickers(call1_output)
-            holdings_tickers = {h["ticker"] for h in self._tm.get_holdings()}
+            live_holdings_tickers = {p.ticker for p in snapshot.positions if p.ticker}
 
             technicals_summary = self._build_technicals_summary(
                 extra_tickers=candidate_tickers,
+                live_holdings_tickers=live_holdings_tickers,
             )
             fundamentals_summary = self._build_fundamentals_summary(
                 extra_tickers=candidate_tickers,
+                live_holdings_tickers=live_holdings_tickers,
             )
             candidate_prices = self._build_candidate_prices(candidate_tickers)
             fresh_news = self._build_fresh_news(
-                tickers=candidate_tickers | holdings_tickers,
+                tickers=candidate_tickers | live_holdings_tickers,
             )
             options_context = self._build_options_context(portfolio_value)
 
             # Performance vs SPY
             bot_return_pct = self._compute_bot_return(portfolio_value)
             spy_return_pct = self._compute_spy_return()
+
+            # Position stats from Alpaca (not memory) for the engine's
+            # PORTFOLIO STATE block.
+            invested_value = sum(p.market_value for p in snapshot.positions)
+
+            # Live universe — dynamic, maintained by Call 1 in
+            # data/live/universe.json. Flat list (no theme grouping —
+            # themes live separately in themes.md).
+            live_universe = self._universe.get_tickers()
+            if live_universe:
+                universe_text = ", ".join(sorted(live_universe))
+            else:
+                universe_text = "(Universe is empty — Call 1 hasn't seeded it yet)"
 
             self._review_count += 1
 
@@ -396,10 +435,30 @@ class LiveOrchestrator:
                 call1_output=call1_output,
                 candidate_prices=candidate_prices,
                 fresh_news=fresh_news,
+                portfolio_snapshot=snapshot,
+                holdings_count=snapshot.account.position_count,
+                invested_value=invested_value,
+                universe_text=universe_text,
+                max_positions=risk._max_positions,
             )
 
+            # Persist the full prompt to disk for audit. Lets us verify what
+            # Claude actually saw (technicals, portfolio block, candidate
+            # prices) without re-running the call.
+            self._save_call3_prompt(prompt, review_type)
+
             # Call Claude
-            result = self._claude.call(prompt, model="sonnet")
+            # Call 3 is reasoning-heavy: portfolio analysis, thesis synthesis,
+            # multi-step decision-making. Adaptive thinking lets Claude decide
+            # depth per request; high effort matches the autonomous-decision
+            # workload (per the model migration guide). max_tokens widened so
+            # thinking tokens have headroom before the JSON response.
+            result = self._claude.call(
+                prompt, model="sonnet",
+                thinking="adaptive",
+                effort="high",
+                max_tokens=12000,
+            )
             update_status("last_call3", datetime.now().isoformat())
 
             if not result:
@@ -419,6 +478,7 @@ class LiveOrchestrator:
                 portfolio_value=portfolio_value,
                 cash=cash,
                 positions=positions,
+                snapshot=snapshot,
             )
 
             for trade in trades:
@@ -547,12 +607,13 @@ class LiveOrchestrator:
                     "unrealized_plpc": p.get("unrealized_pnl_pct", 0),
                 })
 
-            # Sync ledger with closing prices so memory is fresh for next day
+            # Run reconciliation — confirms pending fills and surfaces
+            # any drift between Alpaca positions and active theses.
             try:
                 self._reconciler.reconcile()
-                logger.info("EOD ledger synced with Alpaca closing prices.")
+                logger.info("EOD reconciliation complete.")
             except Exception as e:
-                logger.error("EOD ledger sync failed: %s", e)
+                logger.error("EOD reconciliation failed: %s", e)
 
             memory_dir = str(self._tm._paths.get("theses", Path("data/live")).parent)
             self._notifier.send_eod_portfolio(account, formatted_positions, memory_dir)
@@ -565,7 +626,12 @@ class LiveOrchestrator:
         """Sync Alpaca positions with thesis memory on startup."""
         logger.info("=== Reconcile on startup ===")
         try:
-            # Run full reconciliation (pending orders + ledger sync)
+            # One-time cleanup: remove the orphaned portfolio_ledger.md.
+            # Live no longer maintains it (Alpaca is the source of truth);
+            # leaving it on disk would just confuse future readers.
+            self._cleanup_orphan_ledger()
+
+            # Run full reconciliation (pending orders + state drift detection)
             summary = self._reconciler.reconcile()
             logger.info("Startup reconciliation: %s", summary)
 
@@ -575,6 +641,23 @@ class LiveOrchestrator:
 
         except Exception as e:
             logger.error("Reconcile failed: %s", e)
+
+    def _cleanup_orphan_ledger(self) -> None:
+        """Delete portfolio_ledger.md if it still exists from before the refactor."""
+        ledger_path = self._tm._paths.get("ledger") if hasattr(self._tm, "_paths") else None
+        if not ledger_path:
+            return
+        path = Path(ledger_path)
+        if path.exists():
+            try:
+                path.unlink()
+                logger.info(
+                    "Removed orphaned portfolio_ledger.md (%s) — Alpaca is now "
+                    "the sole source of truth for live position numbers",
+                    path,
+                )
+            except OSError as e:
+                logger.warning("Failed to remove orphaned ledger %s: %s", path, e)
 
     def initialize_first_boot(self) -> None:
         """Cold start: quarterly-synthesis of 12 months of news → world view + 3 themes + watchlist."""
@@ -923,12 +1006,37 @@ Respond with ONLY valid JSON:
             pass
         return 0.0
 
-    def _build_technicals_summary(self, extra_tickers: set[str] | None = None) -> str:
-        """Build technicals for holdings + universe + extras from live Alpaca bars."""
-        holdings = self._tm.get_holdings()
-        holdings_tickers = [h["ticker"] for h in holdings]
-        universe_tickers = self._universe.get_tickers()
-        all_tickers = set(holdings_tickers) | set(universe_tickers)
+    def _save_call3_prompt(self, prompt: str, review_type: str) -> None:
+        """Write the full Call 3 prompt to disk for audit.
+
+        Files: data/live/call3_prompts/<YYYYMMDD_HHMMSS>_<review_type>.txt
+        Failure to write is logged but never blocks the live call.
+        """
+        try:
+            data_dir = Path(self._state_path).parent
+            prompt_dir = data_dir / "call3_prompts"
+            prompt_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_type = "".join(c if c.isalnum() else "_" for c in review_type)
+            path = prompt_dir / f"{stamp}_{safe_type}.txt"
+            path.write_text(prompt)
+            logger.info("Call 3 prompt saved: %s (%d chars)", path, len(prompt))
+        except Exception as e:
+            logger.warning("Failed to save Call 3 prompt: %s", e)
+
+    def _build_technicals_summary(
+        self,
+        extra_tickers: set[str] | None = None,
+        live_holdings_tickers: set[str] | None = None,
+    ) -> str:
+        """Build technicals for holdings + universe + extras from live Alpaca bars.
+
+        Holdings come from `live_holdings_tickers` (the live Alpaca snapshot).
+        Tickers in that set are flagged [HELD] in the output.
+        """
+        held_tickers = {t.upper() for t in (live_holdings_tickers or set()) if t}
+        universe_tickers = set(self._universe.get_tickers())
+        all_tickers = held_tickers | universe_tickers
         if extra_tickers:
             all_tickers |= {t.upper() for t in extra_tickers if t}
 
@@ -942,7 +1050,7 @@ Respond with ONLY valid JSON:
                 if bars.empty or len(bars) < 20:
                     continue
                 snap = self._technicals.analyze(ticker, bars)
-                line = self._format_snapshot(snap, ticker in holdings_tickers)
+                line = self._format_snapshot(snap, ticker in held_tickers)
                 if line:
                     lines.append(line)
             except Exception as e:
@@ -955,12 +1063,18 @@ Respond with ONLY valid JSON:
 
         return "\n".join(lines) if lines else "(No technical data available)"
 
-    def _build_fundamentals_summary(self, extra_tickers: set[str] | None = None) -> str:
-        """Build fundamentals for holdings + universe + extras."""
-        holdings = self._tm.get_holdings()
-        holdings_tickers = [h["ticker"] for h in holdings]
-        universe_tickers = self._universe.get_tickers()
-        all_tickers_set = set(holdings_tickers) | set(universe_tickers)
+    def _build_fundamentals_summary(
+        self,
+        extra_tickers: set[str] | None = None,
+        live_holdings_tickers: set[str] | None = None,
+    ) -> str:
+        """Build fundamentals for holdings + universe + extras.
+
+        Holdings come from `live_holdings_tickers` (the live Alpaca snapshot).
+        """
+        held_tickers = {t.upper() for t in (live_holdings_tickers or set()) if t}
+        universe_tickers = set(self._universe.get_tickers())
+        all_tickers_set = held_tickers | universe_tickers
         if extra_tickers:
             all_tickers_set |= {t.upper() for t in extra_tickers if t}
         all_tickers = list(all_tickers_set)
@@ -1131,45 +1245,93 @@ Respond with ONLY valid JSON:
             return None
 
     def _build_fresh_news(self, tickers: set[str]) -> str:
-        """News for holdings + candidates over the last few hours.
+        """Two-pass recent-news block for Call 3.
 
-        Closes the gap between Call 1 (morning) and Call 3 (afternoon /
-        trigger): anything that broke in between is otherwise invisible.
-        Defaults to a 6-hour window — wide enough for an afternoon Call 3
-        to catch intraday news, narrow enough not to duplicate Call 1.
+        Pass 1 — Holdings + Call 1 candidates, last 48 hours: catches news
+        directly tagged with our positions or flagged tickers.
+
+        Pass 2 — Broader market, last 24 hours, no symbol filter: catches
+        macro events (Fed, geopolitics, policy) that may not tag any of
+        our specific tickers but matter for regime calls. Deduped against
+        Pass 1 so a Fed announcement tagged with a holding doesn't appear
+        twice.
+
+        Either pass empty is OK; the section is omitted entirely if both
+        passes return nothing.
         """
-        if not tickers:
-            return ""
-        try:
-            from datetime import timedelta
-            now = datetime.now()
-            since = now - timedelta(hours=6)
-            articles = self._news.get_news(
+        from datetime import timedelta
+        now = datetime.now()
+
+        # Skip the ticker pass entirely if no tickers — calling get_news with
+        # symbols=None would just duplicate the broad pass.
+        ticker_articles: list[dict] = []
+        if tickers:
+            ticker_articles = self._fetch_recent_articles(
+                since=now - timedelta(hours=48), end=now,
                 symbols=sorted(tickers),
-                start_date=since.strftime("%Y-%m-%d"),
-                end_date=now.strftime("%Y-%m-%d"),
                 limit=30,
             )
-        except Exception as e:
-            logger.warning("Fresh news fetch failed: %s", e)
-            return ""
 
-        if not articles:
-            return ""
+        broad_articles = self._fetch_recent_articles(
+            since=now - timedelta(hours=24), end=now,
+            symbols=None,  # no filter — broad/macro
+            limit=15,
+        )
 
-        # Filter to articles published within the window (the API is day-granular,
-        # so we get a day's worth back and tighten here).
-        cutoff = since.isoformat()
-        recent = [a for a in articles if (a.get("publishedDate") or "") >= cutoff]
-        if not recent:
-            return ""
-
-        lines = [
-            f"- [{a.get('publishedDate', '')[:16].replace('T', ' ')}] "
-            f"[{', '.join(a.get('tickers', [])[:3])}] {a.get('title', '')}"
-            for a in recent
+        # Dedup broad against ticker (a Fed headline tagged with one of our
+        # holdings would otherwise appear in both blocks).
+        ticker_keys = {
+            (a.get("title", ""), a.get("publishedDate", ""))
+            for a in ticker_articles
+        }
+        broad_articles = [
+            a for a in broad_articles
+            if (a.get("title", ""), a.get("publishedDate", "")) not in ticker_keys
         ]
-        return "NEWS SINCE LAST DISCOVERY (last 6 hours):\n" + "\n".join(lines)
+
+        if not ticker_articles and not broad_articles:
+            return ""
+
+        out: list[str] = ["RECENT NEWS:"]
+        if ticker_articles:
+            out.append("\nHoldings & flagged tickers (last 48h):")
+            for a in ticker_articles:
+                out.append(self._format_news_line(a, fallback_label=""))
+        if broad_articles:
+            out.append("\nBroader market (last 24h, macro):")
+            for a in broad_articles:
+                out.append(self._format_news_line(a, fallback_label="macro"))
+        return "\n".join(out)
+
+    def _fetch_recent_articles(
+        self,
+        since: datetime,
+        end: datetime,
+        symbols: list[str] | None,
+        limit: int,
+    ) -> list[dict]:
+        """Fetch articles and filter to the window. Returns [] on any error."""
+        try:
+            articles = self._news.get_news(
+                symbols=symbols,
+                start_date=since.strftime("%Y-%m-%d"),
+                end_date=end.strftime("%Y-%m-%d"),
+                limit=limit,
+            )
+        except Exception as e:
+            logger.warning("News fetch failed (symbols=%s): %s", symbols, e)
+            return []
+        cutoff = since.isoformat()
+        return [a for a in articles if (a.get("publishedDate") or "") >= cutoff]
+
+    @staticmethod
+    def _format_news_line(article: dict, fallback_label: str = "") -> str:
+        ts = (article.get("publishedDate") or "")[:16].replace("T", " ")
+        tickers_str = ", ".join((article.get("tickers") or [])[:3])
+        bracket = f"[{tickers_str}]" if tickers_str else (
+            f"[{fallback_label}]" if fallback_label else "[]"
+        )
+        return f"- [{ts}] {bracket} {article.get('title', '')}"
 
     @staticmethod
     def _format_snapshot(snap, is_holding: bool = False) -> str:

@@ -38,7 +38,9 @@ class TestLoadConfig:
         config = load_config()
         trading = config["trading"]
         assert "max_position_pct" in trading
-        assert "max_open_positions" in trading
+        assert "max_positions" in trading
+        assert isinstance(trading["max_positions"], int)
+        assert trading["max_positions"] >= 1
 
 
 class TestGetAlpacaKeys:

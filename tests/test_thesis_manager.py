@@ -437,6 +437,30 @@ class TestDecisionContext:
         lesson_pos = ctx.index("Lessons Learned")
         assert belief_pos < lesson_pos
 
+    def test_include_ledger_false_omits_ledger_section(self, manager):
+        """Live path: ledger section should be excluded; Alpaca surfaces positions."""
+        manager.add_thesis(
+            ticker="NVDA", direction="LONG", thesis="AI demand",
+            entry_price=800.0, target_price=1000.0, stop_price=700.0,
+        )
+        manager.update_position("NVDA", "LONG", 10, 800.0, 8500.0, "2024-01-15")
+
+        ctx_live = manager.get_decision_context(include_ledger=False)
+        # Narrative still present
+        assert "AI demand" in ctx_live
+        assert "Active Theses" in ctx_live
+        # Ledger section header explicitly absent
+        assert "Portfolio Ledger" not in ctx_live
+        # And the ledger table format markers shouldn't leak in
+        assert "Date Opened" not in ctx_live
+
+    def test_include_ledger_true_keeps_ledger_section(self, manager):
+        """Sim path (default): ledger remains for backward compatibility."""
+        manager.update_position("NVDA", "LONG", 10, 800.0, 8500.0, "2024-01-15")
+        ctx_sim = manager.get_decision_context(include_ledger=True)
+        assert "Portfolio Ledger" in ctx_sim
+        assert "NVDA" in ctx_sim
+
 
 class TestThemes:
     def test_empty(self, manager):
@@ -535,6 +559,85 @@ class TestThemes:
     def test_empty_themes_in_decision_context(self, manager):
         ctx = manager.get_decision_context()
         assert "No themes set" in ctx
+
+
+class TestTacticalLog:
+    """append_tactical_observation: rolling daily-observation log capped at 14."""
+
+    def test_appends_first_entry(self, manager):
+        manager.append_tactical_observation("2026-04-01", "Iran tensions intensifying")
+        tv = manager.get_tactical_view()
+        assert "- 2026-04-01: Iran tensions intensifying" in tv
+        # Single header, no duplication
+        assert tv.count("# Tactical View") == 1
+
+    def test_appends_additional_entries_in_order(self, manager):
+        manager.append_tactical_observation("2026-04-01", "first")
+        manager.append_tactical_observation("2026-04-02", "second")
+        manager.append_tactical_observation("2026-04-03", "third")
+        tv = manager.get_tactical_view()
+        # All three lines present, in chronological order (oldest at top)
+        first_pos = tv.index("first")
+        second_pos = tv.index("second")
+        third_pos = tv.index("third")
+        assert first_pos < second_pos < third_pos
+        # Still single header
+        assert tv.count("# Tactical View") == 1
+
+    def test_caps_at_max_entries_dropping_oldest(self, manager):
+        # 16 entries, cap at default 14 — first two should be dropped
+        for i in range(1, 17):
+            manager.append_tactical_observation(f"2026-04-{i:02d}", f"obs {i}")
+        tv = manager.get_tactical_view()
+        # Oldest two dropped
+        assert "obs 1" not in tv.split("obs 10")[0]  # not in first 9 entries either
+        assert "- 2026-04-01: " not in tv
+        assert "- 2026-04-02: " not in tv
+        # Newest 14 retained
+        for i in range(3, 17):
+            assert f"- 2026-04-{i:02d}: " in tv
+
+    def test_custom_max_entries(self, manager):
+        for i in range(1, 6):
+            manager.append_tactical_observation(f"2026-04-0{i}", f"obs {i}", max_entries=3)
+        tv = manager.get_tactical_view()
+        # Only last 3 kept
+        assert "- 2026-04-01: " not in tv
+        assert "- 2026-04-02: " not in tv
+        assert "- 2026-04-03: " in tv
+        assert "- 2026-04-04: " in tv
+        assert "- 2026-04-05: " in tv
+
+    def test_empty_observation_is_noop(self, manager):
+        manager.append_tactical_observation("2026-04-01", "first")
+        manager.append_tactical_observation("2026-04-02", "")
+        manager.append_tactical_observation("2026-04-02", "   ")
+        tv = manager.get_tactical_view()
+        assert "first" in tv
+        # Only one entry remains
+        assert tv.count("- 2026-04-") == 1
+
+    def test_self_heals_duplicate_headers(self, manager):
+        """The old append-the-whole-file pattern produced duplicated headers.
+        The new method rebuilds from parsed entries only, so legacy files
+        with stacked '# Tactical View' lines self-heal on next append."""
+        # Write a file with the legacy duplicate-header artifact
+        manager._write(
+            "tactical_view",
+            "# Tactical View\n\n# Tactical View\n\n# Tactical View\n\n- 2026-04-01: legacy\n",
+        )
+        manager.append_tactical_observation("2026-04-02", "fresh")
+        tv = manager.get_tactical_view()
+        assert tv.count("# Tactical View") == 1
+        assert "- 2026-04-01: legacy" in tv
+        assert "- 2026-04-02: fresh" in tv
+
+    def test_multiple_observations_same_day_both_kept(self, manager):
+        manager.append_tactical_observation("2026-04-01", "morning take")
+        manager.append_tactical_observation("2026-04-01", "afternoon take")
+        tv = manager.get_tactical_view()
+        assert "morning take" in tv
+        assert "afternoon take" in tv
 
 
 class TestClearAll:

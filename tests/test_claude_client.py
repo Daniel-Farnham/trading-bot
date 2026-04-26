@@ -106,6 +106,42 @@ class TestCall:
         kwargs = client._client.messages.create.call_args
         assert kwargs[1]["tools"] == tools
 
+    def test_adaptive_thinking_forwarded(self, client):
+        """thinking='adaptive' should send {type: adaptive} on the request."""
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test", thinking="adaptive")
+        kwargs = client._client.messages.create.call_args[1]
+        assert kwargs["thinking"] == {"type": "adaptive"}
+
+    def test_no_thinking_by_default(self, client):
+        """Omitting thinking shouldn't send the parameter (preserves cache)."""
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test")
+        kwargs = client._client.messages.create.call_args[1]
+        assert "thinking" not in kwargs
+
+    def test_effort_forwarded_in_output_config(self, client):
+        """effort='high' should appear inside output_config, not top-level."""
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test", effort="high")
+        kwargs = client._client.messages.create.call_args[1]
+        assert kwargs["output_config"] == {"effort": "high"}
+
+    def test_no_output_config_when_effort_omitted(self, client):
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test")
+        kwargs = client._client.messages.create.call_args[1]
+        assert "output_config" not in kwargs
+
+    def test_thinking_and_effort_combined(self, client):
+        """Call 3's actual config: adaptive thinking + high effort."""
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test", thinking="adaptive", effort="high", max_tokens=12000)
+        kwargs = client._client.messages.create.call_args[1]
+        assert kwargs["thinking"] == {"type": "adaptive"}
+        assert kwargs["output_config"] == {"effort": "high"}
+        assert kwargs["max_tokens"] == 12000
+
     def test_model_alias_resolution(self, client):
         data = {"ok": True}
         client._client.messages.create.return_value = _mock_response(
@@ -115,7 +151,7 @@ class TestCall:
         client.call("test", model="sonnet")
 
         kwargs = client._client.messages.create.call_args
-        assert kwargs[1]["model"] == "claude-sonnet-4-20250514"
+        assert kwargs[1]["model"] == "claude-sonnet-4-6"
 
     def test_model_alias_opus(self, client):
         data = {"ok": True}
@@ -126,7 +162,7 @@ class TestCall:
         client.call("test", model="opus")
 
         kwargs = client._client.messages.create.call_args
-        assert kwargs[1]["model"] == "claude-opus-4-20250514"
+        assert kwargs[1]["model"] == "claude-opus-4-6"
 
     def test_full_model_name_passed_through(self, client):
         data = {"ok": True}
@@ -134,10 +170,10 @@ class TestCall:
             json.dumps(data),
         )
 
-        client.call("test", model="claude-sonnet-4-20250514")
+        client.call("test", model="claude-sonnet-4-6")
 
         kwargs = client._client.messages.create.call_args
-        assert kwargs[1]["model"] == "claude-sonnet-4-20250514"
+        assert kwargs[1]["model"] == "claude-sonnet-4-6"
 
 
 class TestToolUseLoop:
@@ -212,9 +248,9 @@ class TestSpendTracking:
         assert cost == pytest.approx(18.0)  # $3 + $15
 
     def test_cost_calculation_opus(self, client):
-        # Opus: $15/MTok input, $75/MTok output
+        # Opus 4.6: $5/MTok input, $25/MTok output
         cost = client._calculate_cost("opus", 1_000_000, 1_000_000)
-        assert cost == pytest.approx(90.0)  # $15 + $75
+        assert cost == pytest.approx(30.0)  # $5 + $25
 
     def test_cost_calculation_small_call(self, client):
         # Typical Call 1: ~5k input, ~1k output on Sonnet

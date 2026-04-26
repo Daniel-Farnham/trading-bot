@@ -197,22 +197,35 @@ If EXIT or HOLD, set add_allocation_pct to 0."""
         review_type: str = "weekly",
         trade_count: int = 0,
         options_context: str = "",
+        holdings_count: int | None = None,
+        invested_value: float | None = None,
+        universe_text: str | None = None,
+        max_positions: int | None = None,
     ) -> str:
-        holdings = self._tm.get_holdings()
-        holdings_count = len(holdings)
-        invested_value = sum(h["current_value"] for h in holdings)
+        # Live callers pass holdings_count + invested_value explicitly,
+        # sourced from the Alpaca snapshot (see src/live/portfolio_state.py).
+        # Sim falls back to reading the in-memory ledger because SimBroker is
+        # the source of truth there.
+        if holdings_count is None or invested_value is None:
+            holdings = self._tm.get_holdings()
+            if holdings_count is None:
+                holdings_count = len(holdings)
+            if invested_value is None:
+                invested_value = sum(h["current_value"] for h in holdings)
         cash_pct = (cash / portfolio_value * 100) if portfolio_value > 0 else 100
 
-        # Build universe text for prompt
-        universe = CONFIG.get("universe", {})
-        universe_lines = []
-        for theme, tickers in universe.items():
-            theme_label = theme.replace("_", " ").title()
-            universe_lines.append(f"  {theme_label}: {', '.join(tickers)}")
-        universe_text = "\n".join(universe_lines) if universe_lines else "(No universe configured)"
-
-        # Separate discovery pool label if present
-        universe_text = universe_text.replace("Discovery Pool:", "Broader Market:")
+        # Build universe text for prompt. Live callers pass universe_text
+        # from the dynamic LiveUniverse (data/live/universe.json — Call 1
+        # adds/removes tickers as themes evolve). Sim falls back to the
+        # static config universe grouped by theme.
+        if universe_text is None:
+            universe = CONFIG.get("universe", {})
+            universe_lines = []
+            for theme, tickers in universe.items():
+                theme_label = theme.replace("_", " ").title()
+                universe_lines.append(f"  {theme_label}: {', '.join(tickers)}")
+            universe_text = "\n".join(universe_lines) if universe_lines else "(No universe configured)"
+            universe_text = universe_text.replace("Discovery Pool:", "Broader Market:")
 
         # Theme discovery for first review
         theme_section = self._theme_section_text(review_number)
@@ -237,6 +250,15 @@ If EXIT or HOLD, set add_allocation_pct to 0."""
         json_schema = self._build_json_schema(review_type, review_number)
 
         max_new = _mem_cfg("max_new_positions_per_review", 3)
+        # max_positions defaults to the config value if not provided. Live
+        # callers should pass risk_manager._max_positions so the prompt rule
+        # always matches what the executor enforces.
+        if max_positions is None:
+            max_positions = (
+                CONFIG.get("portfolio", CONFIG.get("trading", {}))
+                .get("max_positions", 8)
+            )
+        effective_max_positions = max_positions
 
         return f"""CRITICAL: You are making decisions on {sim_date}.
 You DO NOT know what happens after this date.
@@ -330,7 +352,7 @@ CORE POSITIONS (high/highest confidence, YOU decide the size):
     Your biggest winners should be your biggest positions.
 
 RULES:
-- Max 7 positions at any time — prefer 3-5 concentrated bets
+- Max {effective_max_positions} positions at any time — prefer 3-5 concentrated bets
 - Max {max_new} NEW positions per review — be selective, not reactive
 - Keep at least 5% cash as a buffer for options and rebalancing
 - Every position MUST have a thesis with explicit invalidation conditions
@@ -436,7 +458,7 @@ TASKS:
 4. Should we open any new positions? (max {max_new} new per review)
 5. Should we SHORT any companies facing structural headwinds?
 6. Should we close or reduce any positions? (thesis broken?)
-7. Theme check: any themes strengthening or weakening? New themes emerging?
+7. Theme check: any themes strengthening or weakening? New themes emerging? (See THEME MANAGEMENT above for the +1/-1 mechanics and JSON shape.)
 8. Any new lessons learned? Be specific and actionable (include trigger conditions).
 {lesson_update_task}
 9. For EVERY trade decision (buy, sell, short, reduce, pyramid), write a 1-2 sentence
@@ -451,40 +473,81 @@ TASKS:
 Respond with ONLY valid JSON:
 {json_schema}
 
-Theme update rules:
-- To adjust an existing theme: {{"name": "...", "delta": +1 or -1, "reason": "..."}}
-- To add a new theme: {{"name": "...", "action": "ADD", "description": "...", "reason": "..."}}
-- Only adjust themes when there's clear evidence from the news. Max ±1 per review.
-
-If no changes needed, return empty arrays. Always include world_assessment, tactical_view_update,
+If no changes needed, return empty arrays. Always include world_assessment,
 decision_reasoning, and weekly_summary. Only include structural_view_update if the regime has changed."""
 
     def _theme_section_text(self, review_number: int) -> str:
-        """Generate the theme section. First review discovers themes from news."""
-        if review_number == 1:
-            return (
-                "THEME DISCOVERY:\n"
-                "Based on the news and technical data above, identify 3-4 investment themes you want to pursue.\n"
-                "These should reflect the current market environment, not predetermined ideas.\n"
-                "Add them via theme_updates with action \"ADD\"."
-            )
+        """One consolidated block covering everything Claude needs to know
+        about themes — the conviction scale, how to add/adjust, when themes
+        are auto-removed, the cap, and the JSON shape. The numbered tasks
+        list and the JSON schema reference this block instead of duplicating
+        its rules.
+
+        The discovery framing fires when no themes exist yet (state-based,
+        not counter-based — `review_number` doesn't survive process restarts
+        and would otherwise mislead Claude into "discovery mode" on every
+        Railway deploy).
+        """
+        max_themes = self._tm._max_themes
         num_themes = len(self._tm.get_all_themes())
-        at_cap = num_themes >= self._tm._max_themes
-        cap_warning = ""
-        if at_cap:
-            cap_warning = (
-                f"\nWARNING: You are at the theme cap ({num_themes}/{self._tm._max_themes}). "
-                f"To add a new theme, you MUST first decrement a weaker theme to remove it. "
-                f"Look for themes that are no longer supported by recent evidence, have no "
-                f"positions tied to them, or scored 1-2 with no recent reinforcement. "
-                f"Stale themes waste capacity — be ruthless about pruning."
+
+        # Cold-start path: no themes exist, so discovery framing is the
+        # priority. Mechanics still appear so Claude knows how to write the
+        # JSON.
+        if num_themes == 0:
+            return (
+                "THEME MANAGEMENT:\n"
+                "No themes are currently active. Identify 3-4 investment themes from "
+                "the news + technical data above. These should reflect the current "
+                "market environment, not predetermined ideas. Add each via "
+                "`theme_updates` with action \"ADD\".\n"
+                "\n"
+                "Theme mechanics (apply on every review):\n"
+                "- Themes are scored 1-5. The score represents your level of conviction; "
+                "higher = stronger. New themes start at 1 and must prove themselves.\n"
+                "- Strengthening evidence (news/earnings/policy) → propose +1.\n"
+                "- Weakening or invalidating evidence → propose -1.\n"
+                "- Max ±1 per review, and only when there's clear evidence — don't drift "
+                "scores on noise.\n"
+                "- A theme that drops below 1 is auto-removed; you don't need to remove "
+                "it explicitly.\n"
+                f"- Cap: {max_themes} active themes.\n"
+                "- Themes are informational — they guide your thinking but don't dictate "
+                "allocations.\n"
+                "\n"
+                "JSON shape (in `theme_updates`):\n"
+                "  ADD:    {\"name\": \"...\", \"action\": \"ADD\", \"description\": \"...\", \"reason\": \"...\"}\n"
+                "  ADJUST: {\"name\": \"...\", \"delta\": +1 or -1, \"reason\": \"...\"}"
             )
+
+        at_cap = num_themes >= max_themes
+        cap_line = (
+            f"- Cap: {max_themes} active themes. "
+            + (
+                f"YOU ARE AT THE CAP ({num_themes}/{max_themes}). To add a new theme, "
+                "decrement a weaker one first (low score, no recent reinforcement, no "
+                "positions tied to it). Stale themes waste capacity — be ruthless."
+                if at_cap else
+                f"You currently have {num_themes}/{max_themes}."
+            )
+        )
         return (
-            f"THEMES (see Memory section above — scored 1-5, higher = stronger conviction):\n"
-            f"Themes are informational — they guide your thinking but don't dictate allocations.\n"
-            f"You can propose new themes or adjust scores. New themes start at score 1 and must prove themselves.\n"
-            f"If a theme is decremented below 1 it is auto-removed. Max {self._tm._max_themes} themes."
-            f"{cap_warning}"
+            "THEME MANAGEMENT (see Memory → Investment Themes for current scores):\n"
+            "Themes are scored 1-5. The score represents your level of conviction; "
+            "higher = stronger. New themes start at 1 and must prove themselves.\n"
+            "- Strengthening evidence (news/earnings/policy) → propose +1.\n"
+            "- Weakening or invalidating evidence → propose -1.\n"
+            "- Max ±1 per review, and only when there's clear evidence — don't drift "
+            "scores on noise.\n"
+            "- A theme that drops below 1 is auto-removed; you don't need to remove it "
+            "explicitly.\n"
+            f"{cap_line}\n"
+            "- Themes are informational — they guide your thinking but don't dictate "
+            "allocations.\n"
+            "\n"
+            "JSON shape (in `theme_updates`):\n"
+            "  ADD:    {\"name\": \"...\", \"action\": \"ADD\", \"description\": \"...\", \"reason\": \"...\"}\n"
+            "  ADJUST: {\"name\": \"...\", \"delta\": +1 or -1, \"reason\": \"...\"}"
         )
 
     @staticmethod
@@ -545,13 +608,18 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
 
     @staticmethod
     def _trade_discipline_text(trade_count: int) -> str:
-        """Generate anti-churning trade discipline section."""
+        """Generate anti-churning trade discipline section.
+
+        We deliberately avoid stating a numeric trades/year target — there's
+        no Druckenmiller-attested figure to anchor to, and a bogus number
+        risks anchoring Claude to it. The qualitative principle (real costs,
+        prefer holding/pyramiding, let winners run) is what we want surfaced.
+        """
         return (
-            f"TRADE DISCIPLINE:\n"
-            f"You have executed {trade_count} trades so far. Target: ~15-20 trades per year.\n"
-            f"Each trade has real costs (stop-loss risk, slippage, opportunity cost).\n"
-            f"Prefer HOLDING and PYRAMIDING existing positions over opening new ones.\n"
-            f"The best trade is often no trade — let your winners run."
+            "TRADE DISCIPLINE:\n"
+            "Each trade has real costs (stop-loss risk, slippage, opportunity cost).\n"
+            "Prefer HOLDING and PYRAMIDING existing positions over opening new ones.\n"
+            "The best trade is often no trade — let your winners run."
         )
 
     def _build_json_schema(self, review_type: str, review_number: int) -> str:
@@ -647,14 +715,8 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
   ],
   "lessons_to_prune": [3, 7],"""
 
-        # Theme discovery for first review
-        if review_number == 1:
-            # theme_updates already in base schema, no extra needed
-            pass
-
         base += """
   "structural_view_update": "ONLY if regime has changed — your updated 12-18 month directional view on where the world is heading. Leave EMPTY STRING if structural view is intact.",
-  "tactical_view_update": "Near-term catalyst assessment (next 3-6 months). What macro events, earnings, policy decisions matter NOW? Max 200 words. Updated every review.",
   "decision_reasoning": [
     {"ticker": "NVDA", "action": "BUY", "allocation_pct": 20, "reasoning": "AI capex confirmed by MSFT earnings, OBV rising, RSI pullback to 42 — entering core at size"},
     {"ticker": "NKE", "action": "SELL", "reasoning": "Tariff thesis broken — 25% of supply chain exposed to China tariffs, OBV falling"}
@@ -665,32 +727,33 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
 
     @staticmethod
     def _deployment_pacing_text(review_number: int, holdings_count: int) -> str:
-        """Generate deployment pacing guidance based on how many reviews have occurred."""
-        if review_number <= 1:
+        """Deployment pacing guidance based on how deployed the portfolio is.
+
+        Gated by `holdings_count` (state) rather than `review_number` (a
+        counter that resets on every restart). The pacing tone we want is
+        a function of how much capital is actually deployed, not how many
+        Call 3s have run since the bot booted. `review_number` is kept in
+        the signature for backward compatibility but is no longer read.
+        """
+        if holdings_count == 0:
             return (
-                "This is your FIRST review. If you have high conviction from the data,\n"
+                "You have NO open positions. If you have high conviction from the data,\n"
                 "go straight to core positions. You do NOT need to scout first.\n"
                 "If uncertain, open 1-2 scouts to test the regime. Deploy based on conviction, not protocol."
             )
-        elif review_number == 2:
+        if holdings_count <= 2:
             return (
-                "SECOND review. You should be deploying capital with conviction.\n"
-                "If existing positions are confirming, PYRAMID into them rather than opening new ones."
+                f"You have only {holdings_count} open position(s) — capital is underdeployed.\n"
+                "Deploy with conviction. If existing positions are confirming, PYRAMID into "
+                "them rather than opening new ones.\n"
+                "Cash above 40% is underperformance unless you're in a confirmed bear market. "
+                "Druckenmiller's edge came from sizing big, not from holding cash."
             )
-        else:
-            cash_warning = ""
-            if holdings_count <= 2:
-                cash_warning = (
-                    "\nWARNING: You only have {0} positions. Cash above 40% is underperformance "
-                    "unless you're in a confirmed bear market. If you see opportunities, DEPLOY. "
-                    "Druckenmiller's edge came from sizing big, not from holding cash."
-                ).format(holdings_count)
-            return (
-                "Deploy capital based on conviction. Your best idea deserves 20-40% of the portfolio.\n"
-                "Prefer PYRAMIDING into winning positions over opening new ones.\n"
-                "Sitting in cash during a bull market is the biggest risk — you miss the move."
-                + cash_warning
-            )
+        return (
+            "Deploy capital based on conviction. Your best idea deserves 20-40% of the portfolio.\n"
+            "Prefer PYRAMIDING into winning positions over opening new ones.\n"
+            "Sitting in cash during a bull market is the biggest risk — you miss the move."
+        )
 
     def _call_claude(self, prompt: str) -> dict | None:
         # Delegate to Anthropic SDK client if available (live mode)
@@ -789,11 +852,10 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
             self._tm.update_world_view(structural_view)
             logger.info("  Structural world view updated (regime change)")
 
-        # Update tactical view (every review)
-        tactical_view = response.get("tactical_view_update", "")
-        if tactical_view and tactical_view.strip():
-            self._tm.update_tactical_view(tactical_view)
-            logger.info("  Tactical view updated")
+        # Tactical view is now Call 1's running log (rolling 14 daily
+        # observations). Call 3 reads it but does not write — letting Call 3
+        # rewrite the file every review wiped the multi-day narrative arc
+        # we want preserved (e.g. how an Iran-war story evolves day to day).
 
         # Update decision journal
         decision_reasoning = response.get("decision_reasoning", [])
@@ -929,7 +991,6 @@ on the structural direction. If it's not, it doesn't belong in the portfolio."""
             "belief_updates": [],
             "lessons_to_prune": [],
             "structural_view_update": "",
-            "tactical_view_update": "",
             "decision_reasoning": [],
             "weekly_summary": "",
         }

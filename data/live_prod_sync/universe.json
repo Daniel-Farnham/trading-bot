@@ -1,0 +1,620 @@
+[
+  {
+    "ticker": "NVDA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "AVGO",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "AMD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "MSFT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "GOOGL",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "AMZN",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "META",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CRM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "PLTR",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CRWD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SMCI",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ARM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "TSM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "MU",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SNOW",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "LLY",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NVO",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "UNH",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "JNJ",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ABBV",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ISRG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DXCM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "TMO",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "VRTX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "REGN",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "XOM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CVX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ENPH",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "FSLR",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NEE",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "VST",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CEG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "LNG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "OXY",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "VRT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "EQIX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DLR",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "PWR",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "EME",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ETN",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "JPM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "GS",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "V",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "MA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "BLK",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SQ",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "COIN",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SOFI",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SCHW",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "COST",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "WMT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "TGT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NKE",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SBUX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CMG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "HD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NTRA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "INSM",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "TEVA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "GILD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "MRNA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "WDC",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "STX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "GE",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "RTX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "LMT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CAT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "T",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "VZ",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "BA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NFLX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DIS",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CMCSA",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "AMT",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "PLD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SO",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "PG",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "CVS",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "MCD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DE",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "HOOD",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "DOCU",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ROKU",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "F",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "FCX",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "NUE",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "INTC",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "PYPL",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "UBER",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "SHOP",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "ABNB",
+    "added_date": "2026-04-05",
+    "source": "config",
+    "reason": "seeded from config"
+  },
+  {
+    "ticker": "LHX",
+    "added_date": "2026-04-05",
+    "source": "call1",
+    "reason": "L3Harris - 190% revenue growth leading defense contractor expansion, $66B cap, P/E 42 vs peers, government AI/defense convergence"
+  },
+  {
+    "ticker": "RKLB",
+    "added_date": "2026-04-05",
+    "source": "call1",
+    "reason": "Rocket Lab - 35.7% growth space defense play, retail buzz ahead of SpaceX IPO, small $38B cap with massive TAM expansion"
+  },
+  {
+    "ticker": "HII",
+    "added_date": "2026-04-06",
+    "source": "call1",
+    "reason": "Huntington Ingalls naval defense contractor, 15.7% revenue growth, 28.1% earnings growth, forward P/E 19.5, pure play on naval expansion amid Iran tensions"
+  },
+  {
+    "ticker": "NOC",
+    "added_date": "2026-04-06",
+    "source": "call1",
+    "reason": "Northrop Grumman showing 9.6% revenue growth with attractive 24.2 P/E, defense supercycle beneficiary with space/satellite exposure"
+  },
+  {
+    "ticker": "MRVL",
+    "added_date": "2026-04-07",
+    "source": "call1",
+    "reason": "Marvell Technology in data center infrastructure screening with 22.1% revenue growth, $95B market cap, strong positioning in AI networking chips"
+  },
+  {
+    "ticker": "AAOI",
+    "added_date": "2026-04-13",
+    "source": "call1",
+    "reason": "AI data center optoelectronics leader, 33.9% revenue growth, 356% 3-month return, aligns with Edge AI Infrastructure theme - this is the type of explosive growth we seek"
+  },
+  {
+    "ticker": "PANW",
+    "added_date": "2026-04-13",
+    "source": "call1",
+    "reason": "AI security catalyst with Anthropic partnership, 61% earnings growth, 15% revenue growth, enterprise AI protection aligns with macro themes"
+  },
+  {
+    "ticker": "RBRK",
+    "added_date": "2026-04-14",
+    "source": "call1",
+    "reason": "Rubrik benefits from Anthropic Mythos cybersecurity surge, 46% revenue growth, positive free cash flow, ARK Invest specifically highlights as Mythos beneficiary"
+  },
+  {
+    "ticker": "SNDK",
+    "added_date": "2026-04-15",
+    "source": "call1",
+    "reason": "Pure-play memory storage with 61.2% revenue growth, 618% earnings growth, positioned for Nasdaq-100 inclusion with $1,250 analyst targets"
+  },
+  {
+    "ticker": "AEHR",
+    "added_date": "2026-04-21",
+    "source": "call1",
+    "reason": "Semiconductor test equipment leader, $41M hyperscale AI order for custom processor testing, 213% 3-month return, serves AI chip validation bottleneck"
+  },
+  {
+    "ticker": "FCEL",
+    "added_date": "2026-04-23",
+    "source": "call1",
+    "reason": "60% revenue growth YoY, data center power leader, aligns with Edge AI Infrastructure theme, massive momentum"
+  }
+]
