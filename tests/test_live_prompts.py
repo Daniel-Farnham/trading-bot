@@ -337,6 +337,37 @@ class TestBuildCall3PromptWithSnapshot:
         assert result.index("CURRENT PORTFOLIO STATE") < result.index("PORTFOLIO STATE:")
         assert result.index("TODAY'S DISCOVERY") < result.index("PORTFOLIO STATE:")
 
+    def test_holdings_count_and_invested_value_forwarded(self):
+        """Live callers pass Alpaca-derived stats; engine should receive them."""
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+
+        build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+            holdings_count=10, invested_value=85000.0,
+        )
+
+        kwargs = engine._build_prompt.call_args.kwargs
+        assert kwargs["holdings_count"] == 10
+        assert kwargs["invested_value"] == 85000.0
+
+    def test_holdings_stats_default_none_when_omitted(self):
+        """Sim callers omit these; engine falls back to memory ledger internally."""
+        engine = MagicMock()
+        engine._build_prompt.return_value = "PORTFOLIO STATE:\nbase"
+
+        build_call3_prompt(
+            decision_engine=engine, sim_date="2026-04-22",
+            memory_context="", world_state="", technicals_summary="",
+            fundamentals_summary="", portfolio_value=100000, cash=30000,
+        )
+
+        kwargs = engine._build_prompt.call_args.kwargs
+        assert kwargs["holdings_count"] is None
+        assert kwargs["invested_value"] is None
+
 
 class TestFormatCall1ForCall3:
     def test_formats_macro_assessment(self):

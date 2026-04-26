@@ -106,11 +106,8 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.warning("Failed to fetch Alpaca positions for Call 1: %s", e)
 
-            holdings = self._tm.get_holdings()
-            holdings_tickers = [h["ticker"] for h in holdings]
-            # Also include tickers from Alpaca in case memory is stale
-            alpaca_tickers = [p["ticker"] for p in alpaca_positions]
-            holdings_tickers = list(set(holdings_tickers + alpaca_tickers))
+            # Alpaca is the source of truth for current positions.
+            holdings_tickers = [p["ticker"] for p in alpaca_positions]
 
             themes_md = self._format_themes()
             world_view_md = self._tm.get_world_view()
@@ -278,8 +275,13 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.error("Reconciliation failed: %s", e)
 
-            holdings = self._tm.get_holdings()
-            holdings_tickers = [h["ticker"] for h in holdings]
+            # Alpaca is the source of truth for current positions.
+            try:
+                positions = self._market.get_positions()
+                holdings_tickers = [p["ticker"] for p in positions]
+            except Exception as e:
+                logger.warning("Failed to fetch Alpaca positions for trigger check: %s", e)
+                holdings_tickers = []
 
             account = self._market.get_account()
             portfolio_value = account.get("portfolio_value", 0)
@@ -355,8 +357,12 @@ class LiveOrchestrator:
             except Exception as e:
                 logger.warning("Failed to fetch pending orders: %s", e)
 
-            # Memory context
-            memory_context = self._tm.get_decision_context()
+            # Memory context — narrative only (themes, theses, journal,
+            # lessons, beliefs, world view, tactical view). Position numbers
+            # come from the Alpaca snapshot via format_portfolio_block, so
+            # we exclude the ledger section here to avoid duplicating (or
+            # contradicting) the live numbers.
+            memory_context = self._tm.get_decision_context(include_ledger=False)
 
             # Append pending orders to memory context so Claude knows what's already queued
             if pending_orders:
@@ -369,26 +375,41 @@ class LiveOrchestrator:
             call1_output = self._state.call1_output
 
             # Pre-flight refresh: pull every ticker Claude could reason about
-            # (holdings + universe + Call 1 candidates) so technicals,
+            # (Alpaca holdings + universe + Call 1 candidates) so technicals,
             # fundamentals, prices, and news are all current at decision time.
             candidate_tickers = self._collect_candidate_tickers(call1_output)
-            holdings_tickers = {h["ticker"] for h in self._tm.get_holdings()}
+            live_holdings_tickers = {p.ticker for p in snapshot.positions if p.ticker}
 
             technicals_summary = self._build_technicals_summary(
                 extra_tickers=candidate_tickers,
+                live_holdings_tickers=live_holdings_tickers,
             )
             fundamentals_summary = self._build_fundamentals_summary(
                 extra_tickers=candidate_tickers,
+                live_holdings_tickers=live_holdings_tickers,
             )
             candidate_prices = self._build_candidate_prices(candidate_tickers)
             fresh_news = self._build_fresh_news(
-                tickers=candidate_tickers | holdings_tickers,
+                tickers=candidate_tickers | live_holdings_tickers,
             )
             options_context = self._build_options_context(portfolio_value)
 
             # Performance vs SPY
             bot_return_pct = self._compute_bot_return(portfolio_value)
             spy_return_pct = self._compute_spy_return()
+
+            # Position stats from Alpaca (not memory) for the engine's
+            # PORTFOLIO STATE block.
+            invested_value = sum(p.market_value for p in snapshot.positions)
+
+            # Live universe — dynamic, maintained by Call 1 in
+            # data/live/universe.json. Flat list (no theme grouping —
+            # themes live separately in themes.md).
+            live_universe = self._universe.get_tickers()
+            if live_universe:
+                universe_text = ", ".join(sorted(live_universe))
+            else:
+                universe_text = "(Universe is empty — Call 1 hasn't seeded it yet)"
 
             self._review_count += 1
 
@@ -412,6 +433,10 @@ class LiveOrchestrator:
                 candidate_prices=candidate_prices,
                 fresh_news=fresh_news,
                 portfolio_snapshot=snapshot,
+                holdings_count=snapshot.account.position_count,
+                invested_value=invested_value,
+                universe_text=universe_text,
+                max_positions=risk._max_positions,
             )
 
             # Persist the full prompt to disk for audit. Lets us verify what
@@ -569,12 +594,13 @@ class LiveOrchestrator:
                     "unrealized_plpc": p.get("unrealized_pnl_pct", 0),
                 })
 
-            # Sync ledger with closing prices so memory is fresh for next day
+            # Run reconciliation — confirms pending fills and surfaces
+            # any drift between Alpaca positions and active theses.
             try:
                 self._reconciler.reconcile()
-                logger.info("EOD ledger synced with Alpaca closing prices.")
+                logger.info("EOD reconciliation complete.")
             except Exception as e:
-                logger.error("EOD ledger sync failed: %s", e)
+                logger.error("EOD reconciliation failed: %s", e)
 
             memory_dir = str(self._tm._paths.get("theses", Path("data/live")).parent)
             self._notifier.send_eod_portfolio(account, formatted_positions, memory_dir)
@@ -587,7 +613,12 @@ class LiveOrchestrator:
         """Sync Alpaca positions with thesis memory on startup."""
         logger.info("=== Reconcile on startup ===")
         try:
-            # Run full reconciliation (pending orders + ledger sync)
+            # One-time cleanup: remove the orphaned portfolio_ledger.md.
+            # Live no longer maintains it (Alpaca is the source of truth);
+            # leaving it on disk would just confuse future readers.
+            self._cleanup_orphan_ledger()
+
+            # Run full reconciliation (pending orders + state drift detection)
             summary = self._reconciler.reconcile()
             logger.info("Startup reconciliation: %s", summary)
 
@@ -597,6 +628,23 @@ class LiveOrchestrator:
 
         except Exception as e:
             logger.error("Reconcile failed: %s", e)
+
+    def _cleanup_orphan_ledger(self) -> None:
+        """Delete portfolio_ledger.md if it still exists from before the refactor."""
+        ledger_path = self._tm._paths.get("ledger") if hasattr(self._tm, "_paths") else None
+        if not ledger_path:
+            return
+        path = Path(ledger_path)
+        if path.exists():
+            try:
+                path.unlink()
+                logger.info(
+                    "Removed orphaned portfolio_ledger.md (%s) — Alpaca is now "
+                    "the sole source of truth for live position numbers",
+                    path,
+                )
+            except OSError as e:
+                logger.warning("Failed to remove orphaned ledger %s: %s", path, e)
 
     def initialize_first_boot(self) -> None:
         """Cold start: quarterly-synthesis of 12 months of news → world view + 3 themes + watchlist."""
@@ -963,12 +1011,19 @@ Respond with ONLY valid JSON:
         except Exception as e:
             logger.warning("Failed to save Call 3 prompt: %s", e)
 
-    def _build_technicals_summary(self, extra_tickers: set[str] | None = None) -> str:
-        """Build technicals for holdings + universe + extras from live Alpaca bars."""
-        holdings = self._tm.get_holdings()
-        holdings_tickers = [h["ticker"] for h in holdings]
-        universe_tickers = self._universe.get_tickers()
-        all_tickers = set(holdings_tickers) | set(universe_tickers)
+    def _build_technicals_summary(
+        self,
+        extra_tickers: set[str] | None = None,
+        live_holdings_tickers: set[str] | None = None,
+    ) -> str:
+        """Build technicals for holdings + universe + extras from live Alpaca bars.
+
+        Holdings come from `live_holdings_tickers` (the live Alpaca snapshot).
+        Tickers in that set are flagged [HELD] in the output.
+        """
+        held_tickers = {t.upper() for t in (live_holdings_tickers or set()) if t}
+        universe_tickers = set(self._universe.get_tickers())
+        all_tickers = held_tickers | universe_tickers
         if extra_tickers:
             all_tickers |= {t.upper() for t in extra_tickers if t}
 
@@ -982,7 +1037,7 @@ Respond with ONLY valid JSON:
                 if bars.empty or len(bars) < 20:
                     continue
                 snap = self._technicals.analyze(ticker, bars)
-                line = self._format_snapshot(snap, ticker in holdings_tickers)
+                line = self._format_snapshot(snap, ticker in held_tickers)
                 if line:
                     lines.append(line)
             except Exception as e:
@@ -995,12 +1050,18 @@ Respond with ONLY valid JSON:
 
         return "\n".join(lines) if lines else "(No technical data available)"
 
-    def _build_fundamentals_summary(self, extra_tickers: set[str] | None = None) -> str:
-        """Build fundamentals for holdings + universe + extras."""
-        holdings = self._tm.get_holdings()
-        holdings_tickers = [h["ticker"] for h in holdings]
-        universe_tickers = self._universe.get_tickers()
-        all_tickers_set = set(holdings_tickers) | set(universe_tickers)
+    def _build_fundamentals_summary(
+        self,
+        extra_tickers: set[str] | None = None,
+        live_holdings_tickers: set[str] | None = None,
+    ) -> str:
+        """Build fundamentals for holdings + universe + extras.
+
+        Holdings come from `live_holdings_tickers` (the live Alpaca snapshot).
+        """
+        held_tickers = {t.upper() for t in (live_holdings_tickers or set()) if t}
+        universe_tickers = set(self._universe.get_tickers())
+        all_tickers_set = held_tickers | universe_tickers
         if extra_tickers:
             all_tickers_set |= {t.upper() for t in extra_tickers if t}
         all_tickers = list(all_tickers_set)

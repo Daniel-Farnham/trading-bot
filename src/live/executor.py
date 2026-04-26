@@ -94,7 +94,9 @@ class LiveExecutor:
             result = self._broker.close_position(ticker)
             if result.success:
                 reason = close.get("reason", "thesis invalidated")
-                self._tm.remove_position(ticker)
+                # Note: no ledger remove — live no longer writes the position
+                # ledger; Alpaca is the source of truth and the close above
+                # will reflect there. We only update the narrative below.
                 reentry_price = close.get("reentry_price")
                 if reentry_price == 0:
                     reentry_price = None

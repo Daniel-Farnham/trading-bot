@@ -76,7 +76,8 @@ class TestClosePositions:
         trades = executor.execute_decisions(response, 100000, 30000, SAMPLE_POSITIONS)
 
         broker.close_position.assert_called_once_with("NKE")
-        thesis_manager.remove_position.assert_called_once_with("NKE")
+        # Live executor no longer writes the position ledger; only narrative.
+        thesis_manager.remove_position.assert_not_called()
         thesis_manager.move_to_watching.assert_called_once()
         assert len(trades) == 1
         assert trades[0]["ticker"] == "NKE"

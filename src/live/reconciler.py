@@ -51,6 +51,7 @@ class ReconcileManager:
         # Step 1: Check pending orders
         self._reconcile_pending_orders(summary)
 
+
         # Step 2: Sync ledger from Alpaca
         self._sync_ledger_from_alpaca(summary)
 
@@ -284,7 +285,8 @@ class ReconcileManager:
             # Clean up thesis if no position exists in Alpaca
             alpaca_pos = self._market.get_position(order.ticker)
             if not alpaca_pos:
-                self._tm.remove_position(order.ticker)
+                # Live no longer writes the position ledger — Alpaca is the
+                # source of truth. We only adjust the narrative.
                 self._tm.move_to_watching(
                     order.ticker, exit_price=0,
                     reason=f"Order failed after {order.retry_count} retries — never filled",
@@ -330,51 +332,37 @@ class ReconcileManager:
             self._pending.update_status(order.order_id, "retry_failed")
 
     def _sync_ledger_from_alpaca(self, summary: dict) -> None:
-        """Rebuild portfolio_ledger.md from Alpaca positions (source of truth)."""
+        """Detect drift between Alpaca positions and active theses.
+
+        After the ledger refactor, Alpaca is the sole source of truth for
+        position numbers in live — this method no longer writes the
+        portfolio_ledger.md file. It still surfaces useful drift signals:
+          - positions_added: ticker exists in Alpaca but no thesis exists yet
+            (e.g., manual trade, or a fill that landed before its thesis was
+            written)
+          - positions_removed: thesis exists for a ticker we no longer hold
+            (orphan thesis — should be moved to watching or cleared)
+        Pending orders are excluded from "removed" since they're still
+        on the way to becoming positions.
+        """
         try:
             positions = self._market.get_positions()
         except Exception as e:
-            logger.error("Failed to fetch Alpaca positions for ledger sync: %s", e)
+            logger.error("Failed to fetch Alpaca positions for state sync: %s", e)
             return
 
         alpaca_tickers = {p["ticker"] for p in positions}
-        memory_holdings = self._tm.get_holdings()
-        memory_tickers = {h["ticker"] for h in memory_holdings}
+        thesis_tickers = {t["ticker"] for t in self._tm.get_all_theses()}
 
-        # Build updated holdings from Alpaca data, preserving date_opened from memory
-        memory_dates = {h["ticker"]: h.get("date_opened", date.today().isoformat()) for h in memory_holdings}
-
-        updated_holdings = []
-        for p in positions:
-            ticker = p["ticker"]
-            qty = p["qty"]
-            entry_price = p["avg_entry"]
-            current_price = p["current_price"]
-            market_value = p["market_value"]
-
-            updated_holdings.append({
-                "ticker": ticker,
-                "side": "SHORT" if qty < 0 else "LONG",
-                "qty": abs(qty),
-                "entry_price": entry_price,
-                "current_value": market_value,
-                "current_price": current_price,
-                "date_opened": memory_dates.get(ticker, date.today().isoformat()),
-            })
-
-        # Log differences
-        added = alpaca_tickers - memory_tickers
-        # Don't count tickers with pending orders as "removed" — they're still being filled
+        added = alpaca_tickers - thesis_tickers
         pending_tickers = {o.ticker for o in self._pending.get_all()}
-        removed = memory_tickers - alpaca_tickers - pending_tickers
+        removed = thesis_tickers - alpaca_tickers - pending_tickers
 
         for ticker in added:
-            logger.info("LEDGER SYNC: Added %s (in Alpaca, was missing from memory)", ticker)
+            logger.info("STATE SYNC: %s held in Alpaca but no active thesis exists", ticker)
             summary["positions_added"].append(ticker)
         for ticker in removed:
-            logger.info("LEDGER SYNC: Removed %s (not in Alpaca, was stale in memory)", ticker)
+            logger.info("STATE SYNC: %s has an active thesis but is not held in Alpaca", ticker)
             summary["positions_removed"].append(ticker)
 
-        # Rebuild ledger
-        self._tm._rebuild_ledger(updated_holdings)
         summary["ledger_synced"] = True

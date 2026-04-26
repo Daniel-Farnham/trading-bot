@@ -1070,10 +1070,18 @@ class ThesisManager:
     # Decision Context (main interface for the decision engine)
     # ------------------------------------------------------------------
 
-    def get_decision_context(self) -> str:
+    def get_decision_context(self, include_ledger: bool = True) -> str:
         """Return all in-sim memory files formatted for Claude's prompt.
 
         Excludes simulation_log — that's for post-hoc analysis only.
+
+        Args:
+            include_ledger: When True (sim default), embeds the portfolio
+                ledger position table in the output — sim has no broker so
+                the ledger IS the source of truth. When False (live), omits
+                the ledger section because Alpaca is the source of truth and
+                live positions are surfaced separately via the Call 3
+                portfolio block (src/live/prompts.py:format_portfolio_block).
         """
         sections = []
 
@@ -1106,12 +1114,16 @@ class ThesisManager:
         else:
             sections.append("### Active Theses\n(No active theses)")
 
-        # Portfolio ledger
-        ledger_content = self._read("ledger")
-        if ledger_content.strip():
-            sections.append(f"### Portfolio Ledger\n{ledger_content.strip()}")
-        else:
-            sections.append("### Portfolio Ledger\n(No current holdings)")
+        # Portfolio ledger — sim only. Live derives positions from Alpaca
+        # and surfaces them via the Call 3 portfolio block; embedding the
+        # markdown ledger here would just duplicate (and risk drifting from)
+        # the live numbers.
+        if include_ledger:
+            ledger_content = self._read("ledger")
+            if ledger_content.strip():
+                sections.append(f"### Portfolio Ledger\n{ledger_content.strip()}")
+            else:
+                sections.append("### Portfolio Ledger\n(No current holdings)")
 
         # Decision Journal (recent decisions with reasoning)
         journal_entries = self.get_journal_entries()

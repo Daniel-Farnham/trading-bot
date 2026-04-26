@@ -437,6 +437,30 @@ class TestDecisionContext:
         lesson_pos = ctx.index("Lessons Learned")
         assert belief_pos < lesson_pos
 
+    def test_include_ledger_false_omits_ledger_section(self, manager):
+        """Live path: ledger section should be excluded; Alpaca surfaces positions."""
+        manager.add_thesis(
+            ticker="NVDA", direction="LONG", thesis="AI demand",
+            entry_price=800.0, target_price=1000.0, stop_price=700.0,
+        )
+        manager.update_position("NVDA", "LONG", 10, 800.0, 8500.0, "2024-01-15")
+
+        ctx_live = manager.get_decision_context(include_ledger=False)
+        # Narrative still present
+        assert "AI demand" in ctx_live
+        assert "Active Theses" in ctx_live
+        # Ledger section header explicitly absent
+        assert "Portfolio Ledger" not in ctx_live
+        # And the ledger table format markers shouldn't leak in
+        assert "Date Opened" not in ctx_live
+
+    def test_include_ledger_true_keeps_ledger_section(self, manager):
+        """Sim path (default): ledger remains for backward compatibility."""
+        manager.update_position("NVDA", "LONG", 10, 800.0, 8500.0, "2024-01-15")
+        ctx_sim = manager.get_decision_context(include_ledger=True)
+        assert "Portfolio Ledger" in ctx_sim
+        assert "NVDA" in ctx_sim
+
 
 class TestThemes:
     def test_empty(self, manager):

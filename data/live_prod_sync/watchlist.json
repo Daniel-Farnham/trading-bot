@@ -1,0 +1,122 @@
+[
+  {
+    "ticker": "VRT",
+    "added_date": "2026-04-05",
+    "source": "call1_discovery",
+    "reason": "Vertiv - data center cooling infrastructure, 22.7% growth, up 61% in 3M, critical AI infrastructure component"
+  },
+  {
+    "ticker": "TSLA",
+    "added_date": "2026-04-06",
+    "source": "call1",
+    "reason": "Eric Jackson says signal that preceded Tesla's biggest 190%+ runs has fired again - potential major breakout setup amid EV momentum"
+  },
+  {
+    "ticker": "HII",
+    "added_date": "2026-04-06",
+    "source": "call1_discovery",
+    "reason": "Huntington Ingalls naval defense contractor, 15.7% revenue growth, 28.1% earnings growth, forward P/E 19.5, pure play on naval expansion amid Iran tensions"
+  },
+  {
+    "ticker": "NOC",
+    "added_date": "2026-04-06",
+    "source": "call1_discovery",
+    "reason": "Northrop Grumman showing 9.6% revenue growth with attractive 24.2 P/E, defense supercycle beneficiary with space/satellite exposure"
+  },
+  {
+    "ticker": "AVGO",
+    "added_date": "2026-04-07",
+    "source": "call1",
+    "reason": "Major Google TPU deal through 2031 validates AI infrastructure thesis, stock down 24% from highs despite 29.5% revenue growth and strong fundamentals"
+  },
+  {
+    "ticker": "AAOI",
+    "added_date": "2026-04-07",
+    "source": "call1",
+    "reason": "Applied Optoelectronics surged 7%+ on technical signal, showing 171% 3-month returns and 33.9% revenue growth in optical networking for data centers"
+  },
+  {
+    "ticker": "MRVL",
+    "added_date": "2026-04-07",
+    "source": "call1_discovery",
+    "reason": "Marvell Technology in data center infrastructure screening with 22.1% revenue growth, $95B market cap, strong positioning in AI networking chips"
+  },
+  {
+    "ticker": "INTC",
+    "added_date": "2026-04-08",
+    "source": "call1",
+    "reason": "Musk Terafab partnership for 1 terawatt AI compute transforms foundry prospects; 28.5% weekly gain suggests market recognizing government AI infrastructure opportunity despite negative margins"
+  },
+  {
+    "ticker": "AEHR",
+    "added_date": "2026-04-09",
+    "source": "call1",
+    "reason": "Semiconductor test equipment company up 70% weekly on earnings beat, $60M ATM offering suggests growth capital needs, aligns with AI infrastructure buildout"
+  },
+  {
+    "ticker": "NUAI",
+    "added_date": "2026-04-09",
+    "source": "call1",
+    "reason": "$290M Macquarie loan for Texas data center project shows institutional backing for AI infrastructure, though fundamentals remain speculative"
+  },
+  {
+    "ticker": "PLTR",
+    "added_date": "2026-04-13",
+    "source": "call1",
+    "reason": "Down 35.6% from highs but analyst sees 70% upside, 70% revenue growth, 36% margins, matches our Govt-AI theme perfectly"
+  },
+  {
+    "ticker": "PANW",
+    "added_date": "2026-04-13",
+    "source": "call1",
+    "reason": "Anthropic partnership for AI security, 15% revenue growth, trading 17% below 52-week high - enterprise AI security leader"
+  },
+  {
+    "ticker": "ORCL",
+    "added_date": "2026-04-14",
+    "source": "call1",
+    "reason": "Surges 8% on expanded AI infrastructure buildout, drives entire software sector recovery, validates government-backed enterprise AI spending thesis"
+  },
+  {
+    "ticker": "BE",
+    "added_date": "2026-04-14",
+    "source": "call1",
+    "reason": "Oracle partnership for 2.8GW fuel cells shows distributed AI power infrastructure demand beyond traditional data centers; 36% revenue growth, near 52-week highs"
+  },
+  {
+    "ticker": "RBRK",
+    "added_date": "2026-04-14",
+    "source": "call1_discovery",
+    "reason": "Rubrik benefits from Anthropic Mythos cybersecurity surge, 46% revenue growth, positive free cash flow, ARK Invest specifically highlights as Mythos beneficiary"
+  },
+  {
+    "ticker": "WDC",
+    "added_date": "2026-04-15",
+    "source": "call1",
+    "reason": "Memory rally leader with 72.6% 3-month returns, 25.2% revenue growth, $366 near 52-week high, benefiting from AI storage infrastructure bottlenecks"
+  },
+  {
+    "ticker": "SNDK",
+    "added_date": "2026-04-15",
+    "source": "call1",
+    "reason": "Memory storage pure-play with 142.6% 3-month surge, 61.2% revenue growth, analysts raising targets to $1,250 ahead of Nasdaq-100 inclusion"
+  },
+  {
+    "ticker": "AMZN",
+    "added_date": "2026-04-21",
+    "source": "call1",
+    "reason": "$5B Anthropic investment with $100B AWS commitment creates structural moat in government AI spending, reinforces cloud dominance"
+  },
+  {
+    "ticker": "RVMD",
+    "added_date": "2026-04-22",
+    "source": "call1",
+    "reason": "Revolution Medicines up 55% last month on KRAS inhibitor 52% response rate at AACR, multiple Phase 3 readouts coming, price targets raised to $215"
+  },
+  {
+    "ticker": "FCEL",
+    "added_date": "2026-04-23",
+    "source": "call1",
+    "reason": "Explosive 60% revenue growth, 56% weekly gain, riding data center power wave - potential breakout like PLTR 2024"
+  }
+]

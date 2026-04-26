@@ -166,6 +166,10 @@ def build_call3_prompt(
     candidate_prices: str = "",
     fresh_news: str = "",
     portfolio_snapshot: "PortfolioSnapshot | None" = None,
+    holdings_count: int | None = None,
+    invested_value: float | None = None,
+    universe_text: str | None = None,
+    max_positions: int | None = None,
 ) -> str:
     """Build the Call 3 decision prompt.
 
@@ -185,7 +189,11 @@ def build_call3_prompt(
             (positions table, cash math, max-position rules).
         All other args: passed through to _build_prompt().
     """
-    # Build the core prompt using the proven sim prompt builder
+    # Build the core prompt using the proven sim prompt builder.
+    # holdings_count + invested_value are forwarded so the engine's
+    # PORTFOLIO STATE block uses Alpaca-derived numbers (live) instead of
+    # the in-memory ledger; sim callers omit them and the engine falls back
+    # to its sim-driven ledger.
     base_prompt = decision_engine._build_prompt(
         sim_date=sim_date,
         memory_context=memory_context,
@@ -200,6 +208,10 @@ def build_call3_prompt(
         review_type=review_type,
         trade_count=trade_count,
         options_context=options_context,
+        holdings_count=holdings_count,
+        invested_value=invested_value,
+        universe_text=universe_text,
+        max_positions=max_positions,
     )
 
     # Assemble pre-flight blocks: live portfolio (authoritative) →
