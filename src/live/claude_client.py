@@ -103,7 +103,7 @@ class ClaudeClient:
         total_output_tokens = 0
 
         try:
-            response = self._client.messages.create(**kwargs)
+            response = self._send_request(kwargs)
             total_input_tokens += response.usage.input_tokens
             total_output_tokens += response.usage.output_tokens
 
@@ -118,7 +118,7 @@ class ClaudeClient:
                     kwargs["messages"] = messages
                     tool_call_count += 1
 
-                    response = self._client.messages.create(**kwargs)
+                    response = self._send_request(kwargs)
                     total_input_tokens += response.usage.input_tokens
                     total_output_tokens += response.usage.output_tokens
 
@@ -132,7 +132,18 @@ class ClaudeClient:
                     raw += block.text
 
             if not raw:
-                logger.error("Claude returned no text content")
+                block_types = [getattr(b, "type", "?") for b in response.content]
+                # Surface the actual reason: max_tokens (likely with adaptive
+                # thinking eating the entire budget), refusal, or
+                # model_context_window_exceeded all land here.
+                logger.error(
+                    "Claude returned no text content. stop_reason=%s, "
+                    "blocks=%s, usage(in/out)=%d/%d. If stop_reason is "
+                    "max_tokens with all-thinking blocks, raise max_tokens; "
+                    "if refusal, the prompt was rejected.",
+                    response.stop_reason, block_types,
+                    total_input_tokens, total_output_tokens,
+                )
                 return None
 
             # Log spend
@@ -222,6 +233,30 @@ class ClaudeClient:
             except json.JSONDecodeError:
                 continue
         return total
+
+    # Streaming threshold — Anthropic's SDK refuses non-streaming requests
+    # above ~16K max_tokens to avoid HTTP timeouts. Use a margin under that.
+    _STREAM_TOKEN_THRESHOLD = 8000
+
+    def _send_request(self, kwargs: dict):
+        """Send the request, auto-streaming for thinking / large-output calls.
+
+        Streaming kicks in when:
+          - thinking is set (adaptive-thinking responses are inherently long)
+          - max_tokens > 8000 (avoids HTTP-timeout / refused-by-SDK errors)
+
+        Either way, returns a complete Message — `.usage`, `.content`, and
+        `.stop_reason` all populated. Callers don't need to care which path
+        was taken.
+        """
+        needs_stream = (
+            kwargs.get("max_tokens", 0) > self._STREAM_TOKEN_THRESHOLD
+            or bool(kwargs.get("thinking"))
+        )
+        if not needs_stream:
+            return self._client.messages.create(**kwargs)
+        with self._client.messages.stream(**kwargs) as stream:
+            return stream.get_final_message()
 
     def _process_tool_calls(self, response, tool_executor=None) -> list[dict]:
         """Extract tool use blocks and execute them."""

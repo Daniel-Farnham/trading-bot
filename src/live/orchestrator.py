@@ -451,13 +451,16 @@ class LiveOrchestrator:
             # Call 3 is reasoning-heavy: portfolio analysis, thesis synthesis,
             # multi-step decision-making. Adaptive thinking lets Claude decide
             # depth per request; high effort matches the autonomous-decision
-            # workload (per the model migration guide). max_tokens widened so
-            # thinking tokens have headroom before the JSON response.
+            # workload (per the model migration guide). max_tokens is set to
+            # Sonnet 4.6's ceiling (64K) so adaptive thinking has plenty of
+            # room before the JSON response — earlier 12K runs hit "max_tokens"
+            # mid-thought and returned no text. Streaming kicks in
+            # automatically (see ClaudeClient._send_request).
             result = self._claude.call(
                 prompt, model="sonnet",
                 thinking="adaptive",
                 effort="high",
-                max_tokens=12000,
+                max_tokens=64000,
             )
             update_status("last_call3", datetime.now().isoformat())
 

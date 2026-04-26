@@ -107,10 +107,16 @@ class TestCall:
         assert kwargs[1]["tools"] == tools
 
     def test_adaptive_thinking_forwarded(self, client):
-        """thinking='adaptive' should send {type: adaptive} on the request."""
-        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        """thinking='adaptive' should send {type: adaptive} on the request.
+        With thinking set, the request streams (not messages.create)."""
+        stream_ctx = MagicMock()
+        stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+        stream_ctx.__exit__ = MagicMock(return_value=False)
+        stream_ctx.get_final_message.return_value = _mock_response('{"ok": true}')
+        client._client.messages.stream.return_value = stream_ctx
+
         client.call("test", thinking="adaptive")
-        kwargs = client._client.messages.create.call_args[1]
+        kwargs = client._client.messages.stream.call_args[1]
         assert kwargs["thinking"] == {"type": "adaptive"}
 
     def test_no_thinking_by_default(self, client):
@@ -134,13 +140,45 @@ class TestCall:
         assert "output_config" not in kwargs
 
     def test_thinking_and_effort_combined(self, client):
-        """Call 3's actual config: adaptive thinking + high effort."""
-        client._client.messages.create.return_value = _mock_response('{"ok": true}')
-        client.call("test", thinking="adaptive", effort="high", max_tokens=12000)
-        kwargs = client._client.messages.create.call_args[1]
+        """Call 3's actual config: adaptive thinking + high effort.
+        With thinking set, the request must stream — verify the stream
+        path is exercised, not messages.create.
+        """
+        # Stream context manager → final message
+        stream_ctx = MagicMock()
+        stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+        stream_ctx.__exit__ = MagicMock(return_value=False)
+        stream_ctx.get_final_message.return_value = _mock_response('{"ok": true}')
+        client._client.messages.stream.return_value = stream_ctx
+
+        client.call("test", thinking="adaptive", effort="high", max_tokens=64000)
+
+        # Streaming path used; messages.create NOT called
+        client._client.messages.stream.assert_called_once()
+        client._client.messages.create.assert_not_called()
+        kwargs = client._client.messages.stream.call_args[1]
         assert kwargs["thinking"] == {"type": "adaptive"}
         assert kwargs["output_config"] == {"effort": "high"}
-        assert kwargs["max_tokens"] == 12000
+        assert kwargs["max_tokens"] == 64000
+
+    def test_streams_when_max_tokens_above_threshold(self, client):
+        """max_tokens > 8000 forces streaming even without thinking."""
+        stream_ctx = MagicMock()
+        stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+        stream_ctx.__exit__ = MagicMock(return_value=False)
+        stream_ctx.get_final_message.return_value = _mock_response('{"ok": true}')
+        client._client.messages.stream.return_value = stream_ctx
+
+        client.call("test", max_tokens=12000)
+        client._client.messages.stream.assert_called_once()
+        client._client.messages.create.assert_not_called()
+
+    def test_no_stream_for_default_small_call(self, client):
+        """Small non-thinking calls use the regular non-streaming path."""
+        client._client.messages.create.return_value = _mock_response('{"ok": true}')
+        client.call("test")  # default max_tokens=4096, no thinking
+        client._client.messages.create.assert_called_once()
+        client._client.messages.stream.assert_not_called()
 
     def test_model_alias_resolution(self, client):
         data = {"ok": True}
