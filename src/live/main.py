@@ -36,6 +36,75 @@ from src.strategy.thesis_manager import ThesisManager
 logger = logging.getLogger(__name__)
 
 
+def _force_first_boot_reset(broker, market_data, data_dir: str) -> None:
+    """Full reset: liquidate Alpaca → wipe local files → set today as inception.
+
+    Sequence is intentional. We liquidate FIRST so the equity figure we
+    write into the new inception.json reflects the post-reset cash balance
+    (positions become cash, modulo slippage — equity is conserved). The
+    file wipe happens AFTER liquidation but BEFORE the inception write so
+    the new inception.json doesn't get caught in the wipe.
+
+    Refuses to liquidate on a non-paper broker (defense in depth — paper
+    is hardcoded today, but a future change to enable live trading must
+    not silently break this guard).
+    """
+    from datetime import date
+    import json
+    import time
+
+    logger.warning("=" * 60)
+    logger.warning("FORCE_FIRST_BOOT=true — full reset in progress")
+    logger.warning("=" * 60)
+
+    # 1. Liquidate Alpaca (paper-only; refuses on live)
+    if broker.is_paper:
+        logger.info("Step 1/3: liquidating Alpaca paper account")
+        ok = broker.close_all_positions(cancel_orders=True)
+        if not ok:
+            logger.error(
+                "Liquidation request failed — continuing with reset anyway. "
+                "Check Alpaca dashboard for stuck positions."
+            )
+        # Brief pause to let market sells fill (no-op when market closed —
+        # orders queue as GTC and fill at next open; reconciler catches up).
+        time.sleep(2)
+    else:
+        logger.error(
+            "Broker reports non-paper account — SKIPPING liquidation. "
+            "Files will still be wiped, but Alpaca positions remain. "
+            "If this is wrong, check Broker.__init__(paper=...)."
+        )
+
+    # 2. Wipe local files
+    logger.info("Step 2/3: wiping local state files")
+    wiped = 0
+    for f in Path(data_dir).glob("*"):
+        if f.is_file():
+            f.unlink()
+            wiped += 1
+    logger.info("  Wiped %d files from %s", wiped, data_dir)
+
+    # 3. Write fresh inception.json with current equity as baseline.
+    # Both Total Return and SPY Return rebase to this date (see
+    # src/live/portfolio_state.py:_spy_return_since — same start date).
+    logger.info("Step 3/3: writing fresh inception.json")
+    try:
+        account = market_data.get_account()
+        equity = float(account.get("equity", account.get("portfolio_value", 0)))
+    except Exception as e:
+        logger.error("Could not fetch post-reset equity: %s — defaulting to 100000", e)
+        equity = 100000.0
+    inception = {"start_date": date.today().isoformat(), "initial_value": round(equity, 2)}
+    Path(data_dir).mkdir(parents=True, exist_ok=True)
+    (Path(data_dir) / "inception.json").write_text(json.dumps(inception, indent=2))
+    logger.info(
+        "  inception.json: start_date=%s, initial_value=$%.2f",
+        inception["start_date"], inception["initial_value"],
+    )
+    logger.warning("FORCE_FIRST_BOOT reset complete — bot will rebuild from clean state")
+
+
 def main() -> None:
     # Configure logging
     logging.basicConfig(
@@ -166,12 +235,8 @@ def main() -> None:
     # Force fresh start if requested (set FORCE_FIRST_BOOT=true on Railway, then remove after)
     force_first_boot = os.environ.get("FORCE_FIRST_BOOT", "").lower() == "true"
     if force_first_boot:
-        logger.info("FORCE_FIRST_BOOT=true — wiping state and starting fresh")
-        for f in Path(data_dir).glob("*"):
-            if f.is_file():
-                f.unlink()
-                logger.info("  Deleted %s", f.name)
-        # Recreate components with clean state
+        _force_first_boot_reset(broker, market_data, data_dir)
+        # Recreate components with clean state (files wiped above)
         watchlist = LiveWatchlist(path=os.path.join(data_dir, "watchlist.json"))
         universe = LiveUniverse(path=os.path.join(data_dir, "universe.json"))
         orchestrator._watchlist = watchlist
