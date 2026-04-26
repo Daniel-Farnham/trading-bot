@@ -414,6 +414,11 @@ class LiveOrchestrator:
                 portfolio_snapshot=snapshot,
             )
 
+            # Persist the full prompt to disk for audit. Lets us verify what
+            # Claude actually saw (technicals, portfolio block, candidate
+            # prices) without re-running the call.
+            self._save_call3_prompt(prompt, review_type)
+
             # Call Claude
             result = self._claude.call(prompt, model="sonnet")
             update_status("last_call3", datetime.now().isoformat())
@@ -939,6 +944,24 @@ Respond with ONLY valid JSON:
         except Exception:
             pass
         return 0.0
+
+    def _save_call3_prompt(self, prompt: str, review_type: str) -> None:
+        """Write the full Call 3 prompt to disk for audit.
+
+        Files: data/live/call3_prompts/<YYYYMMDD_HHMMSS>_<review_type>.txt
+        Failure to write is logged but never blocks the live call.
+        """
+        try:
+            data_dir = Path(self._state_path).parent
+            prompt_dir = data_dir / "call3_prompts"
+            prompt_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_type = "".join(c if c.isalnum() else "_" for c in review_type)
+            path = prompt_dir / f"{stamp}_{safe_type}.txt"
+            path.write_text(prompt)
+            logger.info("Call 3 prompt saved: %s (%d chars)", path, len(prompt))
+        except Exception as e:
+            logger.warning("Failed to save Call 3 prompt: %s", e)
 
     def _build_technicals_summary(self, extra_tickers: set[str] | None = None) -> str:
         """Build technicals for holdings + universe + extras from live Alpaca bars."""
