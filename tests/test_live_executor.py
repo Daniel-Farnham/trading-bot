@@ -53,17 +53,63 @@ def executor(broker, risk, thesis_manager):
 
 
 SAMPLE_POSITIONS = [
+    # Shape MUST match src/data/market.py:_position_to_dict() — key is 'ticker'.
     {
-        "symbol": "NVDA", "qty": "80", "avg_entry_price": "125.00",
+        "ticker": "NVDA", "qty": "80", "avg_entry_price": "125.00",
         "current_price": "155.00", "market_value": "12400.00",
         "unrealized_pl": "2400.00", "unrealized_plpc": "0.24",
     },
     {
-        "symbol": "NKE", "qty": "100", "avg_entry_price": "90.00",
+        "ticker": "NKE", "qty": "100", "avg_entry_price": "90.00",
         "current_price": "75.00", "market_value": "7500.00",
         "unrealized_pl": "-1500.00", "unrealized_plpc": "-0.167",
     },
 ]
+
+
+class TestProductionPositionShape:
+    """The executor must read positions in the shape that market.get_positions()
+    actually returns — key 'ticker', NOT 'symbol'.
+
+    Regression for the silent-close bug: before fix, every close logged
+    'not in positions' because the executor was looking up 'symbol' on dicts
+    whose ticker lives under 'ticker'. PLTR (in Alpaca) appeared invisible.
+    """
+
+    PROD_SHAPE_POSITIONS = [
+        # Matches src/data/market.py:_position_to_dict() exactly.
+        {
+            "ticker": "PLTR", "qty": 225, "avg_entry": 144.58,
+            "current_price": 135.83, "market_value": 30561.75,
+            "unrealized_pnl": -1968.75, "unrealized_pnl_pct": -0.0605,
+            "side": "long",
+        },
+        {
+            "ticker": "MU", "qty": 73, "avg_entry": 519.00,
+            "current_price": 784.05, "market_value": 57235.65,
+            "unrealized_pnl": 19348.65, "unrealized_pnl_pct": 0.5107,
+            "side": "long",
+        },
+    ]
+
+    def test_close_finds_position_by_ticker_key(self, executor, broker, thesis_manager):
+        """Close PLTR must succeed when positions are shaped as market.get_positions() returns."""
+        broker.close_position.return_value = OrderResult(success=True)
+
+        response = {"close_positions": [{"ticker": "PLTR", "reason": "thesis closed"}]}
+        trades = executor.execute_decisions(
+            response, 100000, 30000, self.PROD_SHAPE_POSITIONS,
+        )
+
+        broker.close_position.assert_called_once_with("PLTR")
+        assert len(trades) == 1
+        assert trades[0]["ticker"] == "PLTR"
+        assert trades[0]["action"] == "CLOSE"
+
+    def test_find_position_uses_ticker_key(self):
+        pos = _find_position(self.PROD_SHAPE_POSITIONS, "MU")
+        assert pos is not None
+        assert pos["ticker"] == "MU"
 
 
 class TestClosePositions:
@@ -83,13 +129,20 @@ class TestClosePositions:
         assert trades[0]["ticker"] == "NKE"
         assert trades[0]["action"] == "CLOSE"
 
-    def test_close_nonexistent_position_skipped(self, executor, broker):
+    def test_close_orphan_thesis_moves_to_watching(self, executor, broker, thesis_manager):
+        """A close for a ticker not in Alpaca is treated as already-closed:
+        the broker is not called, but the orphan thesis is moved to watching
+        so the next Call 3 doesn't see PLTR-as-active and loop forever."""
         response = {
-            "close_positions": [{"ticker": "AAPL", "reason": "not held"}],
+            "close_positions": [{"ticker": "AAPL", "reason": "thesis closed"}],
         }
         trades = executor.execute_decisions(response, 100000, 30000, SAMPLE_POSITIONS)
 
         broker.close_position.assert_not_called()
+        thesis_manager.move_to_watching.assert_called_once()
+        # First positional is the ticker
+        call_args = thesis_manager.move_to_watching.call_args
+        assert call_args.args[0] == "AAPL" or call_args.kwargs.get("ticker") == "AAPL"
         assert len(trades) == 0
 
     def test_close_failure_logged(self, executor, broker, thesis_manager):
@@ -356,7 +409,7 @@ class TestCashMathValidator:
             "close_positions": [{"ticker": "MU"}],
             "reduce_positions": [], "pyramid_positions": [],
         }
-        positions = [{"symbol": "MU", "market_value": 30000.0, "qty": 60, "current_price": 500.0}]
+        positions = [{"ticker": "MU", "market_value": 30000.0, "qty": 60, "current_price": 500.0}]
         ok, reason = executor._validate_cash_math(response, positions, 108384.53, snap)
         assert ok is True
         assert reason == ""
@@ -384,7 +437,7 @@ class TestCashMathValidator:
             "reduce_positions": [{"ticker": "MU", "new_allocation_pct": 5}],
             "pyramid_positions": [],
         }
-        positions = [{"symbol": "MU", "market_value": 50000.0, "qty": 100, "current_price": 500.0}]
+        positions = [{"ticker": "MU", "market_value": 50000.0, "qty": 100, "current_price": 500.0}]
         ok, _ = executor._validate_cash_math(response, positions, 100000.0, snap)
         assert ok is True
 
@@ -411,7 +464,7 @@ class TestCashMathValidator:
                 {"ticker": "MU", "new_allocation_pct": 18},  # +$6k delta
             ],
         }
-        positions = [{"symbol": "MU", "market_value": 12000.0, "qty": 30, "current_price": 400.0}]
+        positions = [{"ticker": "MU", "market_value": 12000.0, "qty": 30, "current_price": 400.0}]
         # $6k pyramid > $3k buying power → fail
         ok, reason = executor._validate_cash_math(response, positions, 100000.0, snap)
         assert ok is False
@@ -458,7 +511,7 @@ class TestExecutorAtomicBehavior:
             "pyramid_positions": [],
         }
         positions = [
-            {"symbol": "NVDA", "qty": "80", "avg_entry_price": "125.00",
+            {"ticker": "NVDA", "qty": "80", "avg_entry_price": "125.00",
              "current_price": "155.00", "market_value": 12400.00,
              "unrealized_pl": "0", "unrealized_plpc": "0"},
         ]
@@ -546,7 +599,7 @@ class TestFindPosition:
     def test_finds_existing(self):
         pos = _find_position(SAMPLE_POSITIONS, "NVDA")
         assert pos is not None
-        assert pos["symbol"] == "NVDA"
+        assert pos["ticker"] == "NVDA"
 
     def test_returns_none_for_missing(self):
         assert _find_position(SAMPLE_POSITIONS, "AAPL") is None

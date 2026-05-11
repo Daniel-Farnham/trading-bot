@@ -39,7 +39,6 @@ class TestIntradayShock:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
@@ -56,13 +55,13 @@ class TestIntradayShock:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
         assert result is None
 
-    def test_shock_on_watchlist_ticker(self, trigger):
+    def test_watchlist_only_ticker_does_not_trigger(self, trigger):
+        """Triggers fire only on holdings — watchlist moves are not paid Call 3 events."""
         trigger._prev_prices = {"CEG": 200.0}
         trigger._prev_prices_date = date.today()
         trigger._market.get_latest_prices.return_value = {"CEG": 160.0, "SPY": 500.0}
@@ -71,12 +70,10 @@ class TestIntradayShock:
 
         result = trigger.check(
             holdings_tickers=[],
-            watchlist_tickers=["CEG"],
             portfolio_value=100000,
         )
 
-        assert result is not None
-        assert "CEG" in result.triggered_tickers
+        assert result is None
 
     def test_shock_on_large_rally(self, trigger):
         """Intraday shock is bidirectional — a big rally is a review signal."""
@@ -88,7 +85,6 @@ class TestIntradayShock:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
@@ -105,7 +101,6 @@ class TestIntradayShock:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
@@ -123,7 +118,6 @@ class TestIntradayShock:
         # Portfolio dropped 6%
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=94000,
         )
 
@@ -142,7 +136,6 @@ class TestVolatilityDrift:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=106000,  # 6% up
         )
 
@@ -158,7 +151,6 @@ class TestVolatilityDrift:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=103000,  # 3% up — under threshold
         )
 
@@ -173,7 +165,6 @@ class TestVolatilityDrift:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=110000,
         )
 
@@ -190,7 +181,6 @@ class TestLowVol:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
@@ -206,7 +196,6 @@ class TestLowVol:
 
         result = trigger.check(
             holdings_tickers=["NVDA"],
-            watchlist_tickers=[],
             portfolio_value=100000,
         )
 
