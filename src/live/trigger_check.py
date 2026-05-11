@@ -1,10 +1,15 @@
 """Volatility trigger check for live trading.
 
-Runs every 30 min (no Claude call). Monitors holdings AND watchlist for:
-1. Intraday shock — any ticker moves >=1.5x ATR against yesterday's close
-   (either direction), or portfolio swings >=5% intraday
+Runs every 30 min (no Claude call). Monitors HOLDINGS ONLY for:
+1. Intraday shock — any held ticker moves >=1.5x ATR against yesterday's
+   close (either direction), or portfolio swings >=5% intraday
 2. Volatility drift — portfolio swung >=5% since last Call 3
 3. Low volatility — SPY HV below 30th percentile (options cheap)
+
+Watchlist tickers are intentionally NOT monitored here. Watchlist entries
+come from Call 1 discovery and are evaluated at the next Call 3 — firing a
+paid Call 3 every time a watchlist name moves was burning daily budget and
+crowding out trigger checks on actual positions.
 
 Zero cooldown. Fires Call 3 immediately if triggered.
 """
@@ -50,27 +55,23 @@ class TriggerCheck:
     def check(
         self,
         holdings_tickers: list[str],
-        watchlist_tickers: list[str],
         portfolio_value: float,
     ) -> TriggerResult | None:
         """Run all trigger checks. Returns TriggerResult or None.
 
         Args:
-            holdings_tickers: Currently held positions.
-            watchlist_tickers: Watchlisted tickers (also monitored for shocks).
+            holdings_tickers: Currently held positions. The only set we monitor.
             portfolio_value: Current portfolio value from Alpaca.
         """
-        all_tickers = list(set(holdings_tickers + watchlist_tickers))
+        # Make sure _prev_prices has yesterday's close for every held ticker.
+        # Refreshes on day change, fills in newly-bought positions.
+        self._refresh_previous_closes_if_needed(holdings_tickers)
 
-        # Make sure _prev_prices has yesterday's close for every ticker we're
-        # monitoring. Refreshes on day change, fills in newly-added tickers.
-        self._refresh_previous_closes_if_needed(all_tickers)
-
-        # Fetch current prices
-        current_prices = self._market.get_latest_prices(all_tickers + ["SPY"])
+        # Fetch current prices (+ SPY for HV)
+        current_prices = self._market.get_latest_prices(holdings_tickers + ["SPY"])
 
         # 1. Intraday shock
-        shock = self._check_intraday_shock(all_tickers, current_prices, portfolio_value)
+        shock = self._check_intraday_shock(holdings_tickers, current_prices, portfolio_value)
         if shock:
             return shock
 

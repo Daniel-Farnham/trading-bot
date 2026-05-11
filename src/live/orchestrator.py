@@ -291,7 +291,6 @@ class LiveOrchestrator:
 
             result = self._trigger.check(
                 holdings_tickers=holdings_tickers,
-                watchlist_tickers=self._watchlist.get_tickers(),
                 portfolio_value=portfolio_value,
             )
             update_status("last_trigger_check", datetime.now().isoformat())

@@ -72,7 +72,7 @@ class LiveExecutor:
             List of executed trade dicts for logging/email.
         """
         executed = []
-        position_tickers = [p.get("symbol", "") for p in positions]
+        position_tickers = [p.get("ticker", "") for p in positions]
 
         # Fetch pending orders so we don't duplicate them (e.g. OPG orders over weekend)
         pending_order_tickers = set()
@@ -88,7 +88,19 @@ class LiveExecutor:
         for close in response.get("close_positions", []):
             ticker = close.get("ticker", "")
             if ticker not in position_tickers:
-                logger.warning("Close requested for %s but not in positions", ticker)
+                # Orphan thesis: Claude wants to close a ticker that isn't in
+                # Alpaca. Move the thesis to watching so the next Call 3 doesn't
+                # see it as active and loop forever (the PLTR symptom). The
+                # broker isn't called — there's nothing to sell.
+                reason = close.get("reason") or "orphan: not in Alpaca positions"
+                logger.warning(
+                    "Close requested for %s but not in positions — "
+                    "moving orphan thesis to watching", ticker,
+                )
+                try:
+                    self._tm.move_to_watching(ticker, exit_price=0, reason=reason)
+                except Exception as e:
+                    logger.error("Failed to clean orphan thesis for %s: %s", ticker, e)
                 continue
 
             result = self._broker.close_position(ticker)
@@ -490,7 +502,7 @@ class LiveExecutor:
         if portfolio_value <= 0:
             return False, "portfolio_value is 0 — cannot evaluate"
 
-        held_by_ticker = {p.get("symbol", ""): p for p in positions}
+        held_by_ticker = {p.get("ticker", ""): p for p in positions}
 
         # Funds freed by closes
         funds_freed = 0.0
@@ -519,7 +531,7 @@ class LiveExecutor:
         # Funds used by buys (new positions excluding existing-ticker pyramids)
         # and by pyramid_positions
         funds_used = 0.0
-        held_tickers = {p.get("symbol", "") for p in positions}
+        held_tickers = {p.get("ticker", "") for p in positions}
 
         for new_pos in response.get("new_positions", []):
             ticker = new_pos.get("ticker", "")
@@ -691,8 +703,9 @@ class LiveExecutor:
 
 
 def _find_position(positions: list[dict], ticker: str) -> dict | None:
-    """Find a position dict by ticker/symbol."""
+    """Find a position dict by ticker. Positions are shaped by
+    src/data/market.py:_position_to_dict() — key is 'ticker'."""
     for p in positions:
-        if p.get("symbol", "") == ticker:
+        if p.get("ticker", "") == ticker:
             return p
     return None
